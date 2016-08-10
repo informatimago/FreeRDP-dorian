@@ -691,7 +691,7 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 {
 	char* name;
 	char* path;
-	size_t length;
+	//size_t length;
 	int ck;
 	RDPDR_SMARTCARD* device;
 	SMARTCARD_DEVICE* smartcard;
@@ -714,6 +714,8 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	smartcard->device.Init = smartcard_init;
 	smartcard->device.Free = smartcard_free;
 	smartcard->rdpcontext = pEntryPoints->rdpcontext;
+
+#if 0
 	length = strlen(smartcard->device.name);
 	smartcard->device.data = Stream_New(NULL, length + 1);
 
@@ -724,6 +726,9 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	}
 
 	Stream_Write(smartcard->device.data, "SCARD", 6);
+#else
+	smartcard->device.data = NULL;
+#endif
 	smartcard->name = NULL;
 	smartcard->path = NULL;
 
@@ -812,7 +817,7 @@ error_completed_irp_queue:
 	MessageQueue_Free(smartcard->IrpQueue);
 error_irp_queue:
 	Stream_Free(smartcard->device.data, TRUE);
-error_device_data:
+//error_device_data:
 	free(smartcard);
 	return error;
 }
