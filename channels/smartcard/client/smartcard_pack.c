@@ -1450,10 +1450,10 @@ void smartcard_trace_get_status_change_a_call(SMARTCARD_DEVICE* smartcard,
 		         index, readerState->szReader, readerState->cbAtr);
 		szCurrentState = SCardGetReaderStateString(readerState->dwCurrentState);
 		szEventState = SCardGetReaderStateString(readerState->dwEventState);
-		WLog_DBG(TAG, "\t[%"PRIu32"]: dwCurrentState: %s (0x%08"PRIX32")",
-		         index, szCurrentState, readerState->dwCurrentState);
-		WLog_DBG(TAG, "\t[%"PRIu32"]: dwEventState: %s (0x%08"PRIX32")",
-		         index, szEventState, readerState->dwEventState);
+		WLog_DBG(TAG, "\t[%"PRIu32"]: dwCurrentState: %s (activity Count: %d) (0x%08"PRIX32")",
+		         index, szCurrentState, readerState->dwEventState >> 16, readerState->dwCurrentState);
+		WLog_DBG(TAG, "\t[%"PRIu32"]: dwEventState: %s (activity Count: %d) (0x%08"PRIX32")",
+		         index, szEventState, readerState->dwEventState >> 16, readerState->dwEventState);
 		free(szCurrentState);
 		free(szEventState);
 	}
@@ -1619,10 +1619,10 @@ void smartcard_trace_get_status_change_w_call(SMARTCARD_DEVICE* smartcard,
 		         index, szReaderA, readerState->cbAtr);
 		szCurrentState = SCardGetReaderStateString(readerState->dwCurrentState);
 		szEventState = SCardGetReaderStateString(readerState->dwEventState);
-		WLog_DBG(TAG, "\t[%"PRIu32"]: dwCurrentState: %s (0x%08"PRIX32")",
-		         index, szCurrentState, readerState->dwCurrentState);
-		WLog_DBG(TAG, "\t[%"PRIu32"]: dwEventState: %s (0x%08"PRIX32")",
-		         index, szEventState, readerState->dwEventState);
+		WLog_DBG(TAG, "\t[%"PRIu32"]: dwCurrentState: %s (activity Count: %d) (0x%08"PRIX32")",
+		         index, szCurrentState, readerState->dwEventState >> 16, readerState->dwCurrentState);
+		WLog_DBG(TAG, "\t[%"PRIu32"]: dwEventState: %s (activity Count: %d) (0x%08"PRIX32")",
+		         index, szEventState, readerState->dwEventState >> 16, readerState->dwEventState);
 		free(szCurrentState);
 		free(szEventState);
 		free(szReaderA);
@@ -1676,10 +1676,10 @@ void smartcard_trace_get_status_change_return(SMARTCARD_DEVICE* smartcard,
 		szCurrentState = SCardGetReaderStateString(rgReaderState->dwCurrentState);
 		szEventState = SCardGetReaderStateString(rgReaderState->dwEventState);
 		rgbAtr = winpr_BinToHexString((BYTE*) & (rgReaderState->rgbAtr), rgReaderState->cbAtr, FALSE);
-		WLog_DBG(TAG, "\t[%"PRIu32"]: dwCurrentState: %s (0x%08"PRIX32")",
-		         index, szCurrentState, rgReaderState->dwCurrentState);
-		WLog_DBG(TAG, "\t[%"PRIu32"]: dwEventState: %s (0x%08"PRIX32")",
-		         index, szEventState, rgReaderState->dwEventState);
+		WLog_DBG(TAG, "\t[%"PRIu32"]: dwCurrentState: %s (activity Count: %d) (0x%08"PRIX32")",
+		         index, szCurrentState, readerState->dwEventState >> 16, rgReaderState->dwCurrentState);
+		WLog_DBG(TAG, "\t[%"PRIu32"]: dwEventState: %s (activity Count: %d) (0x%08"PRIX32")",
+		         index, szEventState, readerState->dwEventState >> 16, rgReaderState->dwEventState);
 		WLog_DBG(TAG, "\t[%"PRIu32"]: cbAtr: %"PRIu32" rgbAtr: %s",
 		         index, rgReaderState->cbAtr, rgbAtr);
 		free(szCurrentState);
@@ -2897,10 +2897,10 @@ void smartcard_trace_locate_cards_by_atr_a_call(SMARTCARD_DEVICE* smartcard,
 		szCurrentState = SCardGetReaderStateString(readerState->dwCurrentState);
 		szEventState = SCardGetReaderStateString(readerState->dwEventState);
 		rgbAtr = winpr_BinToHexString((BYTE*) & (readerState->rgbAtr), readerState->cbAtr, FALSE);
-		WLog_DBG(TAG, "\t[%"PRIu32"]: dwCurrentState: %s (0x%08"PRIX32")",
-		         index, szCurrentState, readerState->dwCurrentState);
-		WLog_DBG(TAG, "\t[%"PRIu32"]: dwEventState: %s (0x%08"PRIX32")",
-		         index, szEventState, readerState->dwEventState);
+		WLog_DBG(TAG, "\t[%"PRIu32"]: dwCurrentState: %s (activity Count: %d) (0x%08"PRIX32")",
+		         index, szCurrentState, readerState->dwEventState >> 16, readerState->dwCurrentState);
+		WLog_DBG(TAG, "\t[%"PRIu32"]: dwEventState: %s (activity Count: %d) (0x%08"PRIX32")",
+		         index, szEventState, readerState->dwEventState >> 16, readerState->dwEventState);
 
 		if (rgbAtr)
 		{
