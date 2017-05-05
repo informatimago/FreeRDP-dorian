@@ -35,6 +35,8 @@ typedef struct rdp_nla rdpNla;
 #include <freerdp/crypto/crypto.h>
 
 #include "transport.h"
+#include "smartcardlogon.h"
+#include "pkinit/pkinit.h"
 
 enum _NLA_STATE
 {
@@ -85,6 +87,8 @@ struct rdp_nla
 	SEC_WINNT_AUTH_IDENTITY* identity;
 	PSecurityFunctionTable table;
 	SecPkgContext_Sizes ContextSizes;
+	SEC_DELEGATION_CREDENTIALS_TYPE credType;
+	pkcs11_handle * p11handle;
 };
 
 FREERDP_LOCAL int nla_authenticate(rdpNla* nla);

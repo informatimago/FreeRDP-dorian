@@ -49,6 +49,36 @@ set(${MODULE_PREFIX}_GATEWAY_SRCS
 	${${MODULE_PREFIX}_GATEWAY_DIR}/ncacn_http.c
 	${${MODULE_PREFIX}_GATEWAY_DIR}/ncacn_http.h)
 
+set(${MODULE_PREFIX}_PKCS11_DIR "pkcs11")
+
+set(${MODULE_PREFIX}_PKCS11_SRCS
+	${${MODULE_PREFIX}_PKCS11_DIR}/cert_info.h
+	${${MODULE_PREFIX}_PKCS11_DIR}/cert_info.c
+	${${MODULE_PREFIX}_PKCS11_DIR}/cert_st.h
+	${${MODULE_PREFIX}_PKCS11_DIR}/cert_vfy.h
+	${${MODULE_PREFIX}_PKCS11_DIR}/cert_vfy.c
+	${${MODULE_PREFIX}_PKCS11_DIR}/alg_st.h
+	${${MODULE_PREFIX}_PKCS11_DIR}/base64.h
+	${${MODULE_PREFIX}_PKCS11_DIR}/base64.c
+	${${MODULE_PREFIX}_PKCS11_DIR}/uri.h
+	${${MODULE_PREFIX}_PKCS11_DIR}/uri.c
+	${${MODULE_PREFIX}_PKCS11_DIR}/error.h
+	${${MODULE_PREFIX}_PKCS11_DIR}/error.c
+	${${MODULE_PREFIX}_PKCS11_DIR}/strings.h
+	${${MODULE_PREFIX}_PKCS11_DIR}/strings.c)
+	
+set(${MODULE_PREFIX}_PKINIT_DIR "pkinit")
+
+if(GSS_FOUND)
+set(${MODULE_PREFIX}_PKINIT_SRCS
+	${${MODULE_PREFIX}_PKINIT_DIR}/autoconf.h
+	${${MODULE_PREFIX}_PKINIT_DIR}/k5-platform.h
+	${${MODULE_PREFIX}_PKINIT_DIR}/k5-json.h
+	${${MODULE_PREFIX}_PKINIT_DIR}/k5-thread.h
+	${${MODULE_PREFIX}_PKINIT_DIR}/pkinit.h
+	${${MODULE_PREFIX}_PKINIT_DIR}/pkinit.c)
+endif()
+
 set(${MODULE_PREFIX}_SRCS
 	bulk.c
 	bulk.h
@@ -128,9 +158,12 @@ set(${MODULE_PREFIX}_SRCS
 	listener.c
 	listener.h
 	peer.c
-	peer.h)
+	peer.h
+	smartcardlogon.h
+	smartcardlogon.c
+	)
 
-set(${MODULE_PREFIX}_SRCS ${${MODULE_PREFIX}_SRCS} ${${MODULE_PREFIX}_GATEWAY_SRCS})
+set(${MODULE_PREFIX}_SRCS ${${MODULE_PREFIX}_SRCS} ${${MODULE_PREFIX}_GATEWAY_SRCS} ${${MODULE_PREFIX}_PKCS11_SRCS} ${${MODULE_PREFIX}_PKINIT_SRCS} )
 
 freerdp_module_add(${${MODULE_PREFIX}_SRCS})
 

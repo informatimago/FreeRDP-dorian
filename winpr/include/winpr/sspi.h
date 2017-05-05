@@ -45,6 +45,17 @@
 typedef CHAR SEC_CHAR;
 typedef WCHAR SEC_WCHAR;
 
+typedef size_t rsize_t;
+
+#ifndef RSIZE_MAX
+#define RSIZE_MAX (SIZE_MAX >> 1)
+#endif
+
+#ifndef _ERRCODE_DEFINED
+#define _ERRCODE_DEFINED
+typedef int errno_t;
+#endif
+
 struct _SECURITY_INTEGER
 {
 	UINT32 LowPart;
@@ -588,6 +599,8 @@ typedef SecPkgCredentials_NamesW* PSecPkgCredentials_NamesW;
 #ifndef _AUTH_IDENTITY_DEFINED
 #define _AUTH_IDENTITY_DEFINED
 
+typedef struct _SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL;
+
 typedef struct _SEC_WINNT_AUTH_IDENTITY_W
 {
 	/* TSPasswordCreds */
@@ -597,8 +610,18 @@ typedef struct _SEC_WINNT_AUTH_IDENTITY_W
 	UINT32 DomainLength;
 	UINT16* Password;
 	UINT32 PasswordLength;
+
+	/* TSSmartCardCreds */
+	UINT16* Pin;
+	UINT32 PinLength;
+	SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL * CspData;
+	UINT16* UserHint;   /* OPTIONAL */
+	UINT32 UserHintLength;
+	UINT16* DomainHint; /* OPTIONAL */
+	UINT32 DomainHintLength;
+
 	UINT32 Flags;
-} SEC_WINNT_AUTH_IDENTITY_W, *PSEC_WINNT_AUTH_IDENTITY_W;
+} SEC_WINNT_AUTH_IDENTITY_W,*PSEC_WINNT_AUTH_IDENTITY_W;
 
 typedef struct _SEC_WINNT_AUTH_IDENTITY_A
 {
@@ -609,8 +632,31 @@ typedef struct _SEC_WINNT_AUTH_IDENTITY_A
 	UINT32 DomainLength;
 	BYTE* Password;
 	UINT32 PasswordLength;
+
+	/* TSSmartCardCreds */
+	UINT16* Pin;
+	UINT32 PinLength;
+	SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL * CspData;
+	UINT16* UserHint;   /* OPTIONAL */
+	UINT32 UserHintLength;
+	UINT16* DomainHint; /* OPTIONAL */
+	UINT32 DomainHintLength;
+
 	UINT32 Flags;
-} SEC_WINNT_AUTH_IDENTITY_A, *PSEC_WINNT_AUTH_IDENTITY_A;
+} SEC_WINNT_AUTH_IDENTITY_A,*PSEC_WINNT_AUTH_IDENTITY_A;
+
+struct _SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL
+{
+	UINT32 KeySpec;
+	UINT16* CardName;
+	UINT32 CardNameLength;
+	UINT16* ReaderName;
+	UINT32 ReaderNameLength;
+	UINT16* ContainerName;
+	UINT32 ContainerNameLength;
+	UINT16* CspName;
+	UINT32 CspNameLength;
+};
 
 struct _SEC_WINNT_AUTH_IDENTITY
 {
@@ -621,9 +667,27 @@ struct _SEC_WINNT_AUTH_IDENTITY
 	UINT32 DomainLength;
 	UINT16* Password;
 	UINT32 PasswordLength;
+
+	/* TSSmartCardCreds */
+	UINT16* Pin;
+	UINT32 PinLength;
+	SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL * CspData;
+	UINT16* UserHint;   /* OPTIONAL */
+	UINT32 UserHintLength;
+	UINT16* DomainHint; /* OPTIONAL */
+	UINT32 DomainHintLength;
+
 	UINT32 Flags;
 };
 typedef struct _SEC_WINNT_AUTH_IDENTITY SEC_WINNT_AUTH_IDENTITY;
+
+enum _SEC_DELEGATION_CREDENTIALS_TYPE{
+	SEC_PASSWORD_DELEGATION_CRED_TYPE = 1,
+	SEC_SMARTCARD_DELEGATION_CRED_TYPE = 2,
+
+	SEC_DEFAULT_DELEGATION_CRED_TYPE = SEC_PASSWORD_DELEGATION_CRED_TYPE
+};
+typedef enum _SEC_DELEGATION_CREDENTIALS_TYPE SEC_DELEGATION_CREDENTIALS_TYPE;
 
 #endif /* _AUTH_IDENTITY_DEFINED */
 
@@ -1134,8 +1198,16 @@ WINPR_API void sspi_SecBufferFree(PSecBuffer SecBuffer);
 
 WINPR_API int sspi_SetAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, const char* user,
                                    const char* domain, const char* password);
+WINPR_API int sspi_SetAuthIdentity_Smartcard(SEC_WINNT_AUTH_IDENTITY* identity,
+											const char* pin, const UINT32 keySpec,
+											const char* cardName, const char* readerName,
+											const char* containerName, const char* cspName,
+											const char* userHint, const char* domainHint);
 WINPR_API int sspi_CopyAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity,
                                     SEC_WINNT_AUTH_IDENTITY* srcIdentity);
+WINPR_API int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** identityCspData,
+						const UINT32 keySpec, const char* cardName, const char* readerName,
+						const char* containerName, const char* cspName);
 
 WINPR_API const char* GetSecurityStatusString(SECURITY_STATUS status);
 
