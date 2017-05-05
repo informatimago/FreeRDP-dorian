@@ -486,7 +486,7 @@ int nla_client_init(rdpNla* nla)
 		return -1;
 	}
 
-#else /* NTML SSP */
+#else /* NTLM SSP */
 	nla->status = nla->table->QuerySecurityPackageInfo(NLA_PKG_NAME, &nla->pPackageInfo);
 
 	if (nla->status != SEC_E_OK)

@@ -16,8 +16,11 @@ int TestAcquireCredentialsHandle(int argc, char* argv[])
 	SEC_WINNT_AUTH_IDENTITY identity;
 	SecurityFunctionTable* table;
 	SecPkgCredentials_Names credential_names;
+
 	sspi_GlobalInit();
+
 	table = InitSecurityInterface();
+
 	identity.User = (UINT16*) _strdup(test_User);
 	identity.Domain = (UINT16*) _strdup(test_Domain);
 	identity.Password = (UINT16*) _strdup(test_Password);
@@ -53,6 +56,7 @@ int TestAcquireCredentialsHandle(int argc, char* argv[])
 	}
 
 	sspi_GlobalFinish();
+
 	return 0;
 }
 

@@ -62,9 +62,7 @@ int TestInitializeSecurityContext(int argc, char* argv[])
 		return -1;
 	}
 
-	fContextReq = ISC_REQ_REPLAY_DETECT | ISC_REQ_SEQUENCE_DETECT | ISC_REQ_CONFIDENTIALITY |
-	              ISC_REQ_DELEGATE;
-	output_buffer = malloc(cbMaxLen);
+	fContextReq = ISC_REQ_REPLAY_DETECT | ISC_REQ_SEQUENCE_DETECT | ISC_REQ_CONFIDENTIALITY | ISC_REQ_DELEGATE;
 
 	if (!output_buffer)
 	{

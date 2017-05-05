@@ -40,7 +40,6 @@
 
 #include <gssapi/gssapi.h>
 #include <pkcs11-helper-1.0/pkcs11.h>
-
 #include "x509.h"
 
 #define MAX_KEYS_PER_SLOT 15
