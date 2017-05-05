@@ -422,7 +422,7 @@ static BOOL rdp_read_info_packet(rdpRdp* rdp, wStream* s)
 	settings->CompressionEnabled = ((flags & INFO_COMPRESSION) ? TRUE : FALSE);
 	settings->LogonNotify = ((flags & INFO_LOGONNOTIFY) ? TRUE : FALSE);
 
-	// settings for smartcard-logon
+	/* settings for smartcard-logon */
 	if (settings->SmartcardLogon)
 	{
 		settings->DisableCtrlAltDel = ((flags & INFO_DISABLECTRLALTDEL) ? TRUE : FALSE);
