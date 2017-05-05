@@ -32,6 +32,8 @@
 #include <freerdp/codec/h264.h>
 #include <freerdp/log.h>
 
+#include <libavutil/mem.h>
+
 #define TAG FREERDP_TAG("codec")
 
 /**
