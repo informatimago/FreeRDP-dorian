@@ -36,10 +36,6 @@
 
 #endif
 
-#ifdef _MSC_VER
-typedef long ssize_t;
-#endif
-
 #if !defined(_WIN32) || defined(_UWP)
 
 #ifndef SEC_ENTRY
