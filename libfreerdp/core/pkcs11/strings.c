@@ -55,6 +55,7 @@ char *clone_str(const char *str) {
 	return dst;
 }
 
+#if 0
 /* returns a uppercased clone of provided string */
 char *toupper_str(const char *str) {
 	const char *from;
@@ -190,5 +191,7 @@ char *trim(const char *str){
         else        *to='\0';
         return res;
 }
+
+#endif
 
 #endif /* __STRINGS_C_ */
