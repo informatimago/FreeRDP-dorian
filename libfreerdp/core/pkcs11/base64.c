@@ -18,6 +18,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#if 0
+
 #define __BASE64_C_
 
 #include <stdlib.h>
@@ -144,5 +146,7 @@ int base64_decode(const char *in, unsigned char *out, size_t outlen) {
 }
 
 #undef __BASE64_C_
+
+#endif
 
 /* end of file */
