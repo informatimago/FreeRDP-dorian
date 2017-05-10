@@ -27,6 +27,7 @@
 #include <config.h>
 #endif
 
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -53,6 +54,8 @@ M_EXTERN int is_empty_str(const char *str);
  */
 M_EXTERN char *clone_str(const char *str);
 
+
+#if 0
 /**
  * Duplicate a string converting all chars to upper-case
  *@param str String to be cloned & uppercassed
@@ -125,6 +128,10 @@ M_EXTERN char **split_static(const char *str,char sep, int nelems,char *dst);
  */
 M_EXTERN char *trim(const char *str);
 
+
+#endif
+
 #undef M_EXTERN
+
 
 #endif
