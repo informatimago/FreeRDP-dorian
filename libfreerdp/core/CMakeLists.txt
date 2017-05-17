@@ -178,6 +178,8 @@ if(WITH_GSSAPI)
 	freerdp_library_add(${GSS_LIBRARIES})
 endif()
 
+freerdp_library_add(dl)
+
 if(BUILD_TESTING)
 	add_subdirectory(test)
 endif()
