@@ -695,7 +695,6 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	int ck;
 	RDPDR_SMARTCARD* device;
 	SMARTCARD_DEVICE* smartcard;
-	LONG status;
 	UINT error = CHANNEL_RC_NO_MEMORY;
 	device = (RDPDR_SMARTCARD*) pEntryPoints->device;
 	name = device->Name;
@@ -740,6 +739,7 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 			smartcard->name = name;
 	}
 
+	LONG status;
 	status = SCardAddReaderName(&smartcard->thread, (LPSTR) name);
 
 	if (status != SCARD_S_SUCCESS)
