@@ -155,7 +155,6 @@ static wArrayList* g_Readers = NULL;
 static wListDictionary* g_CardHandles = NULL;
 static wListDictionary* g_CardContexts = NULL;
 static wListDictionary* g_MemoryBlocks = NULL;
-static wListDictionary* g_ReadersNames = NULL;
 
 char SMARTCARD_PNP_NOTIFICATION_A[] = "\\\\?PnP?\\Notification";
 
@@ -646,8 +645,26 @@ error_namePSC:
 	return FALSE;
 }
 
+static int PCSC_AtoiWithLength(const char* str, int length)
+{
+	int index;
+	int value = 0;
+
+	for (index = 0; index < length; ++index)
+	{
+		if (!isdigit(str[index]))
+			return -1;
+
+		value = value * 10 + (str[index] - '0');
+	}
+
+	return value;
+}
+
 char* PCSC_ConvertReaderNameToWinSCard(const char* name)
 {
+	int slot;
+	int index;
 	int size;
 	int length;
 	int ctoken;
@@ -655,6 +672,7 @@ char* PCSC_ConvertReaderNameToWinSCard(const char* name)
 	char* p, *q;
 	char* tokens[64][2];
 	char* nameWinSCard;
+	char* checkAliasName;
 
 	/**
 	 * pcsc-lite reader name format:
@@ -728,7 +746,45 @@ char* PCSC_ConvertReaderNameToWinSCard(const char* name)
 	if (ntokens < 2)
 		return NULL;
 
+	slot = index = -1;
 	ctoken = ntokens - 1;
+	slot = PCSC_AtoiWithLength(tokens[ctoken][0], (int)(tokens[ctoken][1] - tokens[ctoken][0]));
+	ctoken--;
+	index = PCSC_AtoiWithLength(tokens[ctoken][0], (int)(tokens[ctoken][1] - tokens[ctoken][0]));
+	ctoken--;
+
+	if (index < 0)
+	{
+		slot = -1;
+		index = slot;
+		ctoken++;
+	}
+
+	if ((index < 0) || (slot < 0))
+		return NULL;
+
+	if (tokens[ctoken] && tokens[ctoken][1] && *(tokens[ctoken][1] - 1) == ')')
+	{
+		while ((*(tokens[ctoken][0]) != '(') && (ctoken > 0))
+			ctoken--;
+
+		ctoken--;
+	}
+
+	if (ctoken < 1)
+		return NULL;
+
+	if (*(tokens[ctoken][1] - 1) == ']')
+	{
+		while ((*(tokens[ctoken][0]) != '[') && (ctoken > 0))
+			ctoken--;
+
+		ctoken--;
+	}
+
+	if (ctoken < 1)
+		return NULL;
+
 	p = tokens[0][0];
 	q = tokens[ctoken][1];
 	length = (q - p);
@@ -738,7 +794,23 @@ char* PCSC_ConvertReaderNameToWinSCard(const char* name)
 	if (!nameWinSCard)
 		return NULL;
 
-	sprintf_s(nameWinSCard, size, "%.*s", length, p);
+	/**
+	 * pcsc-lite appears to use an index number based on all readers,
+	 * while WinSCard uses an index number based on readers of the same name.
+	 * Set index for this reader by checking if index is already used by another reader
+	 * and incrementing until available index found.
+	 */
+	index = 0;
+	sprintf_s(nameWinSCard, size, "%.*s %d", length, p, index);
+	checkAliasName = PCSC_GetReaderNameFromAlias(nameWinSCard);
+
+	while ((checkAliasName != NULL) && (strcmp(checkAliasName, name) != 0))
+	{
+		index++;
+		sprintf_s(nameWinSCard, size, "%.*s %d", length, p, index);
+		checkAliasName = PCSC_GetReaderNameFromAlias(nameWinSCard);
+	}
+
 	return nameWinSCard;
 }
 
@@ -753,34 +825,6 @@ char* PCSC_GetReaderAliasFromName(char* namePCSC)
 	return nameWinSCard;
 }
 
-int PCSC_RedirectReader(char* readerName)
-{
-	char* name;
-	ULONG_PTR* readers;
-	int i, nbReaders;
-	nbReaders = ListDictionary_GetKeys(g_ReadersNames, &readers);
-
-	for (i = 0; i < nbReaders; i++)
-	{
-		name = ListDictionary_GetItemValue(g_ReadersNames, (void*) readers[i]);
-
-		if (name)
-		{
-			if (strcmp(name, "") == 0)
-			{
-				return 0;
-			}
-
-			if (strncmp(readerName, name, strlen(readerName)) == 0)
-			{
-				return 0;
-			}
-		}
-	}
-
-	return -1;
-}
-
 char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 {
 	int length;
@@ -788,7 +832,6 @@ char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 	DWORD cchReaders;
 	char* nameWinSCard;
 	char* namesWinSCard;
-	BOOL endReaderName = FALSE;
 	p = (char*) names;
 	cchReaders = *pcchReaders;
 	namesWinSCard = (char*) malloc(cchReaders * 2);
@@ -806,13 +849,7 @@ char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 		if (nameWinSCard)
 		{
 			length = strlen(nameWinSCard);
-
-			if (PCSC_RedirectReader(nameWinSCard) == 0)
-			{
-				CopyMemory(q, nameWinSCard, length);
-				endReaderName = TRUE;
-			}
-
+			CopyMemory(q, nameWinSCard, length);
 			free(nameWinSCard);
 		}
 		else
@@ -821,14 +858,9 @@ char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 			CopyMemory(q, p, length);
 		}
 
-		if (endReaderName)
-		{
-			q += length;
-			*q = '\0';
-			q++;
-			endReaderName = FALSE;
-		}
-
+		q += length;
+		*q = '\0';
+		q++;
 		p += strlen(p) + 1;
 	}
 
@@ -2815,27 +2847,6 @@ WINSCARDAPI LONG WINAPI PCSC_SCardAudit(SCARDCONTEXT hContext, DWORD dwEvent)
 	return 0;
 }
 
-WINSCARDAPI LONG WINAPI PCSC_SCardAddReaderName(HANDLE* key, LPSTR readerName)
-{
-	LONG status = SCARD_S_SUCCESS;
-	int count = 0;
-
-	if (!g_ReadersNames)
-	{
-		g_ReadersNames = ListDictionary_New(TRUE);
-
-		if (!g_ReadersNames)
-			return SCARD_E_NO_SERVICE;
-	}
-
-	count = ListDictionary_Count(g_ReadersNames);
-
-	if (!ListDictionary_Add(g_ReadersNames, key, readerName))
-		return SCARD_E_NO_SERVICE;
-
-	return status;
-}
-
 #ifdef __MACOSX__
 unsigned int determineMacOSXVersion()
 {
@@ -3031,8 +3042,7 @@ SCardApiFunctionTable PCSC_SCardApiFunctionTable =
 	PCSC_SCardGetReaderDeviceInstanceIdW, /* SCardGetReaderDeviceInstanceIdW */
 	PCSC_SCardListReadersWithDeviceInstanceIdA, /* SCardListReadersWithDeviceInstanceIdA */
 	PCSC_SCardListReadersWithDeviceInstanceIdW, /* SCardListReadersWithDeviceInstanceIdW */
-	PCSC_SCardAudit, /* SCardAudit */
-	PCSC_SCardAddReaderName /* SCardAddReaderName */
+	PCSC_SCardAudit /* SCardAudit */
 };
 
 PSCardApiFunctionTable PCSC_GetSCardApiFunctionTable(void)
