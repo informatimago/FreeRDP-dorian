@@ -1471,7 +1471,7 @@ int find_valid_matching_cert(rdpSettings* settings, pkcs11_handle* p11handle)
 		if (!x509) continue;  /* sanity check */
 
 		/* ensure we extract the right certificate from the list by checking
-		 * whether ID matches the one stored previously in settings */
+		 * whether ID matches the one previously stored in settings */
 		rv = match_id(settings, p11handle->certs[i]);
 
 		if (rv <= 0)     /* match error */
