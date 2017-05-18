@@ -40,7 +40,7 @@
 
 #ifdef WITH_PKCS11H
 #include "../../libfreerdp/core/smartcardlogon.h"
-#endif
+#endif // WITH_PKCS11H
 
 static BOOL freerdp_client_common_new(freerdp* instance, rdpContext* context)
 {
