@@ -912,7 +912,7 @@ CK_RV get_info_smartcard(rdpNla * nla)
 	rv = close_pkcs11_session(nla->p11handle);
 	if (rv != 0) {
 		release_pkcs11_module(nla->p11handle);
-		WLog_ERR(TAG, "close_pkcs11_session() failed: %s", get_error());
+		WLog_ERR(TAG, "close_pkcs11_session() failed: %d", rv);
 		return CKR_GENERAL_ERROR;
 	}
 
@@ -1289,7 +1289,7 @@ int find_valid_matching_cert(rdpSettings * settings, pkcs11_handle * p11handle)
 		/* verify certificate (date, signature, CRL, ...) */
 		rv = verify_certificate(x509, &p11handle->policy);
 		if (rv < 0) {
-			WLog_ERR(TAG, "verify_certificate() failed: %s", get_error());
+			WLog_ERR(TAG, "verify_certificate() failed: %d", rv);
 			switch (rv) {
 			case -2: // X509_V_ERR_CERT_HAS_EXPIRED:
 				WLog_ERR(TAG, "Error 2324: Certificate has expired");
@@ -1311,7 +1311,7 @@ int find_valid_matching_cert(rdpSettings * settings, pkcs11_handle * p11handle)
 		 * whether its id matches the id stored in settings previously */
 		rv = match_id(settings, p11handle->certs[i]);
 		if ( rv < 0 ) { /* match error; abort and return */
-			WLog_ERR(TAG, "Fail to match id(%s) : %s\n", p11handle->certs[i]->id_cert, get_error());
+			WLog_ERR(TAG, "Fail to match id(%s) : %d", p11handle->certs[i]->id_cert, rv);
 			break;
 		}
 		else if( rv == 0 ){ /* match success */
@@ -1377,10 +1377,10 @@ int get_valid_smartcard_cert(rdpNla * nla)
 		WLog_DBG(TAG, "- Algorithm: %s", name[0]); free(name[0]);
 		ret = verify_certificate(cert,&nla->p11handle->policy);
 		if (ret < 0) {
-			WLog_ERR(TAG, "verify_certificate() process error: %s", get_error());
+			WLog_ERR(TAG, "verify_certificate() process error: %d", ret);
 			goto get_error;
 		} else if (ret != 1) {
-			WLog_ERR(TAG, "verify_certificate() failed: %s", get_error());
+			WLog_ERR(TAG, "verify_certificate() failed: %d", ret);
 			continue; /* try next certificate */
 		}
 		ret = get_private_key(nla->p11handle, certs[i]);
