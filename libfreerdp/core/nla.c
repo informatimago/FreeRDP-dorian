@@ -46,6 +46,8 @@
 
 #include "nla.h"
 
+#include <pkcs11-helper-1.0/pkcs11.h>
+
 static const char * PREFIX_CONTAINER_NAME = "0x";
 static const char * PREFIX_PIN_GLOBAL = "CredProv&PIN Global&";
 
@@ -1480,7 +1482,7 @@ BOOL nla_read_ts_cspdatadetail(rdpNla * nla, wStream* s, int * length)
 		return TRUE;
 
 	/* [0] keySpec (INTEGER) */
-	if ( !ber_read_contextual_tag(s, 0, length, TRUE) ||
+	if ( !ber_read_contextual_tag(s, 0, length, TRUE) &&
 		!ber_read_integer(s, &nla->identity->CspData->KeySpec))
 		return FALSE;
 
