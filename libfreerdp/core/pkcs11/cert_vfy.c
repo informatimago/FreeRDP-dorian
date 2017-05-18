@@ -19,61 +19,6 @@
 #include <freerdp/log.h>
 #define TAG FREERDP_TAG("pkcs11.cert_vfy")
 
-#ifdef HAVE_NSS
-
-#include <cryptohi.h>
-#include "cert.h"
-#include "secutil.h"
-
-int verify_certificate(X509 * x509, cert_policy *policy)
-{
-    SECStatus rv;
-    CERTCertDBHandle *handle;
-
-    handle = CERT_GetDefaultCertDB();
-
-    /* NSS already check all the revocation info with OCSP and crls */
-    WLog_DBG(TAG, "Verifying Cert: %s (%s)", x509->nickname, x509->subjectName);
-    rv = CERT_VerifyCertNow(handle, x509, PR_TRUE, certUsageSSLClient,
-		NULL);
-    if (rv != SECSuccess) {
-	WLog_DBG(TAG, "Couldn't verify Cert: %s", SECU_Strerror(PR_GetError()));
-    }
-
-    return rv == SECSuccess ? 1 : 0;
-}
-
-int verify_signature(X509 * x509, unsigned char *data, int data_length,
-                     unsigned char *signature, int signature_length)
-{
-
-  SECKEYPublicKey *key;
-  SECOidTag algid;
-  SECStatus rv;
-  SECItem sig;
-
-  /* grab the key */
-  key = CERT_ExtractPublicKey(x509);
-  if (key == NULL) {
-	WLog_DBG(TAG, "Couldn't extract key from certificate: %s",
-		SECU_Strerror(PR_GetError()));
-	return -1;
-  }
-  /* shouldn't the algorithm be passed in? */
-  algid = SEC_GetSignatureAlgorithmOidTag(key->keyType, SEC_OID_SHA1);
-
-  sig.data = signature;
-  sig.len = signature_length;
-  rv = VFY_VerifyData(data, data_length, key, &sig, algid, NULL);
-  if (rv != SECSuccess) {
-	WLog_DBG(TAG, "Couldn't verify Signature: %s", SECU_Strerror(PR_GetError()));
-  }
-  SECKEY_DestroyPublicKey(key);
-  return (rv == SECSuccess)? 0 : 1;
-}
-
-#else
-
 #define __CERT_VFY_C_
 
 #include <string.h>
@@ -493,4 +438,3 @@ int verify_signature(X509 * x509, unsigned char *data, int data_length,
   WLog_DBG(TAG, "signature is valid");
   return 0;
 }
-#endif
