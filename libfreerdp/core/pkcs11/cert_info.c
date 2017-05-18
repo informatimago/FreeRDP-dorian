@@ -433,6 +433,7 @@ static char **cert_info_sshpuk(X509 *x509) {
 	const char *type;
 	char *buf;
 	unsigned char *blob,*pt,*data = NULL;
+	unsigned char * tmp=NULL;
 	int data_len;
 	int res;
 	static char *entries[2] = { NULL,NULL };
@@ -485,11 +486,13 @@ static char **cert_info_sshpuk(X509 *x509) {
 		WLog_DBG(TAG, "calloc() to uuencode buffer '%d'",data_len);
 		goto sshpuk_fail;
 	}
-	res= base64_encode(blob,pt-blob,data,(size_t *) &data_len);
-	if (res<0) {
+	tmp = data;
+	data = crypto_base64_encode(blob, pt-blob);
+	if (data!=NULL) {
 		WLog_DBG(TAG, "BASE64 Encode failed");
 		goto sshpuk_fail;
 	}
+	data_len = data - tmp;
 	/* retrieve email from certificate and compose ssh-key string */
 	maillist= cert_info_email(x509);
 	res=0;
