@@ -24,9 +24,7 @@
 
 #include <config.h>
 #include <stdarg.h>
-#ifndef HAVE_NSS
 #include <openssl/err.h>
-#endif
 #include <errno.h>
 
 /** Default error message buffer size */
