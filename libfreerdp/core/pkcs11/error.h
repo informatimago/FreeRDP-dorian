@@ -18,8 +18,6 @@
 #ifndef __ERROR_H_
 #define __ERROR_H_
 
-#if 1
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -54,7 +52,4 @@ ERROR_EXTERN void set_error(const char *format, ...);
 ERROR_EXTERN const char *get_error(void);
 
 #undef ERROR_EXTERN
-
-#endif
-
 #endif /* __ERROR_H_ */

@@ -19,7 +19,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#if 1
 #define __ERROR_C_
 
 static char error_buffer[ERROR_BUFFER_SIZE] = "";
@@ -45,5 +44,3 @@ void set_error(const char *format, ...) {
 const char *get_error(void) {
   return (const char *)error_buffer;
 }
-
-#endif
