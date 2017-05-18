@@ -34,6 +34,7 @@
 #include <config.h>
 #endif
 #include <stdlib.h>
+#include <errno.h>
 
 #ifndef __URI_C_
 #define URI_EXTERN extern
