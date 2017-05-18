@@ -40,7 +40,7 @@ static X509_CRL *download_crl(const char *uri)
 
   rv = get_from_uri(uri, &data, &data_len);
   if (rv != 0) {
-    set_error("get_from_uri() failed: %s", get_error());
+    WLog_ERR(TAG, "get_from_uri() failed: %d", rv);
     return NULL;
   }
   /* convert base64 to der if needed */
@@ -59,14 +59,14 @@ static X509_CRL *download_crl(const char *uri)
     der = malloc(der_len);
     if (der == NULL) {
       free(data);
-      set_error("not enough free memory available");
+      WLog_ERR(TAG, "not enough free memory available");
       return NULL;
     }
     data[j] = 0;
     der_len = base64_decode((const char *)&data[i + 24], der, der_len);
     free(data);
     if (der_len <= 0) {
-      set_error("invalid base64 (pem) format");
+    	WLog_ERR(TAG, "invalid base64 (pem) format");
       return NULL;
     }
     p = der;
@@ -80,7 +80,7 @@ static X509_CRL *download_crl(const char *uri)
     free(data);
   }
   if (crl == NULL)
-    set_error("d2i_X509_CRL() failed");
+	  WLog_ERR(TAG, "d2i_X509_CRL() failed");
   return crl;
 }
 
@@ -93,20 +93,20 @@ static int verify_crl(X509_CRL * crl, X509_STORE_CTX * ctx)
   /* get issuer certificate */
   rv = X509_STORE_get_by_subject(ctx, X509_LU_X509, X509_CRL_get_issuer(crl), &obj);
   if (rv <= 0) {
-    set_error("getting the certificate of the crl-issuer failed");
+	  WLog_ERR(TAG, "getting the certificate of the crl-issuer failed");
     return -1;
   }
   /* extract public key and verify signature */
   pkey = X509_get_pubkey(obj.data.x509);
   X509_OBJECT_free_contents(&obj);
   if (pkey == NULL) {
-    set_error("getting the issuer's public key failed");
+	  WLog_ERR(TAG, "getting the issuer's public key failed");
     return -1;
   }
   rv = X509_CRL_verify(crl, pkey);
   EVP_PKEY_free(pkey);
   if (rv < 0) {
-    set_error("X509_CRL_verify() failed: %s", ERR_error_string(ERR_get_error(), NULL));
+	  WLog_ERR(TAG, "X509_CRL_verify() failed: %s", ERR_error_string(ERR_get_error(), NULL));
     return -1;
   } else if (rv == 0) {
     WLog_DBG(TAG, "crl is invalid");
@@ -115,7 +115,7 @@ static int verify_crl(X509_CRL * crl, X509_STORE_CTX * ctx)
   /* compare update times */
   rv = X509_cmp_current_time(X509_CRL_get_lastUpdate(crl));
   if (rv == 0) {
-    set_error("crl has an invalid last update field");
+	  WLog_ERR(TAG, "crl has an invalid last update field");
     return -1;
   }
   if (rv > 0) {
@@ -124,7 +124,7 @@ static int verify_crl(X509_CRL * crl, X509_STORE_CTX * ctx)
   }
   rv = X509_cmp_current_time(X509_CRL_get_nextUpdate(crl));
   if (rv == 0) {
-    set_error("crl has an invalid next update field");
+	  WLog_ERR(TAG, "crl has an invalid next update field");
     return -1;
   }
   if (rv < 0) {
@@ -160,7 +160,7 @@ static int check_for_revocation(X509 * x509, X509_STORE_CTX * ctx, crl_policy_t 
     /* AUTO -> first try it ONLINE then OFFLINE */
     rv = check_for_revocation(x509, ctx, CRLP_ONLINE);
     if (rv < 0) {
-      WLog_DBG(TAG, "check_for_revocation() failed: %s", get_error());
+      WLog_DBG(TAG, "check_for_revocation() failed: %d", rv);
       rv = check_for_revocation(x509, ctx, CRLP_OFFLINE);
     }
     return rv;
@@ -169,7 +169,7 @@ static int check_for_revocation(X509 * x509, X509_STORE_CTX * ctx, crl_policy_t 
     WLog_DBG(TAG, "looking for an dedicated local crl");
     rv = X509_STORE_get_by_subject(ctx, X509_LU_CRL, X509_get_issuer_name(x509), &obj);
     if (rv <= 0) {
-      set_error("no dedicated crl available");
+    	WLog_ERR(TAG, "no dedicated crl available");
       return -1;
     }
     crl = X509_CRL_dup(obj.data.crl);
@@ -182,13 +182,13 @@ static int check_for_revocation(X509 * x509, X509_STORE_CTX * ctx, crl_policy_t 
       /* if there is not crl distribution point in the certificate hava a look at the ca certificate */
       rv = X509_STORE_get_by_subject(ctx, X509_LU_X509, X509_get_issuer_name(x509), &obj);
       if (rv <= 0) {
-        set_error("no dedicated ca certificate available");
+    	  WLog_ERR(TAG, "no dedicated ca certificate available");
         return -1;
       }
       dist_points = X509_get_ext_d2i(obj.data.x509, NID_crl_distribution_points, NULL, NULL);
       X509_OBJECT_free_contents(&obj);
       if (dist_points == NULL) {
-        set_error("neither the user nor the ca certificate does contain a crl distribution point");
+    	  WLog_ERR(TAG, "neither the user nor the ca certificate does contain a crl distribution point");
         return -1;
       }
     }
@@ -210,18 +210,18 @@ static int check_for_revocation(X509 * x509, X509_STORE_CTX * ctx, crl_policy_t 
             if (crl != NULL)
               break;
             else
-              WLog_DBG(TAG, "download_crl() failed: %s", get_error());
+              WLog_DBG(TAG, "download_crl() failed: %d", rv);
           }
         }
       }
     }
     sk_DIST_POINT_pop_free(dist_points, DIST_POINT_free);
     if (crl == NULL) {
-      set_error("downloading the crl failed for all distribution points");
+    	WLog_ERR(TAG, "downloading the crl failed for all distribution points");
       return -1;
     }
   } else {
-    set_error("policy %d is not supported", policy);
+	  WLog_ERR(TAG, "policy %d is not supported", policy);
     return -1;
   }
   /* verify the crl and check whether the certificate is revoked or not */
@@ -229,7 +229,7 @@ static int check_for_revocation(X509 * x509, X509_STORE_CTX * ctx, crl_policy_t 
   rv = verify_crl(crl, ctx);
   if (rv < 0) {
     X509_CRL_free(crl);
-    set_error("verify_crl() failed: %s", get_error());
+    WLog_ERR(TAG, "verify_crl() failed: %d", rv);
     return -1;
   } else if (rv == 0) {
     return 0;
@@ -244,12 +244,12 @@ static int add_hash( X509_LOOKUP *lookup, const char *dir) {
   int rv=0;
   rv = X509_LOOKUP_add_dir(lookup,dir, X509_FILETYPE_PEM);
   if (rv != 1) { /* load all hash links in PEM format */
-    set_error("X509_LOOKUP_add_dir(PEM) failed: %s", ERR_error_string(ERR_get_error(), NULL));
+	  WLog_ERR(TAG, "X509_LOOKUP_add_dir(PEM) failed: %s", ERR_error_string(ERR_get_error(), NULL));
     return -1;
   }
   rv = X509_LOOKUP_add_dir(lookup, dir, X509_FILETYPE_ASN1);
   if (rv != 1) { /* load all hash links in ASN1 format */
-    set_error("X509_LOOKUP_add_dir(ASN1) failed: %s", ERR_error_string(ERR_get_error(), NULL));
+	  WLog_ERR(TAG, "X509_LOOKUP_add_dir(ASN1) failed: %s", ERR_error_string(ERR_get_error(), NULL));
     return -1;
   }
   return 1;
@@ -262,7 +262,7 @@ static int add_file( X509_LOOKUP *lookup, const char *file) {
   WLog_DBG(TAG, "File format is not PEM: trying ASN1");
   rv = X509_LOOKUP_load_file(lookup,file, X509_FILETYPE_ASN1);
   if(rv!=1) {
-    set_error("X509_LOOKUP_load_file(ASN1) failed: %s", ERR_error_string(ERR_get_error(), NULL));
+	  WLog_ERR(TAG, "X509_LOOKUP_load_file(ASN1) failed: %s", ERR_error_string(ERR_get_error(), NULL));
     return -1; /* neither PEM nor ASN1 format: return error */
   }
   return 1;
@@ -276,7 +276,7 @@ static X509_STORE * setup_store(cert_policy *policy) {
   /* setup the x509 store to verify the certificate */
   store = X509_STORE_new();
   if (store == NULL) {
-    set_error("X509_STORE_new() failed: %s", ERR_error_string(ERR_get_error(), NULL));
+	  WLog_ERR(TAG, "X509_STORE_new() failed: %s", ERR_error_string(ERR_get_error(), NULL));
     return NULL;
   }
 
@@ -286,7 +286,7 @@ static X509_STORE * setup_store(cert_policy *policy) {
     lookup = X509_STORE_add_lookup(store,X509_LOOKUP_hash_dir());
     if (!lookup) {
       X509_STORE_free(store);
-      set_error("X509_STORE_add_lookup(hash_dir) failed: %s", ERR_error_string(ERR_get_error(), NULL));
+      WLog_ERR(TAG, "X509_STORE_add_lookup(hash_dir) failed: %s", ERR_error_string(ERR_get_error(), NULL));
       return NULL;
     }
   }
@@ -312,7 +312,7 @@ static X509_STORE * setup_store(cert_policy *policy) {
     lookup = X509_STORE_add_lookup(store,X509_LOOKUP_file());
     if (!lookup) {
       X509_STORE_free(store);
-      set_error("X509_STORE_add_lookup(file) failed: %s", ERR_error_string(ERR_get_error(), NULL));
+      WLog_ERR(TAG, "X509_STORE_add_lookup(file) failed: %s", ERR_error_string(ERR_get_error(), NULL));
       return NULL;
     }
   }
@@ -334,7 +334,7 @@ static X509_STORE * setup_store(cert_policy *policy) {
   return store;
 
 add_store_error:
-  WLog_DBG(TAG, "setup_store() error: '%s'",get_error());
+  WLog_DBG(TAG, "setup_store() error: %d", rv);
   X509_LOOKUP_free(lookup);
   X509_STORE_free(store);
   return NULL;
@@ -358,14 +358,14 @@ int verify_certificate(X509 * x509, cert_policy *policy)
   /* setup the x509 store to verify the certificate */
   store = setup_store(policy);
   if (store == NULL) {
-    set_error("setup_store() failed: %s", ERR_error_string(ERR_get_error(), NULL));
+	  WLog_ERR(TAG, "setup_store() failed: %s", ERR_error_string(ERR_get_error(), NULL));
     return -1;
   }
 
   ctx = X509_STORE_CTX_new();
   if (ctx == NULL) {
     X509_STORE_free(store);
-    set_error("X509_STORE_CTX_new() failed: %s", ERR_error_string(ERR_get_error(), NULL));
+    WLog_ERR(TAG, "X509_STORE_CTX_new() failed: %s", ERR_error_string(ERR_get_error(), NULL));
     return -1;
   }
   X509_STORE_CTX_init(ctx, store, x509, NULL);
@@ -377,7 +377,7 @@ int verify_certificate(X509 * x509, cert_policy *policy)
   if (rv != 1) {
     X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
-    set_error("certificate is invalid: %s", X509_verify_cert_error_string(ctx->error));
+    WLog_ERR(TAG, "certificate is invalid: %s", X509_verify_cert_error_string(ctx->error));
 		switch (ctx->error) {
 			case X509_V_ERR_CERT_HAS_EXPIRED:
 				rv = -2;
@@ -403,7 +403,7 @@ int verify_certificate(X509 * x509, cert_policy *policy)
   X509_STORE_CTX_free(ctx);
   X509_STORE_free(store);
   if (rv < 0) {
-    set_error("check_for_revocation() failed: %s", get_error());
+	  WLog_ERR(TAG, "check_for_revocation() failed: %d", rv);
     return -1;
   } else if (rv == 0) {
     WLog_DBG(TAG, "certificate has been revoked");
@@ -423,7 +423,7 @@ int verify_signature(X509 * x509, unsigned char *data, int data_length,
   /* get the public-key */
   pubkey = X509_get_pubkey(x509);
   if (pubkey == NULL) {
-    set_error("X509_get_pubkey() failed: %s", ERR_error_string(ERR_get_error(), NULL));
+	  WLog_ERR(TAG, "X509_get_pubkey() failed: %s", ERR_error_string(ERR_get_error(), NULL));
     return -1;
   }
   /* verify the signature */
@@ -432,7 +432,7 @@ int verify_signature(X509 * x509, unsigned char *data, int data_length,
   rv = EVP_VerifyFinal(&md_ctx, signature, signature_length, pubkey);
   EVP_PKEY_free(pubkey);
   if (rv != 1) {
-    set_error("EVP_VerifyFinal() failed: %s", ERR_error_string(ERR_get_error(), NULL));
+	  WLog_ERR(TAG, "EVP_VerifyFinal() failed: %s", ERR_error_string(ERR_get_error(), NULL));
     return -1;
   }
   WLog_DBG(TAG, "signature is valid");
