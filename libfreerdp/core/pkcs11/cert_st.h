@@ -25,18 +25,8 @@
 
 typedef struct cert_policy_st cert_policy;
 
-#ifdef HAVE_NSS
-#include <cert.h>
-#include <secoidt.h>
-typedef SECOidTag ALGORITHM_TYPE;
-#define ALGORITHM_NULL  SEC_OID_UNKNOWN
-/* we really should make a neutral define for this */
-#define X509 CERTCertificate
-#else
 #include <openssl/x509.h>
 typedef const char *ALGORITHM_TYPE;
 #define ALGORITHM_NULL  NULL
-#endif
-
 
 #endif /* _CERT_ST_H */
