@@ -38,9 +38,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-#ifdef WITH_GSSAPI
 #include <gssapi/gssapi.h>
-#endif
 
 #include <pkcs11-helper-1.0/pkcs11.h>
 #include "pkcs11/cert_info.h"
