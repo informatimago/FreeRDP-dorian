@@ -23,6 +23,18 @@
 #include <config.h>
 #endif
 
+
+#ifdef HAVE_NSS
+#include <secoid.h>
+#include <sechash.h>
+typedef SECHashObject ALGDIGEST;
+#define ALGORITHM_SHA512 SEC_OID_SHA512
+#define ALGORITHM_SHA384 SEC_OID_SHA385
+#define ALGORITHM_SHA256 SEC_OID_SHA256
+#define ALGORITHM_SHA1  SEC_OID_SHA1
+#define ALGORITHM_MD5  SEC_OID_MD5
+#define ALGORITHM_MD2  SEC_OID_MD2
+#else
 #include <openssl/evp.h>
 typedef EVP_MD ALGDIGEST;
 #define ALGORITHM_SHA512 "sha512"
@@ -31,6 +43,7 @@ typedef EVP_MD ALGDIGEST;
 #define ALGORITHM_SHA1  "sha1"
 #define ALGORITHM_MD5  "md5"
 #define ALGORITHM_MD2  "md2"
+#endif
 
 ALGORITHM_TYPE Alg_get_alg_from_string(const char *);
 /* EVP_get_digestbyname */

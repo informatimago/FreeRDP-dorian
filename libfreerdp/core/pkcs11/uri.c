@@ -23,7 +23,6 @@
 
 #include "uri.h"
 #include "error.h"
-#include <errno.h>
 #include "strings.h"
 
 #include <freerdp/log.h>
@@ -82,11 +81,74 @@ int is_symlink(const char *path){
 }
 
 
+#ifdef HAVE_CURL_CURL_H
+
+#include <curl/curl.h>
+
+/* curl call-back data */
+struct curl_data_s {
+    unsigned char *data;
+    size_t length;
+};
+
+/* curl call-back function */
+static size_t curl_get(void *ptr, size_t size, size_t nmemb, void *stream) {
+    struct curl_data_s *cd = (struct curl_data_s*)stream;
+    unsigned char *p;
+
+    size *= nmemb;
+    p = realloc(cd->data, cd->length + size);
+    if (p == NULL) {
+      free(cd->data);
+      cd->data = NULL;
+      cd->length = 0;
+      return 0;
+    }
+    cd->data = p;
+    memcpy(&cd->data[cd->length], ptr, size);
+    cd->length += size;
+    return size;
+}
+
+int get_from_uri(const char *uri_str, unsigned char **data, size_t *length) {
+  int rv;
+  CURL *curl;
+  char curl_error[CURL_ERROR_SIZE] = "0";
+  struct curl_data_s curl_data =  { NULL, 0};
+  /* init curl */
+  curl = curl_easy_init();
+  if (curl == NULL) {
+    set_error("get_easy_init() failed");
+    return -1;
+  }
+  curl_easy_setopt(curl, CURLOPT_URL, uri_str);
+  curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_error);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_get);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&curl_data);
+  /* download data */
+  rv = curl_easy_perform(curl);
+  curl_easy_cleanup(curl);
+  if (rv != 0) {
+    set_error("curl_easy_perform() failed: %s (%d)", curl_error, rv);
+    return -1;
+  }
+  /* copy data */
+  *data = curl_data.data;
+  *length = curl_data.length;
+  return 0;
+}
+
+#else
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
+
+#ifdef HAVE_LDAP
+#include <ldap.h>
+#endif
 
 typedef enum { unknown = 0, file, http, ldap } scheme_t;
 
@@ -104,6 +166,9 @@ typedef struct {
 typedef struct {
   scheme_t scheme;
   generic_uri_t *file, *http;
+#ifdef HAVE_LDAP
+  LDAPURLDesc *ldap;
+#endif
 } uri_t;
 
 static void free_uri(uri_t *uri) {
@@ -115,6 +180,10 @@ static void free_uri(uri_t *uri) {
     if(uri->http)
       free(uri->http->data);
     free(uri->http);
+#ifdef HAVE_LDAP
+    if(uri->ldap)
+      ldap_free_urldesc(uri->ldap);
+#endif
     free(uri);
   }
 }
@@ -125,7 +194,7 @@ static int parse_generic_uri(const char *in, generic_uri_t **out)
 
   *out = malloc(sizeof(generic_uri_t));
   if (*out == NULL) {
-	  WLog_ERR(TAG, "not enough free memory available");
+    set_error("not enough free memory available");
     return -1;
   }
   memset(*out, 0, sizeof(generic_uri_t));
@@ -133,7 +202,7 @@ static int parse_generic_uri(const char *in, generic_uri_t **out)
   if ((*out)->data == NULL) {
     free(*out);
     *out = NULL;
-    WLog_ERR(TAG, "not enough free memory available");
+    set_error("not enough free memory available");
     return -1;
   }
   /* get protocol */
@@ -143,7 +212,7 @@ static int parse_generic_uri(const char *in, generic_uri_t **out)
     free((*out)->data);
     free(*out);
     *out = NULL;
-    WLog_ERR(TAG, "no protocol defined");
+    set_error("no protocol defined");
     return -1;
   }
   *p = 0;
@@ -194,30 +263,57 @@ static int parse_generic_uri(const char *in, generic_uri_t **out)
   return 0;
 }
 
+#ifdef HAVE_LDAP
+static int parse_ldap_uri(const char *in, LDAPURLDesc ** out)
+{
+  if (ldap_url_parse(in, out) != 0) {
+    set_error("ldap_url_parse() failed");
+    return -1;
+  }
+  WLog_DBG(TAG, "protocol = [%s]", (*out)->lud_scheme);
+  WLog_DBG(TAG, "host = [%s]", (*out)->lud_host);
+  WLog_DBG(TAG, "port = [%d]", (*out)->lud_port);
+  WLog_DBG(TAG, "base = [%s]", (*out)->lud_dn);
+  WLog_DBG(TAG, "attributes = [%s]", (*out)->lud_attrs ? (*out)->lud_attrs[0] : NULL);
+  WLog_DBG(TAG, "filter = [%s]", (*out)->lud_filter);
+  return 0;
+}
+#endif
+
 static int parse_uri(const char *str, uri_t **uri)
 {
   int rv;
 
   *uri = malloc(sizeof(uri_t));
   if (*uri == NULL) {
-	  WLog_ERR(TAG, "not enough free memory available");
+    set_error("not enough free memory available");
     return -1;
   }
   memset(*uri, 0, sizeof(uri_t));
   /* parse uri depending on the scheme */
   if (strchr(str, ':') == NULL) {
-	  WLog_ERR(TAG, "no scheme defined");
+    set_error("no scheme defined");
     rv = -1;
   } else if (!strncmp(str, "file:", 5)) {
     (*uri)->scheme = file;
     rv = parse_generic_uri(str, &(*uri)->file);
     if (rv != 0)
-    	WLog_ERR(TAG, "parse_generic_uri() failed: %s", get_error());
+      set_error("parse_generic_uri() failed: %s", get_error());
   } else if (!strncmp(str, "http:", 5)) {
     (*uri)->scheme = http;
     rv = parse_generic_uri(str, &(*uri)->http);
     if (rv != 0)
-    	WLog_ERR(TAG, "parse_generic_uri() failed: %s", get_error());
+      set_error("parse_generic_uri() failed: %s", get_error());
+  } else if (!strncmp(str, "ldap:", 5)) {
+#ifdef HAVE_LDAP
+    (*uri)->scheme = ldap;
+    rv = parse_ldap_uri(str, &(*uri)->ldap);
+    if (rv != 0)
+      set_error("parse_ldap_uri() failed: %s", get_error());
+#else
+    rv = -1;
+    set_error("Compiled without ldap support");
+#endif
   } else {
     (*uri)->scheme = unknown;
     rv = 0;
@@ -238,20 +334,20 @@ static int get_file(uri_t *uri, unsigned char **data, ssize_t * length)
   WLog_DBG(TAG, "opening...");
   fd = open(uri->file->path, O_RDONLY);
   if (fd == -1) {
-    WLog_ERR(TAG, "open() failed: %s", strerror(errno));
+    set_error("open() failed: %s", strerror(errno));
     return -1;
   }
   /* get file size and allocate memory */
   *length = (ssize_t) lseek(fd, 0, SEEK_END);
   if (*length == -1) {
     close(fd);
-    WLog_ERR(TAG, "lseek() failed: %s", strerror(errno));
+    set_error("lseek() failed: %s", strerror(errno));
     return -1;
   }
   *data = malloc(*length);
   if (*data == NULL) {
     close(fd);
-    WLog_ERR(TAG, "not enough free memory available");
+    set_error("not enough free memory available");
     return -1;
   }
   lseek(fd, 0, SEEK_SET);
@@ -263,7 +359,7 @@ static int get_file(uri_t *uri, unsigned char **data, ssize_t * length)
     if (rv <= 0) {
       free(*data);
       close(fd);
-      WLog_ERR(TAG, "read() failed: %s", strerror(errno));
+      set_error("read() failed: %s", strerror(errno));
       return -1;
     }
     len += rv;
@@ -289,13 +385,13 @@ static int get_http(uri_t *uri, unsigned char **data, size_t *length, int rec_le
     uri->http->port = "80";
   rv = getaddrinfo(uri->http->host, uri->http->port, &hint, &info);
   if (rv != 0) {
-	  WLog_ERR(TAG, "getaddrinfo() failed: %s", gai_strerror(rv));
+    set_error("getaddrinfo() failed: %s", gai_strerror(rv));
     return -1;
   }
   sock = socket(info->ai_family, info->ai_socktype, info->ai_protocol);
   if (sock == -1) {
     freeaddrinfo(info);
-    WLog_ERR(TAG, "socket() failed: %s", strerror(errno));
+    set_error("socket() failed: %s", strerror(errno));
     return -1;
   }
   WLog_DBG(TAG, "connecting...");
@@ -303,14 +399,14 @@ static int get_http(uri_t *uri, unsigned char **data, size_t *length, int rec_le
   freeaddrinfo(info);
   if (rv == -1) {
     close(sock);
-    WLog_ERR(TAG, "connect() failed: %s", strerror(errno));
+    set_error("connect() failed: %s", strerror(errno));
     return -1;
   }
   /* send http 1.0 request */
   request = malloc(32 + strlen(uri->http->path) + strlen(uri->http->host));
   if (request == NULL) {
     close(sock);
-    WLog_ERR(TAG, "not enough free memory available");
+    set_error("not enough free memory available");
     return -1;
   }
   sprintf(request, "GET %s HTTP/1.0\nHost: %s\n\n\n", uri->http->path, uri->http->host);
@@ -319,7 +415,7 @@ static int get_http(uri_t *uri, unsigned char **data, size_t *length, int rec_le
   free(request);
   if (rv != len) {
     close(sock);
-    WLog_ERR(TAG, "send() failed: %s", strerror(errno));
+    set_error("send() failed: %s", strerror(errno));
     return -1;
   }
   /* receive response */
@@ -328,7 +424,7 @@ static int get_http(uri_t *uri, unsigned char **data, size_t *length, int rec_le
   buf = malloc(bufsize);
   if (buf == NULL) {
     close(sock);
-    WLog_ERR(TAG, "not enough free memory available");
+    set_error("not enough free memory available");
     return -1;
   }
   len = 0;
@@ -337,7 +433,7 @@ static int get_http(uri_t *uri, unsigned char **data, size_t *length, int rec_le
     if (rv == -1) {
       close(sock);
       free(buf);
-      WLog_ERR(TAG, "recv() failed: %s", strerror(errno));
+      set_error("recv() failed: %s", strerror(errno));
       return -1;
     }
     len += rv;
@@ -346,7 +442,7 @@ static int get_http(uri_t *uri, unsigned char **data, size_t *length, int rec_le
       if (b == NULL) {
         close(sock);
         free(buf);
-        WLog_ERR(TAG, "not enough free memory available");
+        set_error("not enough free memory available");
         return -1;
       }
       buf = b;
@@ -357,7 +453,7 @@ static int get_http(uri_t *uri, unsigned char **data, size_t *length, int rec_le
   WLog_DBG(TAG, "decoding...");
   if (sscanf((char *)buf, "HTTP/%d.%d %d", &i, &j, &rv) != 3) {
     free(buf);
-    WLog_ERR(TAG, "got a malformed http response from the server");
+    set_error("got a malformed http response from the server");
     return -1;
   }
   /* decode result */
@@ -372,20 +468,20 @@ static int get_http(uri_t *uri, unsigned char **data, size_t *length, int rec_le
     /* maximal 5 redirections are allowed */
     if (rec_level > 5) {
       free(buf);
-      WLog_ERR(TAG, "to many redirections occurred");
+      set_error("to many redirections occurred");
       return -1;
     }
     rv = parse_uri((char *)&buf[i], &ruri);
     if (rv != 0) {
       free(ruri);
       free(buf);
-      WLog_ERR(TAG, "parse_uri() failed: %s", get_error());
+      set_error("parse_uri() failed: %s", get_error());
       return -1;
     }
     if (ruri->scheme != http) {
       free(ruri);
       free(buf);
-      WLog_ERR(TAG, "redirection uri is invalid that is not of the scheme http");
+      set_error("redirection uri is invalid that is not of the scheme http");
       return -1;
     }
     /* downlaod recursively */
@@ -395,7 +491,7 @@ static int get_http(uri_t *uri, unsigned char **data, size_t *length, int rec_le
     return rv;
   } else if (rv != 200) {
     free(buf);
-    WLog_ERR(TAG, "http get command failed with error %d", rv);
+    set_error("http get command failed with error %d", rv);
     return -1;
   }
   /* ... skip rest of the header */
@@ -413,19 +509,83 @@ static int get_http(uri_t *uri, unsigned char **data, size_t *length, int rec_le
   *length = len - i;
   if (*length == 0) {
     free(buf);
-    WLog_ERR(TAG, "no data received");
+    set_error("no data received");
     return -1;
   }
   *data = malloc(*length);
   if (*data == NULL) {
     free(buf);
-    WLog_ERR(TAG, "not enough free memory available");
+    set_error("not enough free memory available");
     return -1;
   }
   memcpy(*data, &buf[i], *length);
   free(buf);
   return 0;
 }
+
+#ifdef HAVE_LDAP
+static int get_ldap(uri_t *uri, unsigned char **data, size_t *length)
+{
+  int rv;
+  LDAP *ldap;
+  LDAPMessage *msg;
+  struct berval **vals;
+  BerElement *berptr;
+
+  *length = 0;
+  *data = NULL;
+  /* bind to the ldap server */
+  WLog_DBG(TAG, "connecting...");
+  ldap = ldap_init(uri->ldap->lud_host, uri->ldap->lud_port);
+  if (ldap == NULL) {
+    ldap_unbind_s(ldap);
+    set_error("ldap_init() failed: %s", strerror(errno));
+    return -1;
+  }
+  rv = ldap_simple_bind_s(ldap, NULL, NULL);
+  if (rv != LDAP_SUCCESS) {
+    ldap_unbind_s(ldap);
+    set_error("ldap_simple_bind_s() failed: %s", ldap_err2string(rv));
+    return -1;
+  }
+  /* search an item */
+  WLog_DBG(TAG, "searching...");
+  rv = ldap_search_s(ldap, uri->ldap->lud_dn, uri->ldap->lud_scope,
+                     uri->ldap->lud_filter, uri->ldap->lud_attrs, 0, &msg);
+  if (rv != LDAP_SUCCESS) {
+    ldap_unbind_s(ldap);
+    set_error("ldap_search_s() failed: %s", ldap_err2string(rv));
+    return -1;
+  }
+  vals = ldap_get_values_len(ldap, msg, ldap_first_attribute(ldap, msg, &berptr));
+  ber_free(berptr, 0);
+  if (vals == NULL) {
+    ldap_value_free_len(vals);
+    ldap_msgfree(msg);
+    ldap_unbind_s(ldap);
+    ldap_get_option(ldap, LDAP_OPT_ERROR_NUMBER, &rv);
+    set_error("ldap_ldap_get_values_len() failed: %s", ldap_err2string(rv));
+    return -1;
+  }
+  /* allocate memory and copy the item */
+  WLog_DBG(TAG, "copying data...");
+  *length = (*vals)->bv_len;
+  *data = malloc(*length);
+  if (*data == NULL) {
+    ldap_value_free_len(vals);
+    ldap_msgfree(msg);
+    ldap_unbind_s(ldap);
+    set_error("not enough free memory available");
+    return -1;
+  }
+  memcpy(*data, (*vals)->bv_val, *length);
+  ldap_value_free_len(vals);
+  ldap_msgfree(msg);
+  /* unbind from server end exit */
+  ldap_unbind_s(ldap);
+  return 0;
+}
+#endif
 
 int get_from_uri(const char *str, unsigned char **data, size_t *length)
 {
@@ -437,7 +597,7 @@ int get_from_uri(const char *str, unsigned char **data, size_t *length)
   rv = parse_uri(str, &uri);
   if (rv != 0) {
     free(uri);
-    WLog_ERR(TAG, "parse_uri() failed: %s", get_error());
+	set_error("parse_uri() failed: %s", get_error());
     return -1;
   }
   /* download data depending on the scheme */
@@ -445,18 +605,30 @@ int get_from_uri(const char *str, unsigned char **data, size_t *length)
     case file:
       rv = get_file(uri, data, (ssize_t *) length);
       if (rv != 0)
-    	  WLog_ERR(TAG, "get_file() failed: %s", get_error());
+        set_error("get_file() failed: %s", get_error());
       break;
     case http:
       rv = get_http(uri, data, length, 0);
       if (rv != 0)
-    	  WLog_ERR(TAG, "get_http() failed: %s", get_error());
+        set_error("get_http() failed: %s", get_error());
+      break;
+    case ldap:
+#ifdef HAVE_LDAP
+      rv = get_ldap(uri, data, length);
+      if (rv != 0)
+        set_error("get_ldap() failed: %s", get_error());
+#else
+      rv = -1;
+      set_error("Compiled without LDAP support");
+#endif
       break;
 	case unknown:
     default:
-    	WLog_ERR(TAG, "unsupported protocol");
+      set_error("unsupported protocol");
       rv = -1;
   }
   free_uri(uri);
   return rv;
 }
+
+#endif /* USE_CURL */

@@ -20,8 +20,6 @@
 #ifndef __BASE64_H_
 #define __BASE64_H_
 
-#if 0
-
 #ifndef __BASE64_C_
 #define BASE64_EXTERN extern
 #else
@@ -48,7 +46,5 @@ BASE64_EXTERN int base64_encode(const unsigned char *in, size_t len, unsigned ch
 BASE64_EXTERN int base64_decode(const char *in, unsigned char *out, size_t outlen);
 
 #undef BASE64_EXTERN
-
-#endif
 
 #endif /* __BASE64_H_ */
