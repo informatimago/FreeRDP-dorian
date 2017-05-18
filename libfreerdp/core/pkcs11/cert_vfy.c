@@ -29,6 +29,8 @@
 #include "base64.h"
 #include "uri.h"
 
+#include <freerdp/crypto/crypto.h>
+
 static X509_CRL *download_crl(const char *uri)
 {
   int rv;
@@ -63,7 +65,8 @@ static X509_CRL *download_crl(const char *uri)
       return NULL;
     }
     data[j] = 0;
-    der_len = base64_decode((const char *)&data[i + 24], der, der_len);
+	crypto_base64_decode((const char*)&data[i + 24], (int) data_len,
+	                     &der, &der_len);
     free(data);
     if (der_len <= 0) {
     	WLog_ERR(TAG, "invalid base64 (pem) format");
