@@ -25,8 +25,6 @@
 #include <openssl/objects.h>
 #include <openssl/err.h>
 #include <openssl/x509v3.h>
-#include "error.h"
-#include "base64.h"
 #include "uri.h"
 
 #include <freerdp/crypto/crypto.h>
