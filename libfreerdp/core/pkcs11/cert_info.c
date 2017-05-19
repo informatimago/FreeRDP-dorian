@@ -44,9 +44,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "error.h"
 #include "strings.h"
-#include "base64.h"
 #include "cert_info.h"
 
 #if OPENSSL_VERSION_NUMBER >=  0x00907000L
