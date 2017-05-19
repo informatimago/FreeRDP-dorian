@@ -133,7 +133,7 @@ SECURITY_STATUS SEC_ENTRY negotiate_InitializeSecurityContextW(PCredHandle phCre
 			return SEC_E_INTERNAL_ERROR;
 
 		sspi_SecureHandleSetLowerPointer(phNewContext, context);
-		sspi_SecureHandleSetUpperPointer(phNewContext, (void*) NEGOSSP_NAME);
+		sspi_SecureHandleSetUpperPointer(phNewContext, (void*) NEGO_SSP_NAME);
 	}
 
 	/* if Kerberos has previously failed or WITH_GSSAPI is not defined, we use NTLM directly */
@@ -159,7 +159,7 @@ SECURITY_STATUS SEC_ENTRY negotiate_InitializeSecurityContextW(PCredHandle phCre
 	{
 		if(!pInput){
 			context->sspiA->DeleteSecurityContext(&(context->SubContext));
-			negotiate_SetSubPackage(context, NTLMSSP_NAME);
+			negotiate_SetSubPackage(context, NTLM_SSP_NAME);
 		}
 
 		status = context->sspiW->InitializeSecurityContextW(phCredential, &(context->SubContext),
@@ -188,7 +188,7 @@ SECURITY_STATUS SEC_ENTRY negotiate_InitializeSecurityContextA(PCredHandle phCre
 			return SEC_E_INTERNAL_ERROR;
 
 		sspi_SecureHandleSetLowerPointer(phNewContext, context);
-		sspi_SecureHandleSetUpperPointer(phNewContext, (void*) NEGOSSP_NAME);
+		sspi_SecureHandleSetUpperPointer(phNewContext, (void*) NEGO_SSP_NAME);
 	}
 
 	/* if Kerberos has previously failed or WITH_GSSAPI is not defined, we use NTLM directly */
@@ -214,7 +214,7 @@ SECURITY_STATUS SEC_ENTRY negotiate_InitializeSecurityContextA(PCredHandle phCre
 	{
 		if(!pInput){
 			context->sspiA->DeleteSecurityContext(&(context->SubContext));
-			negotiate_SetSubPackage(context, NTLMSSP_NAME);
+			negotiate_SetSubPackage(context, NTLM_SSP_NAME);
 		}
 
 		status = context->sspiA->InitializeSecurityContextA(phCredential, &(context->SubContext),
@@ -242,10 +242,10 @@ SECURITY_STATUS SEC_ENTRY negotiate_AcceptSecurityContext(PCredHandle phCredenti
 			return SEC_E_INTERNAL_ERROR;
 
 		sspi_SecureHandleSetLowerPointer(phNewContext, context);
-		sspi_SecureHandleSetUpperPointer(phNewContext, (void*) NEGOSSP_NAME);
+		sspi_SecureHandleSetUpperPointer(phNewContext, (void*) NEGO_SSP_NAME);
 	}
 
-	negotiate_SetSubPackage(context, NTLMSSP_NAME); /* server-side Kerberos not yet implemented */
+	negotiate_SetSubPackage(context, NTLM_SSP_NAME); /* server-side Kerberos not yet implemented */
 
 	status = context->sspiA->AcceptSecurityContext(phCredential, &(context->SubContext),
 						       pInput, fContextReq, TargetDataRep, &(context->SubContext),
@@ -430,7 +430,7 @@ SECURITY_STATUS SEC_ENTRY negotiate_AcquireCredentialsHandleW(SEC_WCHAR* pszPrin
 		sspi_CopyAuthIdentity(&(credentials->identity), identity);
 
 	sspi_SecureHandleSetLowerPointer(phCredential, (void*) credentials);
-	sspi_SecureHandleSetUpperPointer(phCredential, (void*) NEGOSSP_NAME);
+	sspi_SecureHandleSetUpperPointer(phCredential, (void*) NEGO_SSP_NAME);
 
 	return SEC_E_OK;
 }
@@ -464,7 +464,7 @@ SECURITY_STATUS SEC_ENTRY negotiate_AcquireCredentialsHandleA(SEC_CHAR* pszPrinc
 		sspi_CopyAuthIdentity(&(credentials->identity), identity);
 
 	sspi_SecureHandleSetLowerPointer(phCredential, (void*) credentials);
-	sspi_SecureHandleSetUpperPointer(phCredential, (void*) NEGOSSP_NAME);
+	sspi_SecureHandleSetUpperPointer(phCredential, (void*) NEGO_SSP_NAME);
 
 	return SEC_E_OK;
 }
