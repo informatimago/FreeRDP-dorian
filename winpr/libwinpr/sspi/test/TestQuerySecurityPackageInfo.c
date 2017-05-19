@@ -11,7 +11,7 @@ int TestQuerySecurityPackageInfo(int argc, char* argv[])
 
 	sspi_GlobalInit();
 
-	status = QuerySecurityPackageInfo(NTLMSSP_NAME, &pPackageInfo);
+	status = QuerySecurityPackageInfo(NTLM_SSP_NAME, &pPackageInfo);
 
 	if (status != SEC_E_OK)
 	{

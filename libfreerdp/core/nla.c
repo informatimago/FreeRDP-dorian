@@ -97,7 +97,7 @@ static const char * PREFIX_PIN_GLOBAL = "CredProv&PIN Global&";
  *
  */
 
-#define NLA_PKG_NAME	NEGOSSP_NAME
+#define NLA_PKG_NAME	NEGO_SSP_NAME
 
 #define TERMSRV_SPN_PREFIX	"TERMSRV/"
 
@@ -538,7 +538,7 @@ int nla_client_begin(rdpNla* nla)
 
 		if(nla->status){
 
-			SECURITY_STATUS status = nla->table->QuerySecurityPackageInfo( NTLMSSP_NAME, &nla->pPackageInfo);
+			SECURITY_STATUS status = nla->table->QuerySecurityPackageInfo( NTLM_SSP_NAME, &nla->pPackageInfo);
 
 			if (status != SEC_E_OK){
 				WLog_ERR(TAG, "QuerySecurityPackageInfo status %s [0x%08"PRIX32"]",
@@ -1156,7 +1156,7 @@ SECURITY_STATUS nla_encrypt_public_key_echo(rdpNla* nla)
 		Buffers[0].pvBuffer = nla->pubKeyAuth.pvBuffer;
 		CopyMemory(Buffers[0].pvBuffer, nla->PublicKey.pvBuffer, Buffers[0].cbBuffer);
 	}
-	else if ( (strcmp(nla->packageName, NEGOSSP_NAME) != 0) || ( strcmp(nla->packageName, NTLMSSP_NAME) != 0 ) ){
+	else if ( (strcmp(nla->packageName, NEGO_SSP_NAME) != 0) || ( strcmp(nla->packageName, NTLM_SSP_NAME) != 0 ) ){
 		Buffers[0].BufferType = SECBUFFER_TOKEN; /* Signature */
 		Buffers[0].cbBuffer = nla->ContextSizes.cbSecurityTrailer;
 		Buffers[0].pvBuffer = nla->pubKeyAuth.pvBuffer;
@@ -1229,7 +1229,7 @@ SECURITY_STATUS nla_decrypt_public_key_echo(rdpNla* nla)
 		Message.ulVersion = SECBUFFER_VERSION;
 		Message.pBuffers = (PSecBuffer) &Buffers;
 	}
-	else if( ( strcmp(nla->packageName, NEGOSSP_NAME) == 0 ) || ( strcmp(nla->packageName,  NTLMSSP_NAME) == 0 ) ){
+	else if( ( strcmp(nla->packageName, NEGO_SSP_NAME) == 0 ) || ( strcmp(nla->packageName,  NTLM_SSP_NAME) == 0 ) ){
 		CopyMemory(buffer, nla->pubKeyAuth.pvBuffer, length);
 		public_key_length = nla->PublicKey.cbBuffer;
 		Buffers[0].BufferType = SECBUFFER_TOKEN; /* Signature */
@@ -1256,7 +1256,7 @@ SECURITY_STATUS nla_decrypt_public_key_echo(rdpNla* nla)
 		public_key1 = public_key2 = (BYTE*) nla->pubKeyAuth.pvBuffer ;
 		public_key_length = length;
 	}
-	else if( ( strcmp(nla->packageName, NEGOSSP_NAME) == 0 ) || ( strcmp(nla->packageName, NTLMSSP_NAME) == 0 ) ){
+	else if( ( strcmp(nla->packageName, NEGO_SSP_NAME) == 0 ) || ( strcmp(nla->packageName, NTLM_SSP_NAME) == 0 ) ){
 		public_key1 = (BYTE*) nla->PublicKey.pvBuffer;
 		public_key2 = (BYTE*) Buffers[1].pvBuffer;
 	}
@@ -1601,13 +1601,10 @@ BOOL nla_read_ts_smartcard_creds(rdpNla* nla, wStream* s)
 	/* [1] CspDataDetail (TSCspDataDetail) */
 	nla->identity->CspData = (SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL *) calloc(1, sizeof(SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL) );
 	if (!nla->identity->CspData)
-	{
 		return FALSE;
-	}
-	else
-	{
-		if( !nla_read_ts_cspdatadetail(nla, s, &length) ) return FALSE;
-	}
+
+	if( !nla_read_ts_cspdatadetail(nla, s, &length) )
+		return FALSE;
 
 	/* [2] UserHint (OCTET STRING) */
 	if (!ber_read_contextual_tag(s, 2, &length, TRUE) ||
@@ -1916,7 +1913,7 @@ SECURITY_STATUS nla_encrypt_ts_credentials(rdpNla* nla)
 		Message.ulVersion = SECBUFFER_VERSION;
 		Message.pBuffers = (PSecBuffer) &Buffers;
 	}
-	else if( (strcmp(nla->packageName, NEGOSSP_NAME) == 0) || (strcmp(nla->packageName, NTLMSSP_NAME) == 0) ){
+	else if( (strcmp(nla->packageName, NEGO_SSP_NAME) == 0) || (strcmp(nla->packageName, NTLM_SSP_NAME) == 0) ){
 		Buffers[0].BufferType = SECBUFFER_TOKEN; /* Signature */
 		Buffers[0].cbBuffer = nla->ContextSizes.cbSecurityTrailer;
 		Buffers[0].pvBuffer = nla->authInfo.pvBuffer;
@@ -1972,7 +1969,7 @@ SECURITY_STATUS nla_decrypt_ts_credentials(rdpNla* nla)
 		Message.ulVersion = SECBUFFER_VERSION;
 		Message.pBuffers = (PSecBuffer) &Buffers;
 	}
-	else if( ( strcmp(nla->packageName,  NEGOSSP_NAME) == 0 ) || ( strcmp(nla->packageName, NTLMSSP_NAME) == 0 ) ){
+	else if( ( strcmp(nla->packageName,  NEGO_SSP_NAME) == 0 ) || ( strcmp(nla->packageName, NTLM_SSP_NAME) == 0 ) ){
 		CopyMemory(buffer, nla->authInfo.pvBuffer, length);
 		Buffers[0].BufferType = SECBUFFER_TOKEN; /* Signature */
 		Buffers[0].cbBuffer = nla->ContextSizes.cbSecurityTrailer;
