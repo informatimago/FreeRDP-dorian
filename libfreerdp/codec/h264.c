@@ -3,7 +3,6 @@
  * H.264 Bitmap Compression
  *
  * Copyright 2014 Mike McDonald <Mike.McDonald@software.dell.com>
- * Copyright 2017 David Fort <contact@hardening-consulting.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,8 +30,6 @@
 #include <freerdp/primitives.h>
 #include <freerdp/codec/h264.h>
 #include <freerdp/log.h>
-
-#include <libavutil/mem.h>
 
 #define TAG FREERDP_TAG("codec")
 
@@ -476,11 +473,14 @@ static BOOL CALLBACK h264_register_subsystems(PINIT_ONCE once, PVOID param, PVOI
 	subSystems[i] = &g_Subsystem_x264;
 	i++;
 #endif
+#ifdef WITH_OPENH264
 
 	subSystems[i] = &g_Subsystem_dummy;
 	return TRUE;
 }
 
+#endif
+#ifdef WITH_X264
 
 BOOL h264_context_init(H264_CONTEXT* h264)
 {
