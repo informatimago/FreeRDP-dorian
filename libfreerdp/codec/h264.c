@@ -30,8 +30,6 @@
 #include <freerdp/codec/h264.h>
 #include <freerdp/log.h>
 
-#include <libavutil/mem.h>
-
 #define TAG FREERDP_TAG("codec")
 
 /**
@@ -1295,6 +1293,7 @@ static H264_CONTEXT_SUBSYSTEM g_Subsystem_OpenH264 =
 
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>
+#include <libavutil/mem.h>
 
 /* Fallback support for older libavcodec versions */
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(54, 59, 100)

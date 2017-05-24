@@ -38,10 +38,6 @@
 
 #include <winpr/sspi.h>
 
-#ifdef WITH_PKCS11H
-#include "../../libfreerdp/core/smartcardlogon.h"
-#endif
-
 static BOOL freerdp_client_common_new(freerdp* instance, rdpContext* context)
 {
 	RDP_CLIENT_ENTRY_POINTS* pEntryPoints = instance->pClientEntryPoints;
