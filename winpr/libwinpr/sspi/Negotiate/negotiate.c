@@ -105,7 +105,7 @@ NEGOTIATE_CONTEXT* negotiate_ContextNew()
 
 	SecInvalidateHandle(&(context->SubContext));
 
-	negotiate_SetSubPackage(context, KERBEROS_SSP_NAME);
+	negotiate_SetSubPackage(context, (const char*) KERBEROS_SSP_NAME);
 
 	return context;
 }
@@ -140,7 +140,7 @@ SECURITY_STATUS SEC_ENTRY negotiate_InitializeSecurityContextW(PCredHandle phCre
 	if(ErrorInitContextKerberos == FALSE)
 	{
 		if(!pInput){
-			negotiate_SetSubPackage(context, KERBEROS_SSP_NAME);
+			negotiate_SetSubPackage(context, (const char*) KERBEROS_SSP_NAME);
 		}
 
 		status = context->sspiW->InitializeSecurityContextW(phCredential, &(context->SubContext),
@@ -159,7 +159,7 @@ SECURITY_STATUS SEC_ENTRY negotiate_InitializeSecurityContextW(PCredHandle phCre
 	{
 		if(!pInput){
 			context->sspiA->DeleteSecurityContext(&(context->SubContext));
-			negotiate_SetSubPackage(context, NTLM_SSP_NAME);
+			negotiate_SetSubPackage(context, (const char*) NTLM_SSP_NAME);
 		}
 
 		status = context->sspiW->InitializeSecurityContextW(phCredential, &(context->SubContext),
@@ -195,7 +195,7 @@ SECURITY_STATUS SEC_ENTRY negotiate_InitializeSecurityContextA(PCredHandle phCre
 	if(ErrorInitContextKerberos == FALSE)
 	{
 		if(!pInput){
-			negotiate_SetSubPackage(context, KERBEROS_SSP_NAME);
+			negotiate_SetSubPackage(context, (const char*) KERBEROS_SSP_NAME);
 		}
 
 		status = context->sspiA->InitializeSecurityContextA(phCredential, &(context->SubContext),
@@ -214,7 +214,7 @@ SECURITY_STATUS SEC_ENTRY negotiate_InitializeSecurityContextA(PCredHandle phCre
 	{
 		if(!pInput){
 			context->sspiA->DeleteSecurityContext(&(context->SubContext));
-			negotiate_SetSubPackage(context, NTLM_SSP_NAME);
+			negotiate_SetSubPackage(context, (const char*) NTLM_SSP_NAME);
 		}
 
 		status = context->sspiA->InitializeSecurityContextA(phCredential, &(context->SubContext),
@@ -245,7 +245,7 @@ SECURITY_STATUS SEC_ENTRY negotiate_AcceptSecurityContext(PCredHandle phCredenti
 		sspi_SecureHandleSetUpperPointer(phNewContext, (void*) NEGO_SSP_NAME);
 	}
 
-	negotiate_SetSubPackage(context, NTLM_SSP_NAME); /* server-side Kerberos not yet implemented */
+	negotiate_SetSubPackage(context, (const char*) NTLM_SSP_NAME); /* server-side Kerberos not yet implemented */
 
 	status = context->sspiA->AcceptSecurityContext(phCredential, &(context->SubContext),
 						       pInput, fContextReq, TargetDataRep, &(context->SubContext),
