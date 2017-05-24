@@ -32,8 +32,6 @@
 #include <freerdp/codec/h264.h>
 #include <freerdp/log.h>
 
-#include <libavutil/mem.h>
-
 #define TAG FREERDP_TAG("codec")
 
 BOOL avc420_ensure_buffer(H264_CONTEXT* h264, UINT32 stride, UINT32 width, UINT32 height)
@@ -451,10 +449,13 @@ static BOOL CALLBACK h264_register_subsystems(PINIT_ONCE once, PVOID param, PVOI
 		i++;
 	}
 #endif
+#ifdef WITH_OPENH264
 
 	return i > 0;
 }
 
+#endif
+#ifdef WITH_X264
 
 BOOL h264_context_init(H264_CONTEXT* h264)
 {
