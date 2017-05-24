@@ -29,6 +29,7 @@
 #include "alg_st.h"
 
 #include <freerdp/log.h>
+#include <freerdp/crypto/crypto.h>
 #define TAG FREERDP_TAG("pkcs11.cert_info")
 
 #include <openssl/evp.h>
@@ -485,7 +486,7 @@ static char **cert_info_sshpuk(X509 *x509) {
 		goto sshpuk_fail;
 	}
 	tmp = data;
-	data = crypto_base64_encode(blob, pt-blob);
+	data = crypto_base64_encode((const BYTE*)blob, (int)(pt-blob));
 	if (data!=NULL) {
 		WLog_DBG(TAG, "BASE64 Encode failed");
 		goto sshpuk_fail;

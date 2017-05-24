@@ -121,7 +121,7 @@ int TestSynchMultipleThreads(int argc, char *argv[])
 	if (close_threads(THREADS, threads))
 		return -1;
 
-	if (rc < 0)
+	if (rc)
 		return rc;
 
 	/* WaitOne, timeout, multiple joins */
@@ -146,7 +146,7 @@ int TestSynchMultipleThreads(int argc, char *argv[])
 	if (close_threads(THREADS, threads))
 		return -1;
 
-	if (rc < 0)
+	if (rc)
 		return rc;
 
 	/* Thread detach test */
