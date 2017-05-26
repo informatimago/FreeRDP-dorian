@@ -52,16 +52,17 @@ set(${MODULE_PREFIX}_GATEWAY_SRCS
 set(${MODULE_PREFIX}_PKCS11_DIR "pkcs11")
 
 set(${MODULE_PREFIX}_PKCS11_SRCS
-	${${MODULE_PREFIX}_PKCS11_DIR}/cert_info.h
-	${${MODULE_PREFIX}_PKCS11_DIR}/cert_info.c
-	${${MODULE_PREFIX}_PKCS11_DIR}/cert_st.h
-	${${MODULE_PREFIX}_PKCS11_DIR}/cert_vfy.h
-	${${MODULE_PREFIX}_PKCS11_DIR}/cert_vfy.c
-	${${MODULE_PREFIX}_PKCS11_DIR}/alg_st.h
-	${${MODULE_PREFIX}_PKCS11_DIR}/uri.h
-	${${MODULE_PREFIX}_PKCS11_DIR}/uri.c
-	${${MODULE_PREFIX}_PKCS11_DIR}/strings.h
-	${${MODULE_PREFIX}_PKCS11_DIR}/strings.c)
+#	${${MODULE_PREFIX}_PKCS11_DIR}/cert_info.h
+#	${${MODULE_PREFIX}_PKCS11_DIR}/cert_info.c
+#	${${MODULE_PREFIX}_PKCS11_DIR}/cert_st.h
+#	${${MODULE_PREFIX}_PKCS11_DIR}/cert_vfy.h
+#	${${MODULE_PREFIX}_PKCS11_DIR}/cert_vfy.c
+#	${${MODULE_PREFIX}_PKCS11_DIR}/alg_st.h
+#	${${MODULE_PREFIX}_PKCS11_DIR}/uri.h
+#	${${MODULE_PREFIX}_PKCS11_DIR}/uri.c
+#	${${MODULE_PREFIX}_PKCS11_DIR}/strings.h
+#	${${MODULE_PREFIX}_PKCS11_DIR}/strings.c
+)
 	
 set(${MODULE_PREFIX}_PKINIT_DIR "pkinit")
 
@@ -157,6 +158,8 @@ set(${MODULE_PREFIX}_SRCS
 	peer.h
 	smartcardlogon.h
 	smartcardlogon.c
+	x509.h
+	x509.c
 	)
 
 set(${MODULE_PREFIX}_SRCS ${${MODULE_PREFIX}_SRCS} ${${MODULE_PREFIX}_GATEWAY_SRCS} ${${MODULE_PREFIX}_PKCS11_SRCS} ${${MODULE_PREFIX}_PKINIT_SRCS} )
