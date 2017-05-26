@@ -839,7 +839,7 @@ void smartcard_trace_list_readers_return(SMARTCARD_DEVICE* smartcard, ListReader
 	else
 	{
 		length = ret->cBytes;
-		mszA = (char*) malloc(length);
+		mszA = (char*) malloc(length+1);
 
 		if (!mszA)
 		{
@@ -847,8 +847,8 @@ void smartcard_trace_list_readers_return(SMARTCARD_DEVICE* smartcard, ListReader
 			return;
 		}
 
-		CopyMemory(mszA, ret->msz, ret->cBytes);
-		mszA[ret->cBytes -1 ] = '\0';
+		strncpy(mszA, ret->msz, length);
+		mszA[length] = '\0';
 	}
 
 	for (index = 0; index < length - 2; index++)

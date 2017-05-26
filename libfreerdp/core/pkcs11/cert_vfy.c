@@ -19,7 +19,7 @@
 #include <freerdp/log.h>
 #define TAG FREERDP_TAG("pkcs11.cert_vfy")
 
-#define __CERT_VFY_C_
+#define CERT_VFY_C
 
 #include <string.h>
 #include <openssl/objects.h>
