@@ -41,8 +41,11 @@
 #include <gssapi/gssapi.h>
 
 #include <pkcs11-helper-1.0/pkcs11.h>
-#include "pkcs11/cert_info.h"
-#include "pkcs11/cert_vfy.h"
+
+#include "x509.h"
+
+//#include "pkcs11/cert_info.h"
+//#include "pkcs11/cert_vfy.h"
 
 #define MAX_KEYS_PER_SLOT 15
 #define NB_ENTRIES_MAX 20
