@@ -27,8 +27,8 @@
  </ul>
 */
 
-#ifndef __URI_H_
-#define __URI_H_
+#ifndef URI_H
+#define URI_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -36,7 +36,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#ifndef __URI_C_
+#ifndef URI_C
 #define URI_EXTERN extern
 #else
 #define URI_EXTERN
@@ -58,4 +58,4 @@ URI_EXTERN int get_from_uri(const char *uri_str, unsigned char **data, size_t *l
 
 #undef URI_EXTERN
 
-#endif /* __URI_H_ */
+#endif /* URI_H */
