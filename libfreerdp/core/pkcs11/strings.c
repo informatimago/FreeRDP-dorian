@@ -20,8 +20,8 @@
  * $Id$
  */
 
-#ifndef __STRINGS_C_
-#define __STRINGS_C_
+#ifndef STRINGS_C
+#define STRINGS_C
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -191,4 +191,4 @@ char *trim(const char *str){
         return res;
 }
 
-#endif /* __STRINGS_C_ */
+#endif /* STRINGS_C */
