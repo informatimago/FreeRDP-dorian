@@ -24,8 +24,8 @@ Several routines to:
 </ul>
 */
 
-#ifndef __CERT_VFY_H_
-#define __CERT_VFY_H_
+#ifndef CERT_VFY_H
+#define CERT_VFY_H
 
 #include "cert_st.h"
 
@@ -36,14 +36,14 @@ typedef enum {
 	CRLP_ONLINE,
 	/** Retrieve CRL from local filesystem */
 	CRLP_OFFLINE,
-	/** Try CRL check online, else ofline, else fail */
+	/** Try CRL check online, else offline, else fail */
 	CRLP_AUTO
-	} crl_policy_t;
+} crl_policy_t;
 
 typedef enum {
 	OCSP_NONE,
 	OCSP_ON
-	} ocsp_policy_t;
+} ocsp_policy_t;
 
 struct cert_policy_st {
 	int ca_policy;
@@ -51,11 +51,10 @@ struct cert_policy_st {
 	int signature_policy;
 	const char *ca_dir;
 	const char *crl_dir;
-	const char *nss_dir;
 	int ocsp_policy;
 };
 
-#ifndef __CERT_VFY_C
+#ifndef CERT_VFY_C
 #define CERTVFY_EXTERN extern
 #else
 #define CERTVFY_EXTERN
@@ -82,4 +81,4 @@ CERTVFY_EXTERN int verify_signature(X509 * x509, unsigned char *data, int data_l
 
 #undef CERTVFY_EXTERN
 
-#endif /* __CERT_VFY_H_ */
+#endif /* CERT_VFY_H */
