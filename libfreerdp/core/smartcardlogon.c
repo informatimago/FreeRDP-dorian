@@ -491,7 +491,7 @@ CK_RV init_authentication_pin(rdpNla * nla)
 		instance->settings->Pin = (char *) calloc( PIN_LENGTH + 1, sizeof(char) );
 
 		if(instance->settings->Pin != NULL){
-			memcpy(instance->settings->Pin, "NULL", PIN_LENGTH+1 );
+			strncpy(instance->settings->Pin, "NULL", PIN_LENGTH+1 );
 		}
 		else{
 			WLog_ERR(TAG, "Error allocating memory for PIN");
@@ -647,7 +647,7 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 	if(prompt_message == NULL) return -1;
 	strncpy(prompt_message, settings->TokenLabel, strlen(settings->TokenLabel) );
 	strncat(prompt_message, " PIN:", strlen(" PIN:") );
-	prompt_message[strlen(settings->TokenLabel) + strlen(" PIN :")] = '\0';
+	prompt_message[size_prompt_message] = '\0';
 
 	while(try_left>0)
 	{
@@ -1286,6 +1286,7 @@ int find_valid_matching_cert(rdpSettings * settings, pkcs11_handle * p11handle)
 		x509 = (X509 *)get_X509_certificate(p11handle->certs[i]);
 		if (!x509 ) continue; /* sanity check */
 
+#ifdef VERIFY
 		/* verify certificate (date, signature, CRL, ...) */
 		rv = verify_certificate(x509, &p11handle->policy);
 		if (rv < 0) {
@@ -1306,6 +1307,7 @@ int find_valid_matching_cert(rdpSettings * settings, pkcs11_handle * p11handle)
 			}
 			continue; /* try next certificate */
 		}
+#endif
 
 		/* ensure we extract the right certificate from the list by checking
 		 * whether its id matches the id stored in settings previously */
@@ -1375,6 +1377,8 @@ int get_valid_smartcard_cert(rdpNla * nla)
 		WLog_DBG(TAG, "- Issuer:    %s", name[0]); free(name[0]);
 		name = cert_info(cert, CERT_KEY_ALG, ALGORITHM_NULL);
 		WLog_DBG(TAG, "- Algorithm: %s", name[0]); free(name[0]);
+
+#ifdef VERIFY
 		ret = verify_certificate(cert,&nla->p11handle->policy);
 		if (ret < 0) {
 			WLog_ERR(TAG, "verify_certificate() process error: %d", ret);
@@ -1383,6 +1387,8 @@ int get_valid_smartcard_cert(rdpNla * nla)
 			WLog_ERR(TAG, "verify_certificate() failed: %d", ret);
 			continue; /* try next certificate */
 		}
+#endif
+
 		ret = get_private_key(nla->p11handle, certs[i]);
 		if (ret<0) {
 			WLog_ERR(TAG, "%s %d : Certificate #%d does not have associated private key", __FUNCTION__, __LINE__, i+1);
@@ -1418,6 +1424,8 @@ get_error:
  */
 int get_valid_smartcard_UPN(rdpSettings * settings, X509 * x509)
 {
+	char **entries_upn = NULL;
+
 	if (x509 == NULL) {
 		WLog_ERR(TAG, "Null certificate provided");
 		return -1;
@@ -1430,13 +1438,13 @@ int get_valid_smartcard_UPN(rdpSettings * settings, X509 * x509)
 	}
 
 	/* retrieve UPN */
-	static char **entries_upn = NULL;
-
 	entries_upn = cert_info(x509, CERT_UPN, NULL);
-	if (!entries_upn) {
+	if (!entries_upn && !strlen(*entries_upn)) {
 		WLog_ERR(TAG, "cert_info() failed");
 		return -1;
 	}
+
+	WLog_ERR(TAG, "*entries_upn=%s", *entries_upn);
 
 	/* set UPN in rdp settings */
 	settings->UserPrincipalName = calloc( strlen(*entries_upn) + 1, sizeof(char) );
@@ -1444,8 +1452,8 @@ int get_valid_smartcard_UPN(rdpSettings * settings, X509 * x509)
 		WLog_ERR(TAG, "Error allocation UserPrincipalName");
 		return -1;
 	}
-	strncpy(settings->UserPrincipalName, *entries_upn, strlen(*entries_upn));
-	settings->UserPrincipalName[strlen(*entries_upn)] = '\0';
+	strncpy(settings->UserPrincipalName, *entries_upn, strlen(*entries_upn)+1);
+//	settings->UserPrincipalName[strlen(*entries_upn)] = '\0';
 
 	WLog_DBG(TAG, "UPN=%s", settings->UserPrincipalName);
 
