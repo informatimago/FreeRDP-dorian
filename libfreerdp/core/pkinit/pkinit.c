@@ -1196,8 +1196,7 @@ BOOL init_cred_cache(rdpSettings * settings)
 	opts.principal_name = calloc(strlen(settings->UserPrincipalName)+1, sizeof(char) );
 	if(opts.principal_name == NULL)
 		return FALSE;
-	strncpy(opts.principal_name, settings->UserPrincipalName, strlen(settings->UserPrincipalName) );
-	opts.principal_name[strlen(settings->UserPrincipalName)] = '\0';
+	strncpy(opts.principal_name, settings->UserPrincipalName, strlen(settings->UserPrincipalName)+1);
 
 	/* if /d:domain is specified in command line, set it as Kerberos default realm */
 	if( settings->Domain ){

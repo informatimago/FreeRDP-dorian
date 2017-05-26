@@ -16,8 +16,8 @@
  * $Id$
  */
 
-#ifndef _CERT_ST_H
-#define _CERT_ST_H
+#ifndef CERT_ST_H
+#define CERT_ST_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -29,4 +29,4 @@ typedef struct cert_policy_st cert_policy;
 typedef const char *ALGORITHM_TYPE;
 #define ALGORITHM_NULL  NULL
 
-#endif /* _CERT_ST_H */
+#endif /* CERT_ST_H */
