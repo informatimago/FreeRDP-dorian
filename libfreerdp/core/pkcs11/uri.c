@@ -15,7 +15,7 @@
  * $Id$
  */
 
-#define __URI_C_
+#define URI_C
 
 #include <stdio.h>
 #include <sys/stat.h>

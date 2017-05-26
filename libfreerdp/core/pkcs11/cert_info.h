@@ -16,8 +16,8 @@
  * $Id$
  */
 
-#ifndef __CERT_INFO_H_
-#define __CERT_INFO_H_
+#ifndef CERT_INFO_H
+#define CERT_INFO_H
 
 #include "cert_st.h"
 
@@ -53,7 +53,7 @@
 /** Max number of entries to find from certificate */
 #define CERT_INFO_MAX_ENTRIES ( CERT_INFO_SIZE - 1 )
 
-#ifndef __CERT_INFO_C_
+#ifndef CERT_INFO_C
 #define CERTINFO_EXTERN extern
 #else
 #define CERTINFO_EXTERN
@@ -78,4 +78,4 @@ CERTINFO_EXTERN char **cert_info(X509 *x509, int type, ALGORITHM_TYPE algorithm)
 
 #undef CERTINFO_EXTERN
 
-#endif /* __CERT_INFO_H_ */
+#endif /* CERT_INFO_H */
