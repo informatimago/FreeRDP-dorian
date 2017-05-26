@@ -371,7 +371,7 @@ int crypto_init(cert_policy *policy)
 }
 
 /** init_authentication_pin is used to login to the token
- * 	and to get #PKCS11 session informations, then use
+ * 	and to get PKCS#11 session informations, then use
  * 	to retrieve valid certificate and UPN.
  *  This function is actually called in get_valid_smartcard_cert()
  *  @param nla - pointer to the rdpNla structure that contains nla connection settings
@@ -500,7 +500,7 @@ CK_RV init_authentication_pin(rdpNla * nla)
 	}
 
 	/* Login token */
-	/* call pkcs#11 login to ensure that the user is the real owner of the card,
+	/* call PKCS#11 login to ensure that the user is the real owner of the card,
 	 * but also because some tokens cannot read protected data until the PIN Global is unlocked */
 	if( (instance->settings->PinPadIsPresent && !instance->settings->PinLoginRequired) ){
 		rv = p11->C_Login(session, CKU_USER, NULL_PTR,  0 );
@@ -630,7 +630,7 @@ exit_failure:
 /** pkcs11_do_login is used to do login by asking PIN code.
  *  Function called only if pinpad is NOT used.
  *  This function is actually called in init_authentication_pin()
- *  @param session - valid PKCS11 session handle
+ *  @param session - valid PKCS#11 session handle
  *  @param slod_id - slot id of present token
  *  @param settings - pointer to rdpSettings structure that contains settings
  *  @return CKR_OK if pkcs11 login succeed.
@@ -841,7 +841,7 @@ error_pin_entry:
 	return ret;
 }
 
-/* perform #PKCS11 C_Login */
+/* perform PKCS#11 C_Login */
 CK_RV pkcs11_login(CK_SESSION_HANDLE session, rdpSettings *h, char *pin)
 {
 	CK_RV rv;
@@ -862,7 +862,7 @@ CK_RV pkcs11_login(CK_SESSION_HANDLE session, rdpSettings *h, char *pin)
 	return rv;
 }
 
-/* init_pkcs_data_handle allocates memory to manage pkcs11 session. */
+/* init_pkcs_data_handle allocates memory to manage PKCS#11 session. */
 int init_pkcs_data_handle(rdpNla * nla)
 {
 	nla->p11handle = (pkcs11_handle *) calloc(1, sizeof( pkcs11_handle ));
@@ -908,7 +908,7 @@ CK_RV get_info_smartcard(rdpNla * nla)
 		WLog_DBG(TAG, "UPN is correct (upn=%s)", nla->settings->UserPrincipalName);
 	}
 
-	/* close pkcs #11 session */
+	/* close PKCS#11 session */
 	rv = close_pkcs11_session(nla->p11handle);
 	if (rv != 0) {
 		release_pkcs11_module(nla->p11handle);
@@ -916,7 +916,7 @@ CK_RV get_info_smartcard(rdpNla * nla)
 		return CKR_GENERAL_ERROR;
 	}
 
-	/* release pkcs #11 module */
+	/* release PKCS#11 module */
 	WLog_DBG(TAG, "releasing pkcs #11 module...");
 	release_pkcs11_module(nla->p11handle);
 
@@ -1015,7 +1015,7 @@ void free_certs(cert_object **certs, int cert_count)
 
 void release_pkcs11_module(pkcs11_handle * handle)
 {
-	/* finalise pkcs #11 module */
+	/* finalize PKCS#11 module */
 	p11->C_Finalize(NULL);
 
 	/* Unload module */
