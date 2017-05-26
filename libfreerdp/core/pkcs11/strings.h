@@ -20,8 +20,8 @@
  * $Id$
  */
 
-#ifndef __STRINGS_H_
-#define __STRINGS_H_
+#ifndef STRINGS_H
+#define STRINGS_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>

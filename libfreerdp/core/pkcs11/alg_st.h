@@ -16,8 +16,8 @@
  * $Id$
  */
 
-#ifndef _ALG_ST_H
-#define _ALG_ST_H
+#ifndef ALG_ST_H
+#define ALG_ST_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -36,4 +36,4 @@ ALGORITHM_TYPE Alg_get_alg_from_string(const char *);
 /* EVP_get_digestbyname */
 const ALGDIGEST *Alg_get_digest_by_name(ALGORITHM_TYPE hash);
 
-#endif /* _ALG_ST_H */
+#endif /* ALG_ST_H */

@@ -16,8 +16,8 @@
  * $Id$
  */
 
-#ifndef __CERT_INFO_C_
-#define __CERT_INFO_C_
+#ifndef CERT_INFO_C
+#define CERT_INFO_C
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -663,4 +663,4 @@ char **cert_info(X509 *x509, int type, const char *algorithm ) {
 	/* should not get here */
 	return NULL;
 }
-#endif /* _CERT_INFO_C */
+#endif /* CERT_INFO_C */
