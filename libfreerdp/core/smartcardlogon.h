@@ -39,20 +39,16 @@
 #include <sys/stat.h>
 
 #include <gssapi/gssapi.h>
-
 #include <pkcs11-helper-1.0/pkcs11.h>
 
 #include "x509.h"
-
-//#include "pkcs11/cert_info.h"
-//#include "pkcs11/cert_vfy.h"
 
 #define MAX_KEYS_PER_SLOT 15
 #define NB_ENTRIES_MAX 20
 #define SIZE_SPN_MAX 200
 #define PIN_LENGTH 4
 #define SIZE_TOKEN_LABEL_MAX 30
-#define SIZE_NB_SLOT_ID_MAX 2 // "99" slots max
+#define SIZE_NB_SLOT_ID_MAX 2 /* "99" slots max */
 #define NB_TRY_MAX_LOGIN_TOKEN 3
 
 #define FLAGS_TOKEN_USER_PIN_NOT_IMPLEMENTED    (0)
@@ -148,7 +144,6 @@ CK_RV pkcs11_login(CK_SESSION_HANDLE session, rdpSettings * settings, char *pin)
 int find_valid_matching_cert(rdpSettings * settings, pkcs11_handle * phdlsc);
 int match_id(rdpSettings * settings, cert_object * cert);
 int get_id_private_key(pkcs11_handle * h, cert_object * cert);
-int compare_id(rdpSettings * settings, cert_object * cert);
 int crypto_init(cert_policy *policy);
 int close_pkcs11_session(pkcs11_handle *h);
 void release_pkcs11_module(pkcs11_handle * h);
