@@ -230,16 +230,6 @@ done:
 	return CKR_OK;
 }
 
-int compare_id(rdpSettings * settings, cert_object * cert)
-{
-	if( (settings->IdCertificateLength != cert->id_cert_length) &&
-			( strncmp( (const char *) settings->IdCertificate, (const char *) cert->id_cert, cert->id_cert_length) != 0)
-	)
-		return -1;
-
-	return 0;
-}
-
 CK_ULONG get_mechanisms(CK_SLOT_ID slot, CK_MECHANISM_TYPE_PTR *pList, CK_FLAGS flags)
 {
 	CK_ULONG	m, n, ulCount = 0;
@@ -356,7 +346,7 @@ int get_slot_protected_authentication_path(rdpSettings * settings, CK_SLOT_ID sl
 
 	settings->TokenLabel[i] = '\0';
 
-	WLog_DBG(TAG, "TokenLabel=%s", settings->TokenLabel);
+	WLog_DBG(TAG, "Token Label: %s", settings->TokenLabel);
 
 	return tinfo.flags & CKF_PROTECTED_AUTHENTICATION_PATH;
 }
@@ -437,13 +427,13 @@ CK_RV init_authentication_pin(rdpNla * nla)
 	}
 
 	for (n = 0; n < p11_num_slots; n++) {
-		WLog_DBG(TAG, "Slot %lu (0x%lx): ", n, p11_slots[n]);
+		WLog_DBG(TAG, "Slot #%lu (0x%lx)", n, p11_slots[n]);
 		rv = p11->C_GetSlotInfo(p11_slots[n], &info);
 		if (rv != CKR_OK) {
 			WLog_ERR(TAG, "(GetSlotInfo failed, %lu)", rv);
 			continue;
 		}
-		WLog_DBG(TAG, "%s", p11_utf8_to_local(info.slotDescription,
+		WLog_DBG(TAG, "Slot #%lu description: %s", n, p11_utf8_to_local(info.slotDescription,
 				sizeof(info.slotDescription)));
 		if (!(info.flags & CKF_TOKEN_PRESENT)) {
 			WLog_ERR(TAG, "  (empty)");
@@ -895,17 +885,15 @@ CK_RV get_info_smartcard(rdpNla * nla)
 	if(ret != 0)
 		return CKR_GENERAL_ERROR;
 
-	WLog_DBG(TAG, "settings : Id Authentication Certificate [%s]", nla->settings->IdCertificate );
-
 	/* retrieve UPN from smartcard */
 	ret = get_valid_smartcard_UPN(nla->settings, nla->p11handle->valid_cert->x509);
 
 	if ( ret < 0 ) {
-		WLog_ERR(TAG, "Fail to get valid UPN (upn=%s)", nla->settings->UserPrincipalName);
+		WLog_ERR(TAG, "Fail to get valid UPN %s", nla->settings->UserPrincipalName);
 		goto auth_failed;
 	}
 	else {
-		WLog_DBG(TAG, "UPN is correct (upn=%s)", nla->settings->UserPrincipalName);
+		WLog_DBG(TAG, "Valid UPN retrieved (%s)", nla->settings->UserPrincipalName);
 	}
 
 	/* close PKCS#11 session */
@@ -969,7 +957,7 @@ int get_private_key(pkcs11_handle *h, cert_object *cert) {
 		goto get_privkey_failed;
 	}
 	if (object_count <= 0) {
-		/* cert without prk: perhaps CA or CA-chain cert */
+		/* cert without private key: perhaps CA or CA-chain cert */
 		WLog_ERR(TAG, "No private key found for cert: 0x%08lX", rv);
 		goto get_privkey_failed;
 	}
@@ -1219,10 +1207,9 @@ cert_object **get_list_certificate(pkcs11_handle * p11handle, int *ncerts)
 	*ncerts = p11handle->cert_count;
 
 	/* arriving here means that's all right */
-	WLog_DBG(TAG, "Found %d certificates in token", p11handle->cert_count);
+	WLog_DBG(TAG, "Found %d certificate(s) in token", p11handle->cert_count);
 	return p11handle->certs;
 
-	/* some error arrived: clean as possible, and return fail */
 getlist_error:
 	free(id_value);
 	id_value = NULL;
@@ -1249,23 +1236,19 @@ const X509 *get_X509_certificate(cert_object *cert)
  *  This function is actually called in find_valid_matching_cert().
  *  @param settings - pointer to the rdpSettings structure that contains the settings
  *  @param cert - pointer to the cert_handle structure that contains a certificate
- *  @return 0 if match occurred; 0 otherwise
+ *  @return 1 if match occurred; 0 or -1 otherwise
  */
 int match_id(rdpSettings * settings, cert_object * cert)
 {
-	/* if no login provided, call  */
+	/* if no cert provided, call  */
 	if (!cert->id_cert) return 0;
 
-	int res=0; /* default: no match */
+	if( (settings->IdCertificateLength != cert->id_cert_length) ||
+			( strncmp( (const char *) settings->IdCertificate, (const char *) cert->id_cert, cert->id_cert_length*2) != 0)
+	)
+		return -1;
 
-	res = compare_id(settings, cert);
-
-	if ( res == 0 )
-		WLog_DBG( TAG, "Certificate matches with id (%s)", settings->IdCertificate);
-	else
-		WLog_DBG( TAG, "Certificate DOES NOT MATCH with id (%s)", settings->IdCertificate);
-
-	return res;
+	return 1;
 }
 
 
@@ -1281,42 +1264,23 @@ int find_valid_matching_cert(rdpSettings * settings, pkcs11_handle * p11handle)
 	p11handle->valid_cert = NULL;
 	X509 * x509 = NULL;
 
-	/* find a valid and matching certificates */
+	WLog_DBG(TAG, "settings : ID Authentication Certificate (%s)", settings->IdCertificate );
+
+	/* find a valid and matching certificate */
 	for (i = 0; i < p11handle->cert_count; i++) {
+
 		x509 = (X509 *)get_X509_certificate(p11handle->certs[i]);
 		if (!x509 ) continue; /* sanity check */
 
-#ifdef VERIFY
-		/* verify certificate (date, signature, CRL, ...) */
-		rv = verify_certificate(x509, &p11handle->policy);
-		if (rv < 0) {
-			WLog_ERR(TAG, "verify_certificate() failed: %d", rv);
-			switch (rv) {
-			case -2: // X509_V_ERR_CERT_HAS_EXPIRED:
-				WLog_ERR(TAG, "Error 2324: Certificate has expired");
-				break;
-			case -3: // X509_V_ERR_CERT_NOT_YET_VALID:
-				WLog_ERR(TAG, "Error 2326: Certificate not yet valid");
-				break;
-			case -4: // X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
-				WLog_ERR(TAG, "Error 2328: Certificate signature invalid");
-				break;
-			default:
-				WLog_ERR(TAG, "Error 2330: Certificate invalid");
-				break;
-			}
-			continue; /* try next certificate */
-		}
-#endif
-
 		/* ensure we extract the right certificate from the list by checking
-		 * whether its id matches the id stored in settings previously */
+		 * whether ID matches the one stored previously in settings */
 		rv = match_id(settings, p11handle->certs[i]);
-		if ( rv < 0 ) { /* match error; abort and return */
-			WLog_ERR(TAG, "Fail to match id(%s) : %d", p11handle->certs[i]->id_cert, rv);
-			break;
+		if ( rv <= 0 ) { /* match error */
+			WLog_DBG(TAG, "ID not matching (%s/%s). Try next cert...",
+					settings->IdCertificate, p11handle->certs[i]->id_cert);
+			continue;
 		}
-		else if( rv == 0 ){ /* match success */
+		else if( rv == 1 ){ /* match success */
 			p11handle->valid_cert = p11handle->certs[i];
 			break;
 		}
@@ -1347,13 +1311,13 @@ int get_valid_smartcard_cert(rdpNla * nla)
 	/* init openssl */
 	ret = crypto_init(&nla->p11handle->policy);
 	if (ret != 0) {
-		WLog_ERR(TAG, "Couldn't initialize crypto module ");
+		WLog_ERR(TAG, "Could not initialize crypto module ");
 		return -1;
 	}
 
 	ck_rv = init_authentication_pin(nla);
 	if( ck_rv != CKR_OK ){
-		WLog_ERR(TAG, "Error initialization PKCS11 session : 0x%08lX", ck_rv);
+		WLog_ERR(TAG, "Error initialization PKCS#11 session : 0x%08lX", ck_rv);
 		return -1;
 	}
 
@@ -1363,31 +1327,19 @@ int get_valid_smartcard_cert(rdpNla * nla)
 		goto get_error;
 
 	/* print some info on found certificates */
-	WLog_DBG(TAG, "Found '%d' certificate(s)", ncerts);
 	for(i =0; i< ncerts;i++) {
 		char **name;
 		X509 *cert = (X509 *) get_X509_certificate(certs[i]);
 
 		WLog_DBG(TAG, "Certificate #%d:", i+1);
-		name = cert_info(cert, CERT_CN, ALGORITHM_NULL);
-		WLog_DBG(TAG, "- Common Name:   %s", name[0]); free(name[0]);
-		name = cert_info(cert, CERT_SUBJECT, ALGORITHM_NULL);
-		WLog_DBG(TAG, "- Subject:   %s", name[0]); free(name[0]);
-		name = cert_info(cert, CERT_ISSUER, ALGORITHM_NULL);
-		WLog_DBG(TAG, "- Issuer:    %s", name[0]); free(name[0]);
-		name = cert_info(cert, CERT_KEY_ALG, ALGORITHM_NULL);
-		WLog_DBG(TAG, "- Algorithm: %s", name[0]); free(name[0]);
-
-#ifdef VERIFY
-		ret = verify_certificate(cert,&nla->p11handle->policy);
-		if (ret < 0) {
-			WLog_ERR(TAG, "verify_certificate() process error: %d", ret);
-			goto get_error;
-		} else if (ret != 1) {
-			WLog_ERR(TAG, "verify_certificate() failed: %d", ret);
-			continue; /* try next certificate */
-		}
-#endif
+		name = cert_info(cert, CERT_CN);
+		WLog_DBG(TAG, "Common Name:   %s", name[0]); free(name[0]);
+		name = cert_info(cert, CERT_SUBJECT);
+		WLog_DBG(TAG, "Subject:   %s", name[0]); free(name[0]);
+		name = cert_info(cert, CERT_ISSUER);
+		WLog_DBG(TAG, "Issuer:    %s", name[0]); free(name[0]);
+		name = cert_info(cert, CERT_KEY_ALG);
+		WLog_DBG(TAG, "Algorithm: %s", name[0]); free(name[0]);
 
 		ret = get_private_key(nla->p11handle, certs[i]);
 		if (ret<0) {
@@ -1432,19 +1384,17 @@ int get_valid_smartcard_UPN(rdpSettings * settings, X509 * x509)
 	}
 
 	if(settings->UserPrincipalName){
-		WLog_ERR(TAG, "Reset UserPrincipalName");
+		WLog_DBG(TAG, "Reset UserPrincipalName");
 		free(settings->UserPrincipalName);
 		settings->UserPrincipalName = NULL;
 	}
 
 	/* retrieve UPN */
-	entries_upn = cert_info(x509, CERT_UPN, NULL);
-	if (!entries_upn && !strlen(*entries_upn)) {
+	entries_upn = cert_info(x509, CERT_UPN);
+	if (!entries_upn || (entries_upn && !strlen(*entries_upn))) {
 		WLog_ERR(TAG, "cert_info() failed");
 		return -1;
 	}
-
-	WLog_ERR(TAG, "*entries_upn=%s", *entries_upn);
 
 	/* set UPN in rdp settings */
 	settings->UserPrincipalName = calloc( strlen(*entries_upn) + 1, sizeof(char) );
@@ -1453,9 +1403,6 @@ int get_valid_smartcard_UPN(rdpSettings * settings, X509 * x509)
 		return -1;
 	}
 	strncpy(settings->UserPrincipalName, *entries_upn, strlen(*entries_upn)+1);
-//	settings->UserPrincipalName[strlen(*entries_upn)] = '\0';
-
-	WLog_DBG(TAG, "UPN=%s", settings->UserPrincipalName);
 
 	return 0;
 }

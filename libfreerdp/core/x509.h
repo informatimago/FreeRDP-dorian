@@ -37,7 +37,7 @@
 #include <stdlib.h>
 
 /** Certificate Common Name */
-#define CERT_CN		1
+#define CERT_CN	1
 /** Certificate subject */
 #define CERT_SUBJECT	2
 /** Kerberos principal name */
@@ -46,22 +46,10 @@
 #define CERT_EMAIL	4
 /** Microsoft's Universal Principal Name */
 #define CERT_UPN	5
-/** Certificate Unique Identifier */
-#define CERT_UID	6
-/** Certificate Public Key (PEM Format)*/
-#define CERT_PUK	7
-/** Certificate Digest */
-#define CERT_DIGEST	8
-/** Certificate Public key in OpenSSH format */
-#define CERT_SSHPUK	9
-/** Certificate in PEM format */
-#define CERT_PEM	10
 /** Certificate issuer */
-#define CERT_ISSUER	11
-/** Certificate serial number */
-#define CERT_SERIAL	12
+#define CERT_ISSUER	6
 /** Certificate key algorithm */
-#define CERT_KEY_ALG	13
+#define CERT_KEY_ALG	7
 
 /** Max size of returned certificate content array */
 #define CERT_INFO_SIZE 16
@@ -87,7 +75,6 @@ typedef struct cert_policy_st cert_policy;
 
 #include <openssl/x509.h>
 typedef const char *ALGORITHM_TYPE;
-#define ALGORITHM_NULL  NULL
 
 char *clone_str(const char *str);
 char *bin2hex(const unsigned char *binstr,const int len);
@@ -98,7 +85,7 @@ static char **cert_info_issuer(X509 *x509);
 static char **cert_info_kpn(X509 *x509);
 static char **cert_info_upn(X509 *x509);
 static char **cert_key_alg(X509 *x509);
-char **cert_info(X509 *x509, int type, const char *algorithm );
+char **cert_info(X509 *x509, int type);
 
 
 #if OPENSSL_VERSION_NUMBER >=  0x00907000L
