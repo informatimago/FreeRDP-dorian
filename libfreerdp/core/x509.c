@@ -121,7 +121,7 @@ static char **cert_info_cn(X509 *x509) {
         lastpos = X509_NAME_get_index_by_NID(name, NID_commonName, lastpos);
 	}
 
-	/* no more UID's availables in certificate */
+	/* no more UID's available in certificate */
 	return results;
 }
 
@@ -239,7 +239,7 @@ static char **cert_info_upn(X509 *x509) {
             if ( name && name->type==GEN_OTHERNAME ) {
                 /* test for UPN */
                 if (OBJ_cmp(name->d.otherName->type_id, OBJ_nid2obj(NID_ms_upn))) continue; /* object is not a UPN */
-                WLog_DBG(TAG, "Found MS Universal Principal Name ");
+                WLog_DBG(TAG, "Found Microsoft Universal Principal Name ");
                 /* try to extract string and return it */
                 if (name->d.otherName->value->type == V_ASN1_UTF8STRING) {
                     ASN1_UTF8STRING *str = name->d.otherName->value->value.utf8string;
@@ -252,14 +252,14 @@ static char **cert_info_upn(X509 *x509) {
         }
         sk_GENERAL_NAME_pop_free(gens, GENERAL_NAME_free);
 	if(j==0) {
-		WLog_ERR(TAG, "Certificate does not contain a MS UPN entry");
+		WLog_ERR(TAG, "Certificate does not contain a Microsoft UPN entry");
 	    return NULL;
 	}
 	return entries;
 }
 
 /*
-* Return certificate in PEM format
+* Return certificate key algorithm
 */
 static char **cert_key_alg(X509 *x509) {
 	static char *entries[2] = { NULL,NULL };
@@ -273,52 +273,26 @@ static char **cert_key_alg(X509 *x509) {
 * request info on certificate
 * @param x509 	Certificate to parse
 * @param type 	Information to retrieve
-* @param algorithm Digest algoritm to use
 * @return utf-8 string array with provided information
 */
-char **cert_info(X509 *x509, int type, const char *algorithm ) {
-
-	static char ** entry;
+char **cert_info(X509 *x509, int type) {
 
 	if (!x509) {
 		printf("cert_info : Null certificate provided\n");
 		return NULL;
 	}
 	switch (type) {
-	    case CERT_CN      : /* Certificate Common Name */
+	    case CERT_CN		: /* Certificate Common Name */
 		return cert_info_cn(x509);
-	    case CERT_SUBJECT : /* Certificate subject */
+	    case CERT_SUBJECT	: /* Certificate subject */
 		return cert_info_subject(x509);
-	    case CERT_ISSUER : /* Certificate issuer */
+	    case CERT_ISSUER	: /* Certificate issuer */
 		return cert_info_issuer(x509);
-//	    case CERT_SERIAL : /* Certificate serial number */
-		/* fix me */
-//		return cert_info_serial_number(x509);
-	    case CERT_KPN     : /* Kerberos principal name */
+	    case CERT_KPN		: /* Kerberos Principal Name */
 		return cert_info_kpn(x509);
-//	    case CERT_EMAIL   : /* Certificate e-mail */
-//		return cert_info_email(x509);
-	    case CERT_UPN     : /* Microsoft's Universal Principal Name */
-	    {	entry = cert_info_upn(x509);
-//	    	return cert_info_upn(x509);
-	    	WLog_ERR(TAG, "entry = %s\n\n", *entry);
-	    	return entry;
-	    }
-//	    case CERT_UID     : /* Certificate Unique Identifier */
-//		return cert_info_uid(x509);
-//	    case CERT_PUK     : /* Certificate Public Key */
-//		return cert_info_puk(x509);
-//	    case CERT_SSHPUK  : /* Certificate Public Key in OpenSSH format */
-//		return cert_info_sshpuk(x509);
-//	    case CERT_PEM  : /* Certificate in PEM format */
-//		return cert_info_pem(x509);
-//	    case CERT_DIGEST  : /* Certificate Signature Digest */
-//		if ( !algorithm ) {
-//		    WLog_DBG(TAG, "Must specify digest algorithm");
-//		    return NULL;
-//		}
-//		return cert_info_digest(x509,algorithm);
-	    case CERT_KEY_ALG     : /* certificate signature algorithm */
+	    case CERT_UPN		: /* Microsoft's Universal Principal Name */
+	    return cert_info_upn(x509);
+	    case CERT_KEY_ALG	: /* Certificate signature algorithm */
 		return cert_key_alg(x509);
 	    default           :
 		WLog_DBG(TAG, "Invalid info type requested: %d",type);
