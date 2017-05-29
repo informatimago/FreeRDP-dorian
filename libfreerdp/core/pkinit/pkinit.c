@@ -180,7 +180,7 @@ pkinit_anchors ** parse_pkinit_anchors(char * list_pkinit_anchors)
 		}
 	}
 
-	WLog_DBG(TAG, "list pkinit anchors : %s", list_pkinit_anchors);
+	WLog_DBG(TAG, "pkinit anchors : %s", list_pkinit_anchors);
 
 	char * pch;
 	pch = strtok (list_pkinit_anchors,",");
@@ -1130,7 +1130,7 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings * settings)
 		}
 	}
 	else{
-		WLog_DBG(TAG, "Domain already specified in command line");
+		WLog_DBG(TAG, "Domain specified in command line");
 	}
 
 	success = 1;
