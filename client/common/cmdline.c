@@ -1811,8 +1811,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 			/* overwrite argument so it won't appear in ps */
 			p = arg->Value;
+
 			while (*p)
 				*(p++) = 'X';
+
 			while (*arg->Value)
 				*(arg->Value++) = 'X';
 		}
@@ -2596,135 +2598,146 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		{
 			settings->SmartcardLogon = TRUE;
 			settings->Pin = NULL;
-
 			settings->RdpSecurity = FALSE;
 			settings->TlsSecurity = FALSE;
 			settings->NlaSecurity = TRUE;
 			settings->ExtSecurity = FALSE;
-
 			settings->DisableCredentialsDelegation = FALSE;
 			settings->PinPadIsPresent = FALSE;
-
 			settings->StartTime = 0;
 			/* Ticket lifetime value in seconds ; KDC default value : 600mn (i.e. 36000s) ; 600mn at maximum */
 			settings->LifeTime = 36000;
 			/* Ticket renewable lifetime value in seconds ; KDC default value : 1 day (i.e. 86400s) ; 7 days at maximum */
 			settings->RenewableLifeTime = 86400;
 			settings->Krb5Trace = FALSE;
-
 			freerdp_set_param_bool(settings, FreeRDP_PasswordIsSmartcardPin, TRUE);
 		}
-
 		CommandLineSwitchCase(arg, "pin")
 		{
-			if(settings->SmartcardLogon == TRUE){
-				free (settings->Pin);
-				if(!(settings->Pin = _strdup(arg->Value)))
+			if (settings->SmartcardLogon == TRUE)
+			{
+				free(settings->Pin);
+
+				if (!(settings->Pin = _strdup(arg->Value)))
 					return COMMAND_LINE_ERROR_MEMORY;
 			}
-			else{
+			else
+			{
 				return COMMAND_LINE_ERROR_MEMORY;
 			}
 
 			/* overwrite argument so it won't appear in ps */
 			p = arg->Value;
+
 			while (*p)
 				*(p++) = 'X';
+
 			while (*arg->Value)
 				*(arg->Value++) = 'X';
 		}
-
 		CommandLineSwitchCase(arg, "pkcs11-module")
 		{
-			if(settings->SmartcardLogon == TRUE){
-				free (settings->Pkcs11Module);
-				if(!(settings->Pkcs11Module = _strdup(arg->Value)))
+			if (settings->SmartcardLogon == TRUE)
+			{
+				free(settings->Pkcs11Module);
+
+				if (!(settings->Pkcs11Module = _strdup(arg->Value)))
 					return COMMAND_LINE_ERROR_MEMORY;
 			}
-			else{
+			else
+			{
 				return COMMAND_LINE_ERROR_MEMORY;
 			}
 		}
-
 		CommandLineSwitchCase(arg, "pkinit-anchors")
 		{
-			if(settings->SmartcardLogon == TRUE){
-				free (settings->PkinitAnchors);
-				if(!(settings->PkinitAnchors = _strdup(arg->Value)))
+			if (settings->SmartcardLogon == TRUE)
+			{
+				free(settings->PkinitAnchors);
+
+				if (!(settings->PkinitAnchors = _strdup(arg->Value)))
 					return COMMAND_LINE_ERROR_MEMORY;
 			}
-			else{
+			else
+			{
 				return COMMAND_LINE_ERROR_MEMORY;
 			}
 		}
-
 		CommandLineSwitchCase(arg, "start-time")
 		{
-			if(settings->SmartcardLogon == TRUE){
-				if(!(settings->StartTime = atoi(arg->Value)))
+			if (settings->SmartcardLogon == TRUE)
+			{
+				if (!(settings->StartTime = atoi(arg->Value)))
 					return COMMAND_LINE_ERROR_MEMORY;
 			}
-			else{
+			else
+			{
 				return COMMAND_LINE_ERROR_MEMORY;
 			}
 		}
-
 		CommandLineSwitchCase(arg, "lifetime")
 		{
-			if(settings->SmartcardLogon == TRUE){
-				if(!(settings->LifeTime = atoi(arg->Value)))
+			if (settings->SmartcardLogon == TRUE)
+			{
+				if (!(settings->LifeTime = atoi(arg->Value)))
 					return COMMAND_LINE_ERROR_MEMORY;
 			}
-			else{
+			else
+			{
 				return COMMAND_LINE_ERROR_MEMORY;
 			}
 		}
-
 		CommandLineSwitchCase(arg, "renewable-lifetime")
 		{
-			if(settings->SmartcardLogon == TRUE){
-				if(!(settings->RenewableLifeTime = atoi(arg->Value)))
+			if (settings->SmartcardLogon == TRUE)
+			{
+				if (!(settings->RenewableLifeTime = atoi(arg->Value)))
 					return COMMAND_LINE_ERROR_MEMORY;
 			}
-			else{
+			else
+			{
 				return COMMAND_LINE_ERROR_MEMORY;
 			}
 		}
-
 		CommandLineSwitchCase(arg, "T")
 		{
-			if(settings->SmartcardLogon == TRUE){
+			if (settings->SmartcardLogon == TRUE)
+			{
 				settings->Krb5Trace = TRUE;
 			}
-			else{
+			else
+			{
 				return COMMAND_LINE_ERROR_MEMORY;
 			}
 		}
-
 		CommandLineSwitchCase(arg, "csp")
 		{
-			if(settings->SmartcardLogon == TRUE){
-				free (settings->CspName);
-				if(!(settings->CspName = _strdup(arg->Value)))
+			if (settings->SmartcardLogon == TRUE)
+			{
+				free(settings->CspName);
+
+				if (!(settings->CspName = _strdup(arg->Value)))
 					return COMMAND_LINE_ERROR_MEMORY;
 			}
-			else{
+			else
+			{
 				return COMMAND_LINE_ERROR_MEMORY;
 			}
 		}
-
 		CommandLineSwitchCase(arg, "card")
 		{
-			if(settings->SmartcardLogon == TRUE){
-				free (settings->CardName);
-				if(!(settings->CardName = _strdup(arg->Value)))
+			if (settings->SmartcardLogon == TRUE)
+			{
+				free(settings->CardName);
+
+				if (!(settings->CardName = _strdup(arg->Value)))
 					return COMMAND_LINE_ERROR_MEMORY;
 			}
-			else{
+			else
+			{
 				return COMMAND_LINE_ERROR_MEMORY;
 			}
 		}
-
 		CommandLineSwitchDefault(arg)
 		{
 		}

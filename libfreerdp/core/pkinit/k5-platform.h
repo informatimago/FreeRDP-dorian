@@ -218,10 +218,15 @@
 /* Run the initialization code during program execution, at the latest
    possible moment.  This means multiple threads may be active.  */
 # include "k5-thread.h"
-typedef struct { k5_once_t once; int error, did_run; void (*fn)(void); } k5_init_t;
+typedef struct
+{
+	k5_once_t once;
+	int error, did_run;
+	void (*fn)(void);
+} k5_init_t;
 # ifdef USE_LINKER_INIT_OPTION
 #  define MAYBE_DUMMY_INIT(NAME)                \
-        void JOIN__2(NAME, auxinit) () { }
+	void JOIN__2(NAME, auxinit) () { }
 # else
 #  define MAYBE_DUMMY_INIT(NAME)
 # endif
@@ -229,43 +234,43 @@ typedef struct { k5_once_t once; int error, did_run; void (*fn)(void); } k5_init
 /* Do it in macro form so we get the file/line of the invocation if
    the assertion fails.  */
 #  define k5_call_init_function(I)                                      \
-        (__extension__ ({                                               \
-                k5_init_t *k5int_i = (I);                               \
-                int k5int_err = k5_once(&k5int_i->once, k5int_i->fn);   \
-                (k5int_err                                              \
-                 ? k5int_err                                            \
-                 : (assert(k5int_i->did_run != 0), k5int_i->error));    \
-            }))
+	(__extension__ ({                                               \
+		k5_init_t *k5int_i = (I);                               \
+		int k5int_err = k5_once(&k5int_i->once, k5int_i->fn);   \
+		(k5int_err                                              \
+		 ? k5int_err                                            \
+		 : (assert(k5int_i->did_run != 0), k5int_i->error));    \
+	}))
 #  define MAYBE_DEFINE_CALLINIT_FUNCTION
 # else
 #  define MAYBE_DEFINE_CALLINIT_FUNCTION                        \
-        static inline int k5_call_init_function(k5_init_t *i)   \
-        {                                                       \
-            int err;                                            \
-            err = k5_once(&i->once, i->fn);                     \
-            if (err)                                            \
-                return err;                                     \
-            assert (i->did_run != 0);                           \
-            return i->error;                                    \
-        }
+	static inline int k5_call_init_function(k5_init_t *i)   \
+	{                                                       \
+		int err;                                            \
+		err = k5_once(&i->once, i->fn);                     \
+		if (err)                                            \
+			return err;                                     \
+		assert (i->did_run != 0);                           \
+		return i->error;                                    \
+	}
 # endif
 # define MAKE_INIT_FUNCTION(NAME)                               \
-        static int NAME(void);                                  \
-        MAYBE_DUMMY_INIT(NAME)                                  \
-        /* forward declaration for use in initializer */        \
-        static void JOIN__2(NAME, aux) (void);                  \
-        static k5_init_t JOIN__2(NAME, once) =                  \
-                { K5_ONCE_INIT, 0, 0, JOIN__2(NAME, aux) };     \
-        MAYBE_DEFINE_CALLINIT_FUNCTION                          \
-        static void JOIN__2(NAME, aux) (void)                   \
-        {                                                       \
-            JOIN__2(NAME, once).did_run = 1;                    \
-            JOIN__2(NAME, once).error = NAME();                 \
-        }                                                       \
-        /* so ';' following macro use won't get error */        \
-        static int NAME(void)
+	static int NAME(void);                                  \
+	MAYBE_DUMMY_INIT(NAME)                                  \
+	/* forward declaration for use in initializer */        \
+	static void JOIN__2(NAME, aux) (void);                  \
+	static k5_init_t JOIN__2(NAME, once) =                  \
+	        { K5_ONCE_INIT, 0, 0, JOIN__2(NAME, aux) };     \
+	MAYBE_DEFINE_CALLINIT_FUNCTION                          \
+	static void JOIN__2(NAME, aux) (void)                   \
+	{                                                       \
+		JOIN__2(NAME, once).did_run = 1;                    \
+		JOIN__2(NAME, once).error = NAME();                 \
+	}                                                       \
+	/* so ';' following macro use won't get error */        \
+	static int NAME(void)
 # define CALL_INIT_FUNCTION(NAME)       \
-        k5_call_init_function(& JOIN__2(NAME, once))
+	k5_call_init_function(& JOIN__2(NAME, once))
 /* This should be called in finalization only, so we shouldn't have
    multiple active threads mucking around in our library at this
    point.  So ignore the once_t object and just look at the flag.
@@ -276,7 +281,7 @@ typedef struct { k5_once_t once; int error, did_run; void (*fn)(void); } k5_init
    the library code is not in use by this point, and memory
    synchronization will be needed there.  */
 # define INITIALIZER_RAN(NAME)  \
-        (JOIN__2(NAME, once).did_run && JOIN__2(NAME, once).error == 0)
+	(JOIN__2(NAME, once).did_run && JOIN__2(NAME, once).error == 0)
 
 # define PROGRAM_EXITING()              (0)
 
@@ -285,31 +290,35 @@ typedef struct { k5_once_t once; int error, did_run; void (*fn)(void); } k5_init
 /* Run initializer at load time, via GCC/C++ hook magic.  */
 
 # ifdef USE_LINKER_INIT_OPTION
-     /* Both gcc and linker option??  Favor gcc.  */
+/* Both gcc and linker option??  Favor gcc.  */
 #  define MAYBE_DUMMY_INIT(NAME)                \
-        void JOIN__2(NAME, auxinit) () { }
+	void JOIN__2(NAME, auxinit) () { }
 # else
 #  define MAYBE_DUMMY_INIT(NAME)
 # endif
 
-typedef struct { int error; unsigned char did_run; } k5_init_t;
+typedef struct
+{
+	int error;
+	unsigned char did_run;
+} k5_init_t;
 # define MAKE_INIT_FUNCTION(NAME)               \
-        MAYBE_DUMMY_INIT(NAME)                  \
-        static k5_init_t JOIN__2(NAME, ran)     \
-                = { 0, 2 };                     \
-        static void JOIN__2(NAME, aux)(void)    \
-            __attribute__((constructor));       \
-        static int NAME(void);                  \
-        static void JOIN__2(NAME, aux)(void)    \
-        {                                       \
-            JOIN__2(NAME, ran).error = NAME();  \
-            JOIN__2(NAME, ran).did_run = 3;     \
-        }                                       \
-        static int NAME(void)
+	MAYBE_DUMMY_INIT(NAME)                  \
+	static k5_init_t JOIN__2(NAME, ran)     \
+	    = { 0, 2 };                     \
+	static void JOIN__2(NAME, aux)(void)    \
+	__attribute__((constructor));       \
+	static int NAME(void);                  \
+	static void JOIN__2(NAME, aux)(void)    \
+	{                                       \
+		JOIN__2(NAME, ran).error = NAME();  \
+		JOIN__2(NAME, ran).did_run = 3;     \
+	}                                       \
+	static int NAME(void)
 # define CALL_INIT_FUNCTION(NAME)               \
-        (JOIN__2(NAME, ran).did_run == 3        \
-         ? JOIN__2(NAME, ran).error             \
-         : (abort(),0))
+	(JOIN__2(NAME, ran).did_run == 3        \
+	 ? JOIN__2(NAME, ran).error             \
+	 : (abort(),0))
 # define INITIALIZER_RAN(NAME)  (JOIN__2(NAME,ran).did_run == 3 && JOIN__2(NAME, ran).error == 0)
 
 # define PROGRAM_EXITING()              (0)
@@ -318,23 +327,27 @@ typedef struct { int error; unsigned char did_run; } k5_init_t;
 
 /* Run initializer at load time, via linker magic, or in the
    case of WIN32, win_glue.c hard-coded knowledge.  */
-typedef struct { int error; unsigned char did_run; } k5_init_t;
+typedef struct
+{
+	int error;
+	unsigned char did_run;
+} k5_init_t;
 # define MAKE_INIT_FUNCTION(NAME)               \
-        static k5_init_t JOIN__2(NAME, ran)     \
-                = { 0, 2 };                     \
-        static int NAME(void);                  \
-        void JOIN__2(NAME, auxinit)()           \
-        {                                       \
-            JOIN__2(NAME, ran).error = NAME();  \
-            JOIN__2(NAME, ran).did_run = 3;     \
-        }                                       \
-        static int NAME(void)
+	static k5_init_t JOIN__2(NAME, ran)     \
+	    = { 0, 2 };                     \
+	static int NAME(void);                  \
+	void JOIN__2(NAME, auxinit)()           \
+	{                                       \
+		JOIN__2(NAME, ran).error = NAME();  \
+		JOIN__2(NAME, ran).did_run = 3;     \
+	}                                       \
+	static int NAME(void)
 # define CALL_INIT_FUNCTION(NAME)               \
-        (JOIN__2(NAME, ran).did_run == 3        \
-         ? JOIN__2(NAME, ran).error             \
-         : (abort(),0))
+	(JOIN__2(NAME, ran).did_run == 3        \
+	 ? JOIN__2(NAME, ran).error             \
+	 : (abort(),0))
 # define INITIALIZER_RAN(NAME)  \
-        (JOIN__2(NAME, ran).error == 0)
+	(JOIN__2(NAME, ran).error == 0)
 
 # define PROGRAM_EXITING()              (0)
 
@@ -358,7 +371,7 @@ typedef struct { int error; unsigned char did_run; } k5_init_t;
  */
 
 # define MAKE_FINI_FUNCTION(NAME)               \
-        static void NAME(void)
+	static void NAME(void)
 
 #elif defined(USE_LINKER_FINI_OPTION) || defined(_WIN32)
 /* If we're told the linker option will be used, it doesn't really
@@ -367,30 +380,30 @@ typedef struct { int error; unsigned char did_run; } k5_init_t;
 
 # ifdef __hpux
 
-     /* On HP-UX, we need this auxiliary function.  At dynamic load or
-        unload time (but *not* program startup and termination for
-        link-time specified libraries), the linker-indicated function
-        is called with a handle on the library and a flag indicating
-        whether it's being loaded or unloaded.
+/* On HP-UX, we need this auxiliary function.  At dynamic load or
+   unload time (but *not* program startup and termination for
+   link-time specified libraries), the linker-indicated function
+   is called with a handle on the library and a flag indicating
+   whether it's being loaded or unloaded.
 
-        The "real" fini function doesn't need to be exported, so
-        declare it static.
+   The "real" fini function doesn't need to be exported, so
+   declare it static.
 
-        As usual, the final declaration is just for syntactic
-        convenience, so the top-level invocation of this macro can be
-        followed by a semicolon.  */
+   As usual, the final declaration is just for syntactic
+   convenience, so the top-level invocation of this macro can be
+   followed by a semicolon.  */
 
 #  include <dl.h>
 #  define MAKE_FINI_FUNCTION(NAME)                                          \
-        static void NAME(void);                                             \
-        void JOIN__2(NAME, auxfini)(shl_t, int); /* silence gcc warnings */ \
-        void JOIN__2(NAME, auxfini)(shl_t h, int l) { if (!l) NAME(); }     \
-        static void NAME(void)
+	static void NAME(void);                                             \
+	void JOIN__2(NAME, auxfini)(shl_t, int); /* silence gcc warnings */ \
+	void JOIN__2(NAME, auxfini)(shl_t h, int l) { if (!l) NAME(); }     \
+	static void NAME(void)
 
 # else /* not hpux */
 
 #  define MAKE_FINI_FUNCTION(NAME)      \
-        void NAME(void)
+	void NAME(void)
 
 # endif
 
@@ -402,7 +415,7 @@ typedef struct { int error; unsigned char did_run; } k5_init_t;
 
    XXX How do we know if the C++ support actually works?  */
 # define MAKE_FINI_FUNCTION(NAME)       \
-        static void NAME(void) __attribute__((destructor))
+	static void NAME(void) __attribute__((destructor))
 
 #else
 
@@ -550,9 +563,10 @@ typedef struct { int error; unsigned char did_run; } k5_init_t;
 #  define SWAP16                OSSwapInt16
 # else
 #  define SWAP16                k5_swap16
-static inline unsigned int k5_swap16 (unsigned int x) {
-    x &= 0xffff;
-    return (x >> 8) | ((x & 0xff) << 8);
+static inline unsigned int k5_swap16(unsigned int x)
+{
+	x &= 0xffff;
+	return (x >> 8) | ((x & 0xff) << 8);
 }
 # endif
 # define SWAP32                 OSSwapInt32
@@ -575,171 +589,171 @@ static inline unsigned int k5_swap16 (unsigned int x) {
 /* Note that on Windows at least this file can be included from C++
    source, so casts *from* void* are required.  */
 static inline void
-store_16_be (unsigned int val, void *vp)
+store_16_be(unsigned int val, void* vp)
 {
-    unsigned char *p = (unsigned char *) vp;
+	unsigned char* p = (unsigned char*) vp;
 #if defined(__GNUC__) && defined(K5_BE) && !defined(__cplusplus)
-    PUT(16,p,val);
+	PUT(16, p, val);
 #elif defined(__GNUC__) && defined(K5_LE) && defined(SWAP16) && !defined(__cplusplus)
-    PUTSWAPPED(16,p,val);
+	PUTSWAPPED(16, p, val);
 #else
-    p[0] = (val >>  8) & 0xff;
-    p[1] = (val      ) & 0xff;
+	p[0] = (val >>  8) & 0xff;
+	p[1] = (val) & 0xff;
 #endif
 }
 static inline void
-store_32_be (unsigned int val, void *vp)
+store_32_be(unsigned int val, void* vp)
 {
-    unsigned char *p = (unsigned char *) vp;
+	unsigned char* p = (unsigned char*) vp;
 #if defined(__GNUC__) && defined(K5_BE) && !defined(__cplusplus)
-    PUT(32,p,val);
+	PUT(32, p, val);
 #elif defined(__GNUC__) && defined(K5_LE) && defined(SWAP32) && !defined(__cplusplus)
-    PUTSWAPPED(32,p,val);
+	PUTSWAPPED(32, p, val);
 #else
-    p[0] = (val >> 24) & 0xff;
-    p[1] = (val >> 16) & 0xff;
-    p[2] = (val >>  8) & 0xff;
-    p[3] = (val      ) & 0xff;
+	p[0] = (val >> 24) & 0xff;
+	p[1] = (val >> 16) & 0xff;
+	p[2] = (val >>  8) & 0xff;
+	p[3] = (val) & 0xff;
 #endif
 }
 static inline void
-store_64_be (UINT64_TYPE val, void *vp)
+store_64_be(UINT64_TYPE val, void* vp)
 {
-    unsigned char *p = (unsigned char *) vp;
+	unsigned char* p = (unsigned char*) vp;
 #if defined(__GNUC__) && defined(K5_BE) && !defined(__cplusplus)
-    PUT(64,p,val);
+	PUT(64, p, val);
 #elif defined(__GNUC__) && defined(K5_LE) && defined(SWAP64) && !defined(__cplusplus)
-    PUTSWAPPED(64,p,val);
+	PUTSWAPPED(64, p, val);
 #else
-    p[0] = (unsigned char)((val >> 56) & 0xff);
-    p[1] = (unsigned char)((val >> 48) & 0xff);
-    p[2] = (unsigned char)((val >> 40) & 0xff);
-    p[3] = (unsigned char)((val >> 32) & 0xff);
-    p[4] = (unsigned char)((val >> 24) & 0xff);
-    p[5] = (unsigned char)((val >> 16) & 0xff);
-    p[6] = (unsigned char)((val >>  8) & 0xff);
-    p[7] = (unsigned char)((val      ) & 0xff);
+	p[0] = (unsigned char)((val >> 56) & 0xff);
+	p[1] = (unsigned char)((val >> 48) & 0xff);
+	p[2] = (unsigned char)((val >> 40) & 0xff);
+	p[3] = (unsigned char)((val >> 32) & 0xff);
+	p[4] = (unsigned char)((val >> 24) & 0xff);
+	p[5] = (unsigned char)((val >> 16) & 0xff);
+	p[6] = (unsigned char)((val >>  8) & 0xff);
+	p[7] = (unsigned char)((val) & 0xff);
 #endif
 }
 static inline unsigned short
-load_16_be (const void *cvp)
+load_16_be(const void* cvp)
 {
-    const unsigned char *p = (const unsigned char *) cvp;
+	const unsigned char* p = (const unsigned char*) cvp;
 #if defined(__GNUC__) && defined(K5_BE) && !defined(__cplusplus)
-    return GET(16,p);
+	return GET(16, p);
 #elif defined(__GNUC__) && defined(K5_LE) && defined(SWAP16) && !defined(__cplusplus)
-    return GETSWAPPED(16,p);
+	return GETSWAPPED(16, p);
 #else
-    return (p[1] | (p[0] << 8));
+	return (p[1] | (p[0] << 8));
 #endif
 }
 static inline unsigned int
-load_32_be (const void *cvp)
+load_32_be(const void* cvp)
 {
-    const unsigned char *p = (const unsigned char *) cvp;
+	const unsigned char* p = (const unsigned char*) cvp;
 #if defined(__GNUC__) && defined(K5_BE) && !defined(__cplusplus)
-    return GET(32,p);
+	return GET(32, p);
 #elif defined(__GNUC__) && defined(K5_LE) && defined(SWAP32) && !defined(__cplusplus)
-    return GETSWAPPED(32,p);
+	return GETSWAPPED(32, p);
 #else
-    return (p[3] | (p[2] << 8)
-            | ((uint32_t) p[1] << 16)
-            | ((uint32_t) p[0] << 24));
+	return (p[3] | (p[2] << 8)
+	        | ((uint32_t) p[1] << 16)
+	        | ((uint32_t) p[0] << 24));
 #endif
 }
 static inline UINT64_TYPE
-load_64_be (const void *cvp)
+load_64_be(const void* cvp)
 {
-    const unsigned char *p = (const unsigned char *) cvp;
+	const unsigned char* p = (const unsigned char*) cvp;
 #if defined(__GNUC__) && defined(K5_BE) && !defined(__cplusplus)
-    return GET(64,p);
+	return GET(64, p);
 #elif defined(__GNUC__) && defined(K5_LE) && defined(SWAP64) && !defined(__cplusplus)
-    return GETSWAPPED(64,p);
+	return GETSWAPPED(64, p);
 #else
-    return ((UINT64_TYPE)load_32_be(p) << 32) | load_32_be(p+4);
+	return ((UINT64_TYPE)load_32_be(p) << 32) | load_32_be(p + 4);
 #endif
 }
 static inline void
-store_16_le (unsigned int val, void *vp)
+store_16_le(unsigned int val, void* vp)
 {
-    unsigned char *p = (unsigned char *) vp;
+	unsigned char* p = (unsigned char*) vp;
 #if defined(__GNUC__) && defined(K5_LE) && !defined(__cplusplus)
-    PUT(16,p,val);
+	PUT(16, p, val);
 #elif defined(__GNUC__) && defined(K5_BE) && defined(SWAP16) && !defined(__cplusplus)
-    PUTSWAPPED(16,p,val);
+	PUTSWAPPED(16, p, val);
 #else
-    p[1] = (val >>  8) & 0xff;
-    p[0] = (val      ) & 0xff;
+	p[1] = (val >>  8) & 0xff;
+	p[0] = (val) & 0xff;
 #endif
 }
 static inline void
-store_32_le (unsigned int val, void *vp)
+store_32_le(unsigned int val, void* vp)
 {
-    unsigned char *p = (unsigned char *) vp;
+	unsigned char* p = (unsigned char*) vp;
 #if defined(__GNUC__) && defined(K5_LE) && !defined(__cplusplus)
-    PUT(32,p,val);
+	PUT(32, p, val);
 #elif defined(__GNUC__) && defined(K5_BE) && defined(SWAP32) && !defined(__cplusplus)
-    PUTSWAPPED(32,p,val);
+	PUTSWAPPED(32, p, val);
 #else
-    p[3] = (val >> 24) & 0xff;
-    p[2] = (val >> 16) & 0xff;
-    p[1] = (val >>  8) & 0xff;
-    p[0] = (val      ) & 0xff;
+	p[3] = (val >> 24) & 0xff;
+	p[2] = (val >> 16) & 0xff;
+	p[1] = (val >>  8) & 0xff;
+	p[0] = (val) & 0xff;
 #endif
 }
 static inline void
-store_64_le (UINT64_TYPE val, void *vp)
+store_64_le(UINT64_TYPE val, void* vp)
 {
-    unsigned char *p = (unsigned char *) vp;
+	unsigned char* p = (unsigned char*) vp;
 #if defined(__GNUC__) && defined(K5_LE) && !defined(__cplusplus)
-    PUT(64,p,val);
+	PUT(64, p, val);
 #elif defined(__GNUC__) && defined(K5_BE) && defined(SWAP64) && !defined(__cplusplus)
-    PUTSWAPPED(64,p,val);
+	PUTSWAPPED(64, p, val);
 #else
-    p[7] = (unsigned char)((val >> 56) & 0xff);
-    p[6] = (unsigned char)((val >> 48) & 0xff);
-    p[5] = (unsigned char)((val >> 40) & 0xff);
-    p[4] = (unsigned char)((val >> 32) & 0xff);
-    p[3] = (unsigned char)((val >> 24) & 0xff);
-    p[2] = (unsigned char)((val >> 16) & 0xff);
-    p[1] = (unsigned char)((val >>  8) & 0xff);
-    p[0] = (unsigned char)((val      ) & 0xff);
+	p[7] = (unsigned char)((val >> 56) & 0xff);
+	p[6] = (unsigned char)((val >> 48) & 0xff);
+	p[5] = (unsigned char)((val >> 40) & 0xff);
+	p[4] = (unsigned char)((val >> 32) & 0xff);
+	p[3] = (unsigned char)((val >> 24) & 0xff);
+	p[2] = (unsigned char)((val >> 16) & 0xff);
+	p[1] = (unsigned char)((val >>  8) & 0xff);
+	p[0] = (unsigned char)((val) & 0xff);
 #endif
 }
 static inline unsigned short
-load_16_le (const void *cvp)
+load_16_le(const void* cvp)
 {
-    const unsigned char *p = (const unsigned char *) cvp;
+	const unsigned char* p = (const unsigned char*) cvp;
 #if defined(__GNUC__) && defined(K5_LE) && !defined(__cplusplus)
-    return GET(16,p);
+	return GET(16, p);
 #elif defined(__GNUC__) && defined(K5_BE) && defined(SWAP16) && !defined(__cplusplus)
-    return GETSWAPPED(16,p);
+	return GETSWAPPED(16, p);
 #else
-    return (p[0] | (p[1] << 8));
+	return (p[0] | (p[1] << 8));
 #endif
 }
 static inline unsigned int
-load_32_le (const void *cvp)
+load_32_le(const void* cvp)
 {
-    const unsigned char *p = (const unsigned char *) cvp;
+	const unsigned char* p = (const unsigned char*) cvp;
 #if defined(__GNUC__) && defined(K5_LE) && !defined(__cplusplus)
-    return GET(32,p);
+	return GET(32, p);
 #elif defined(__GNUC__) && defined(K5_BE) && defined(SWAP32) && !defined(__cplusplus)
-    return GETSWAPPED(32,p);
+	return GETSWAPPED(32, p);
 #else
-    return (p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24));
+	return (p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24));
 #endif
 }
 static inline UINT64_TYPE
-load_64_le (const void *cvp)
+load_64_le(const void* cvp)
 {
-    const unsigned char *p = (const unsigned char *) cvp;
+	const unsigned char* p = (const unsigned char*) cvp;
 #if defined(__GNUC__) && defined(K5_LE) && !defined(__cplusplus)
-    return GET(64,p);
+	return GET(64, p);
 #elif defined(__GNUC__) && defined(K5_BE) && defined(SWAP64) && !defined(__cplusplus)
-    return GETSWAPPED(64,p);
+	return GETSWAPPED(64, p);
 #else
-    return ((UINT64_TYPE)load_32_le(p+4) << 32) | load_32_le(p);
+	return ((UINT64_TYPE)load_32_le(p + 4) << 32) | load_32_le(p);
 #endif
 }
 
@@ -752,63 +766,63 @@ load_64_le (const void *cvp)
 #endif
 
 static inline void
-store_16_n (unsigned int val, void *vp)
+store_16_n(unsigned int val, void* vp)
 {
-    UINT16_TYPE n = val;
-    memcpy(vp, &n, 2);
+	UINT16_TYPE n = val;
+	memcpy(vp, &n, 2);
 }
 static inline void
-store_32_n (unsigned int val, void *vp)
+store_32_n(unsigned int val, void* vp)
 {
-    UINT32_TYPE n = val;
-    memcpy(vp, &n, 4);
+	UINT32_TYPE n = val;
+	memcpy(vp, &n, 4);
 }
 static inline void
-store_64_n (UINT64_TYPE val, void *vp)
+store_64_n(UINT64_TYPE val, void* vp)
 {
-    UINT64_TYPE n = val;
-    memcpy(vp, &n, 8);
+	UINT64_TYPE n = val;
+	memcpy(vp, &n, 8);
 }
 static inline unsigned short
-load_16_n (const void *p)
+load_16_n(const void* p)
 {
-    UINT16_TYPE n;
-    memcpy(&n, p, 2);
-    return n;
+	UINT16_TYPE n;
+	memcpy(&n, p, 2);
+	return n;
 }
 static inline unsigned int
-load_32_n (const void *p)
+load_32_n(const void* p)
 {
-    UINT32_TYPE n;
-    memcpy(&n, p, 4);
-    return n;
+	UINT32_TYPE n;
+	memcpy(&n, p, 4);
+	return n;
 }
 static inline UINT64_TYPE
-load_64_n (const void *p)
+load_64_n(const void* p)
 {
-    UINT64_TYPE n;
-    memcpy(&n, p, 8);
-    return n;
+	UINT64_TYPE n;
+	memcpy(&n, p, 8);
+	return n;
 }
 #undef UINT16_TYPE
 #undef UINT32_TYPE
 
 /* Assume for simplicity that these swaps are identical.  */
 static inline UINT64_TYPE
-k5_htonll (UINT64_TYPE val)
+k5_htonll(UINT64_TYPE val)
 {
 #ifdef K5_BE
-    return val;
+	return val;
 #elif defined K5_LE && defined SWAP64
-    return SWAP64 (val);
+	return SWAP64(val);
 #else
-    return load_64_be ((unsigned char *)&val);
+	return load_64_be((unsigned char*)&val);
 #endif
 }
 static inline UINT64_TYPE
-k5_ntohll (UINT64_TYPE val)
+k5_ntohll(UINT64_TYPE val)
 {
-    return k5_htonll (val);
+	return k5_htonll(val);
 }
 
 /* Make the interfaces to getpwnam and getpwuid consistent.
@@ -821,24 +835,24 @@ k5_ntohll (UINT64_TYPE val)
 # ifndef GETPWNAM_R_4_ARGS
 /* POSIX */
 #  define k5_getpwnam_r(NAME, REC, BUF, BUFSIZE, OUT)   \
-        (getpwnam_r(NAME,REC,BUF,BUFSIZE,OUT) == 0      \
-         ? (*(OUT) == NULL ? -1 : 0) : -1)
+	(getpwnam_r(NAME,REC,BUF,BUFSIZE,OUT) == 0      \
+	 ? (*(OUT) == NULL ? -1 : 0) : -1)
 # else
 /* POSIX drafts? */
 #  ifdef GETPWNAM_R_RETURNS_INT
 #   define k5_getpwnam_r(NAME, REC, BUF, BUFSIZE, OUT)  \
-        (getpwnam_r(NAME,REC,BUF,BUFSIZE) == 0          \
-         ? (*(OUT) = REC, 0)                            \
-         : (*(OUT) = NULL, -1))
+	(getpwnam_r(NAME,REC,BUF,BUFSIZE) == 0          \
+	 ? (*(OUT) = REC, 0)                            \
+	 : (*(OUT) = NULL, -1))
 #  else
 #   define k5_getpwnam_r(NAME, REC, BUF, BUFSIZE, OUT)  \
-        (*(OUT) = getpwnam_r(NAME,REC,BUF,BUFSIZE), *(OUT) == NULL ? -1 : 0)
+	(*(OUT) = getpwnam_r(NAME,REC,BUF,BUFSIZE), *(OUT) == NULL ? -1 : 0)
 #  endif
 # endif
 #else /* no getpwnam_r, or can't figure out #args or return type */
 /* Will get warnings about unused variables.  */
 # define k5_getpwnam_r(NAME, REC, BUF, BUFSIZE, OUT) \
-        (*(OUT) = getpwnam(NAME), *(OUT) == NULL ? -1 : 0)
+	(*(OUT) = getpwnam(NAME), *(OUT) == NULL ? -1 : 0)
 #endif
 
 /* int k5_getpwuid_r(uid_t, blah blah) */
@@ -846,25 +860,25 @@ k5_ntohll (UINT64_TYPE val)
 # ifndef GETPWUID_R_4_ARGS
 /* POSIX */
 #  define k5_getpwuid_r(UID, REC, BUF, BUFSIZE, OUT)    \
-        (getpwuid_r(UID,REC,BUF,BUFSIZE,OUT) == 0       \
-         ? (*(OUT) == NULL ? -1 : 0) : -1)
+	(getpwuid_r(UID,REC,BUF,BUFSIZE,OUT) == 0       \
+	 ? (*(OUT) == NULL ? -1 : 0) : -1)
 # else
 /* POSIX drafts?  Yes, I mean to test GETPWNAM... here.  Less junk to
    do at configure time.  */
 #  ifdef GETPWNAM_R_RETURNS_INT
 #   define k5_getpwuid_r(UID, REC, BUF, BUFSIZE, OUT)   \
-        (getpwuid_r(UID,REC,BUF,BUFSIZE) == 0           \
-         ? (*(OUT) = REC, 0)                            \
-         : (*(OUT) = NULL, -1))
+	(getpwuid_r(UID,REC,BUF,BUFSIZE) == 0           \
+	 ? (*(OUT) = REC, 0)                            \
+	 : (*(OUT) = NULL, -1))
 #  else
 #   define k5_getpwuid_r(UID, REC, BUF, BUFSIZE, OUT)  \
-        (*(OUT) = getpwuid_r(UID,REC,BUF,BUFSIZE), *(OUT) == NULL ? -1 : 0)
+	(*(OUT) = getpwuid_r(UID,REC,BUF,BUFSIZE), *(OUT) == NULL ? -1 : 0)
 #  endif
 # endif
 #else /* no getpwuid_r, or can't figure out #args or return type */
 /* Will get warnings about unused variables.  */
 # define k5_getpwuid_r(UID, REC, BUF, BUFSIZE, OUT) \
-        (*(OUT) = getpwuid(UID), *(OUT) == NULL ? -1 : 0)
+	(*(OUT) = getpwuid(UID), *(OUT) == NULL ? -1 : 0)
 #endif
 
 /* Ensure, if possible, that the indicated file descriptor won't be
@@ -879,20 +893,24 @@ set_cloexec_fd(int fd)
 {
 #if defined(F_SETFD)
 # ifdef FD_CLOEXEC
-    if (fcntl(fd, F_SETFD, FD_CLOEXEC) != 0)
-        return errno;
+
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC) != 0)
+		return errno;
+
 # else
-    if (fcntl(fd, F_SETFD, 1) != 0)
-        return errno;
+
+	if (fcntl(fd, F_SETFD, 1) != 0)
+		return errno;
+
 # endif
 #endif
-    return 0;
+	return 0;
 }
 
 static inline int
-set_cloexec_file(FILE *f)
+set_cloexec_file(FILE* f)
 {
-    return set_cloexec_fd(fileno(f));
+	return set_cloexec_fd(fileno(f));
 }
 #else
 /* Macros make the Sun compiler happier, and all variants of this do a
@@ -937,14 +955,14 @@ set_cloexec_file(FILE *f)
 #ifndef HAVE_STRLCPY
 #define strlcpy krb5int_strlcpy
 #define strlcat krb5int_strlcat
-extern size_t krb5int_strlcpy(char *dst, const char *src, size_t siz);
-extern size_t krb5int_strlcat(char *dst, const char *src, size_t siz);
+extern size_t krb5int_strlcpy(char* dst, const char* src, size_t siz);
+extern size_t krb5int_strlcat(char* dst, const char* src, size_t siz);
 #endif
 
 /* Provide fnmatch interface. */
 #ifndef HAVE_FNMATCH
 #define fnmatch k5_fnmatch
-int k5_fnmatch(const char *pattern, const char *string, int flags);
+int k5_fnmatch(const char* pattern, const char* string, int flags);
 #define FNM_NOMATCH     1       /* Match failed. */
 #define FNM_NOSYS       2       /* Function not implemented. */
 #define FNM_NORES       3       /* Out of resources */
@@ -959,30 +977,31 @@ int k5_fnmatch(const char *pattern, const char *string, int flags);
 #ifndef HAVE_VSNPRINTF
 #ifdef _WIN32
 static inline int
-vsnprintf(char *str, size_t size, const char *format, va_list args)
+vsnprintf(char* str, size_t size, const char* format, va_list args)
 {
-    va_list args_copy;
-    int length;
+	va_list args_copy;
+	int length;
+	va_copy(args_copy, args);
+	length = _vscprintf(format, args_copy);
+	va_end(args_copy);
 
-    va_copy(args_copy, args);
-    length = _vscprintf(format, args_copy);
-    va_end(args_copy);
-    if (size > 0) {
-        _vsnprintf(str, size, format, args);
-        str[size - 1] = '\0';
-    }
-    return length;
+	if (size > 0)
+	{
+		_vsnprintf(str, size, format, args);
+		str[size - 1] = '\0';
+	}
+
+	return length;
 }
 static inline int
-snprintf(char *str, size_t size, const char *format, ...)
+snprintf(char* str, size_t size, const char* format, ...)
 {
-    va_list args;
-    int n;
-
-    va_start(args, format);
-    n = vsnprintf(str, size, format, args);
-    va_end(args);
-    return n;
+	va_list args;
+	int n;
+	va_start(args, format);
+	n = vsnprintf(str, size, format, args);
+	va_end(args);
+	return n;
 }
 #else /* not win32 */
 #error We need an implementation of vsnprintf.
@@ -991,16 +1010,16 @@ snprintf(char *str, size_t size, const char *format, ...)
 
 #ifndef HAVE_VASPRINTF
 
-extern int krb5int_vasprintf(char **, const char *, va_list)
+extern int krb5int_vasprintf(char**, const char*, va_list)
 #if !defined(__cplusplus) && (__GNUC__ > 2)
-    __attribute__((__format__(__printf__, 2, 0)))
+__attribute__((__format__(__printf__, 2, 0)))
 #endif
-    ;
-extern int krb5int_asprintf(char **, const char *, ...)
+;
+extern int krb5int_asprintf(char**, const char*, ...)
 #if !defined(__cplusplus) && (__GNUC__ > 2)
-    __attribute__((__format__(__printf__, 2, 3)))
+__attribute__((__format__(__printf__, 2, 3)))
 #endif
-    ;
+;
 
 #define vasprintf krb5int_vasprintf
 /* Assume HAVE_ASPRINTF iff HAVE_VASPRINTF.  */
@@ -1008,16 +1027,16 @@ extern int krb5int_asprintf(char **, const char *, ...)
 
 #elif defined(NEED_VASPRINTF_PROTO)
 
-extern int vasprintf(char **, const char *, va_list)
+extern int vasprintf(char**, const char*, va_list)
 #if !defined(__cplusplus) && (__GNUC__ > 2)
-    __attribute__((__format__(__printf__, 2, 0)))
+__attribute__((__format__(__printf__, 2, 0)))
 #endif
-    ;
-extern int asprintf(char **, const char *, ...)
+;
+extern int asprintf(char**, const char*, ...)
 #if !defined(__cplusplus) && (__GNUC__ > 2)
-    __attribute__((__format__(__printf__, 2, 3)))
+__attribute__((__format__(__printf__, 2, 3)))
 #endif
-    ;
+;
 
 #endif /* have vasprintf and prototype? */
 
@@ -1035,26 +1054,26 @@ extern int asprintf(char **, const char *, ...)
    int or larger).
 */
 #define SNPRINTF_OVERFLOW(result, size) \
-    ((unsigned int)(result) >= (size_t)(size))
+	((unsigned int)(result) >= (size_t)(size))
 
 #ifndef HAVE_MKSTEMP
-extern int krb5int_mkstemp(char *);
+extern int krb5int_mkstemp(char*);
 #define mkstemp krb5int_mkstemp
 #endif
 
 #ifndef HAVE_GETTIMEOFDAY
-extern int krb5int_gettimeofday(struct timeval *tp, void *ignore);
+extern int krb5int_gettimeofday(struct timeval* tp, void* ignore);
 #define gettimeofday krb5int_gettimeofday
 #endif
 
-extern void krb5int_zap(void *ptr, size_t len);
+extern void krb5int_zap(void* ptr, size_t len);
 
 /*
  * Return 0 if the n-byte memory regions p1 and p2 are equal, and nonzero if
  * they are not.  The function is intended to take the same amount of time
  * regardless of how many bytes of p1 and p2 are equal.
  */
-int k5_bcmp(const void *p1, const void *p2, size_t n);
+int k5_bcmp(const void* p1, const void* p2, size_t n);
 
 /*
  * Split a path into parent directory and basename.  Either output parameter
@@ -1062,7 +1081,7 @@ int k5_bcmp(const void *p1, const void *p2, size_t n);
  * has no basename.  basename_out will be empty if path ends with a path
  * separator.  Returns 0 on success or ENOMEM on allocation failure.
  */
-long k5_path_split(const char *path, char **parent_out, char **basename_out);
+long k5_path_split(const char* path, char** parent_out, char** basename_out);
 
 /*
  * Compose two path components, inserting the platform-appropriate path
@@ -1070,10 +1089,10 @@ long k5_path_split(const char *path, char **parent_out, char **basename_out);
  * and path_out will be a copy of path2.  Returns 0 on success or ENOMEM on
  * allocation failure.
  */
-long k5_path_join(const char *path1, const char *path2, char **path_out);
+long k5_path_join(const char* path1, const char* path2, char** path_out);
 
 /* Return 1 if path is absolute, 0 if it is relative. */
-int k5_path_isabs(const char *path);
+int k5_path_isabs(const char* path);
 
 /*
  * Localization macros.  If we have gettext, define _ appropriately for

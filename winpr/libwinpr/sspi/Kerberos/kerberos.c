@@ -439,9 +439,8 @@ SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextA(PCredHandle phCred
 				               context->credentials->identity.Password,
 				               context->credentials->identity.PasswordLength))
 					return SEC_E_NO_CREDENTIALS;
-					
-				WLog_INFO(TAG, "Authenticated to Kerberos v5 via login/password");
 
+				WLog_INFO(TAG, "Authenticated to Kerberos v5 via login/password");
 				/* retry GSSAPI call */
 				context->major_status = sspi_gss_init_sec_context(&(context->minor_status),
 				                        context->cred, &(context->gss_ctx), context->target_name,
