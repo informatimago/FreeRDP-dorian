@@ -62,30 +62,31 @@
 #define CERTINFO_EXTERN
 #endif
 
-struct cert_policy_st {
+struct cert_policy_st
+{
 	int ca_policy;
 	int crl_policy;
 	int signature_policy;
-	const char *ca_dir;
-	const char *crl_dir;
+	const char* ca_dir;
+	const char* crl_dir;
 	int ocsp_policy;
 };
 
 typedef struct cert_policy_st cert_policy;
 
 #include <openssl/x509.h>
-typedef const char *ALGORITHM_TYPE;
+typedef const char* ALGORITHM_TYPE;
 
-char *clone_str(const char *str);
-char *bin2hex(const unsigned char *binstr,const int len);
-void add_cert(X509 *cert, X509 ***certs, int *ncerts);
-static char **cert_info_cn(X509 *x509);
-static char **cert_info_subject(X509 *x509);
-static char **cert_info_issuer(X509 *x509);
-static char **cert_info_kpn(X509 *x509);
-static char **cert_info_upn(X509 *x509);
-static char **cert_key_alg(X509 *x509);
-char **cert_info(X509 *x509, int type);
+char* clone_str(const char* str);
+char* bin2hex(const unsigned char* binstr, const int len);
+void add_cert(X509* cert, X509** *certs, int* ncerts);
+static char** cert_info_cn(X509* x509);
+static char** cert_info_subject(X509* x509);
+static char** cert_info_issuer(X509* x509);
+static char** cert_info_kpn(X509* x509);
+static char** cert_info_upn(X509* x509);
+static char** cert_key_alg(X509* x509);
+char** cert_info(X509* x509, int type);
 
 
 #if OPENSSL_VERSION_NUMBER >=  0x00907000L

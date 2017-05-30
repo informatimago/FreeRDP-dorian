@@ -48,32 +48,35 @@
 #include <krb5/clpreauth_plugin.h>
 #include <pkcs11-helper-1.0/pkcs11.h>
 
-typedef struct _kerberos_settings{
+typedef struct _kerberos_settings
+{
 	krb5_error_code ret;
 	krb5_context context;
 	krb5_principal principal;
-	char * address;
+	char* address;
 	krb5_ccache ccache;
 	krb5_init_creds_context ctx;
-	krb5_creds * creds;
+	krb5_creds* creds;
 	krb5_responder_context rctx;
-	krb5_get_init_creds_opt * options;
-	krb5_responder_pkinit_challenge * challenge;
-	void * data;
-	char * identity;
+	krb5_get_init_creds_opt* options;
+	krb5_responder_pkinit_challenge* challenge;
+	void* data;
+	char* identity;
 	UINT32 freeRDP_error;
-}kerberos_settings;
+} kerberos_settings;
 
-typedef struct _data_kerberos{
+typedef struct _data_kerberos
+{
 	krb5_context context;
 	krb5_responder_context rctx;
-	krb5_get_init_creds_opt * options;
-}data_kerberos;
+	krb5_get_init_creds_opt* options;
+} data_kerberos;
 
-typedef struct _pkinit_anchors{
+typedef struct _pkinit_anchors
+{
 	size_t length;
-	char * anchor;
-}pkinit_anchors;
+	char* anchor;
+} pkinit_anchors;
 
 #define TERMSRV_SPN_PREFIX	"TERMSRV/"
 
@@ -102,19 +105,19 @@ struct k_opts
 	char* keytab_name;
 	char* k5_in_cache_name;
 	char* k5_out_cache_name;
-	char *armor_ccache;
-	pkinit_anchors ** pkinit_anchors;
+	char* armor_ccache;
+	pkinit_anchors** pkinit_anchors;
 
 	action_type action;
 	int use_client_keytab;
 
 	int num_pa_opts;
-	krb5_gic_opt_pa_data *pa_opts;
+	krb5_gic_opt_pa_data* pa_opts;
 
 	int canonicalize;
 	int enterprise;
 
-	krb5_data * outdata;
+	krb5_data* outdata;
 };
 
 struct k5_data
@@ -126,31 +129,35 @@ struct k5_data
 	krb5_boolean switch_to_cache;
 };
 
-struct _responder_data {
+struct _responder_data
+{
 	krb5_boolean called;
 	krb5_boolean print_pkinit_challenge;
-	char *challenge;
-	char *response;
-	char *pkinit_answer;
-	char *otp_answer;
+	char* challenge;
+	char* response;
+	char* pkinit_answer;
+	char* otp_answer;
 };
 
 typedef struct _responder_data ty_responder_data;
 typedef ty_responder_data* responder_data;
 
-BOOL pkinit_acquire_krb5_TGT(rdpSettings * settings);
-BOOL get_TGT_kerberos(rdpSettings * settings);
-BOOL set_pkinit_identity(rdpSettings * settings);
-pkinit_anchors ** parse_pkinit_anchors(char * list_pkinit_anchors);
-int add_preauth_opt(struct k_opts *opts, char *av);
-int init_responder_data(rdpSettings * settings, responder_data data);
-int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings * rdpSettings);
-int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response, rdpSettings * rdpSettings);
+BOOL pkinit_acquire_krb5_TGT(rdpSettings* settings);
+BOOL get_TGT_kerberos(rdpSettings* settings);
+BOOL set_pkinit_identity(rdpSettings* settings);
+pkinit_anchors** parse_pkinit_anchors(char* list_pkinit_anchors);
+int add_preauth_opt(struct k_opts* opts, char* av);
+int init_responder_data(rdpSettings* settings, responder_data data);
+int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* rdpSettings);
+int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
+             rdpSettings* rdpSettings);
 void k5_end(struct k5_data* k5);
-BOOL init_cred_cache(rdpSettings * settings);
+BOOL init_cred_cache(rdpSettings* settings);
 
-krb5_error_code KRB5_CALLCONV krb5_copy_data_add0(krb5_context context, const krb5_data *indata, krb5_data **outdata);
-krb5_error_code krb5int_copy_data_contents_add0(krb5_context context, const krb5_data *indata, krb5_data *outdata);
-void trace_callback(krb5_context context, const krb5_trace_info * info, void *cb);
+krb5_error_code KRB5_CALLCONV krb5_copy_data_add0(krb5_context context, const krb5_data* indata,
+        krb5_data** outdata);
+krb5_error_code krb5int_copy_data_contents_add0(krb5_context context, const krb5_data* indata,
+        krb5_data* outdata);
+void trace_callback(krb5_context context, const krb5_trace_info* info, void* cb);
 
 #endif /* PKINIT_H */
