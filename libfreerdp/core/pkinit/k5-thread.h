@@ -162,20 +162,25 @@ typedef char k5_os_nothread_mutex;
 /* Empty inline functions avoid the "statement with no effect"
    warnings, and do better type-checking than functions that don't use
    their arguments.  */
-static inline int k5_os_nothread_mutex_finish_init(k5_os_nothread_mutex *m) {
-    return 0;
+static inline int k5_os_nothread_mutex_finish_init(k5_os_nothread_mutex* m)
+{
+	return 0;
 }
-static inline int k5_os_nothread_mutex_init(k5_os_nothread_mutex *m) {
-    return 0;
+static inline int k5_os_nothread_mutex_init(k5_os_nothread_mutex* m)
+{
+	return 0;
 }
-static inline int k5_os_nothread_mutex_destroy(k5_os_nothread_mutex *m) {
-    return 0;
+static inline int k5_os_nothread_mutex_destroy(k5_os_nothread_mutex* m)
+{
+	return 0;
 }
-static inline int k5_os_nothread_mutex_lock(k5_os_nothread_mutex *m) {
-    return 0;
+static inline int k5_os_nothread_mutex_lock(k5_os_nothread_mutex* m)
+{
+	return 0;
 }
-static inline int k5_os_nothread_mutex_unlock(k5_os_nothread_mutex *m) {
-    return 0;
+static inline int k5_os_nothread_mutex_unlock(k5_os_nothread_mutex* m)
+{
+	return 0;
 }
 
 /* Values:
@@ -185,9 +190,9 @@ static inline int k5_os_nothread_mutex_unlock(k5_os_nothread_mutex *m) {
 typedef unsigned char k5_os_nothread_once_t;
 # define K5_OS_NOTHREAD_ONCE_INIT       2
 # define k5_os_nothread_once(O,F)                               \
-    (*(O) == 3 ? 0                                              \
-     : *(O) == 2 ? (*(O) = 4, (F)(), *(O) = 3, 0)               \
-     : (assert(*(O) != 4), assert(*(O) == 2 || *(O) == 3), 0))
+	(*(O) == 3 ? 0                                              \
+	 : *(O) == 2 ? (*(O) = 4, (F)(), *(O) = 3, 0)               \
+	 : (assert(*(O) != 4), assert(*(O) == 2 || *(O) == 3), 0))
 
 
 
@@ -195,7 +200,7 @@ typedef unsigned char k5_os_nothread_once_t;
 
 typedef k5_os_nothread_mutex k5_os_mutex;
 # define K5_OS_MUTEX_PARTIAL_INITIALIZER        \
-    K5_OS_NOTHREAD_MUTEX_PARTIAL_INITIALIZER
+	K5_OS_NOTHREAD_MUTEX_PARTIAL_INITIALIZER
 # define k5_os_mutex_finish_init        k5_os_nothread_mutex_finish_init
 # define k5_os_mutex_init               k5_os_nothread_mutex_init
 # define k5_os_mutex_destroy            k5_os_nothread_mutex_destroy
@@ -245,9 +250,9 @@ typedef k5_os_nothread_mutex k5_os_mutex;
 extern int krb5int_pthread_loaded(void)
 #ifdef __GNUC__
 /* We should always get the same answer for the life of the process.  */
-    __attribute__((const))
+__attribute__((const))
 #endif
-    ;
+;
 #if defined(HAVE_PRAGMA_WEAK_REF) && !defined(NO_WEAK_PTHREADS)
 # pragma weak pthread_once
 # pragma weak pthread_mutex_lock
@@ -260,9 +265,10 @@ extern int krb5int_pthread_loaded(void)
 # define USE_PTHREAD_LOCK_ONLY_IF_LOADED
 
 /* Can't rely on useful stubs -- see above regarding Solaris.  */
-typedef struct {
-    pthread_once_t o;
-    k5_os_nothread_once_t n;
+typedef struct
+{
+	pthread_once_t o;
+	k5_os_nothread_once_t n;
 } k5_once_t;
 # define K5_ONCE_INIT   { PTHREAD_ONCE_INIT, K5_OS_NOTHREAD_ONCE_INIT }
 # define k5_once(O,F)   (K5_PTHREADS_LOADED                     \
@@ -292,23 +298,26 @@ typedef pthread_once_t k5_once_t;
 
 typedef pthread_mutex_t k5_os_mutex;
 # define K5_OS_MUTEX_PARTIAL_INITIALIZER        \
-    PTHREAD_MUTEX_INITIALIZER
+	PTHREAD_MUTEX_INITIALIZER
 
 #ifdef USE_PTHREAD_LOCK_ONLY_IF_LOADED
 
 # define k5_os_mutex_finish_init(M)             (0)
 # define k5_os_mutex_init(M)                                    \
-    (K5_PTHREADS_LOADED ? pthread_mutex_init((M), 0) : 0)
+	(K5_PTHREADS_LOADED ? pthread_mutex_init((M), 0) : 0)
 # define k5_os_mutex_destroy(M)                                 \
-    (K5_PTHREADS_LOADED ? pthread_mutex_destroy((M)) : 0)
+	(K5_PTHREADS_LOADED ? pthread_mutex_destroy((M)) : 0)
 # define k5_os_mutex_lock(M)                            \
-    (K5_PTHREADS_LOADED ? pthread_mutex_lock(M) : 0)
+	(K5_PTHREADS_LOADED ? pthread_mutex_lock(M) : 0)
 # define k5_os_mutex_unlock(M)                          \
-    (K5_PTHREADS_LOADED ? pthread_mutex_unlock(M) : 0)
+	(K5_PTHREADS_LOADED ? pthread_mutex_unlock(M) : 0)
 
 #else
 
-static inline int k5_os_mutex_finish_init(k5_os_mutex *m) { return 0; }
+static inline int k5_os_mutex_finish_init(k5_os_mutex* m)
+{
+	return 0;
+}
 # define k5_os_mutex_init(M)            pthread_mutex_init((M), 0)
 # define k5_os_mutex_destroy(M)         pthread_mutex_destroy((M))
 # define k5_os_mutex_lock(M)            pthread_mutex_lock(M)
@@ -318,43 +327,46 @@ static inline int k5_os_mutex_finish_init(k5_os_mutex *m) { return 0; }
 
 #elif defined _WIN32
 
-typedef struct {
-    HANDLE h;
-    int is_locked;
+typedef struct
+{
+	HANDLE h;
+	int is_locked;
 } k5_os_mutex;
 
 # define K5_OS_MUTEX_PARTIAL_INITIALIZER { INVALID_HANDLE_VALUE, 0 }
 
 # define k5_os_mutex_finish_init(M)                                     \
-    (assert((M)->h == INVALID_HANDLE_VALUE),                            \
-     ((M)->h = CreateMutex(NULL, FALSE, NULL)) ? 0 : GetLastError())
+	(assert((M)->h == INVALID_HANDLE_VALUE),                            \
+	 ((M)->h = CreateMutex(NULL, FALSE, NULL)) ? 0 : GetLastError())
 # define k5_os_mutex_init(M)                                            \
-    ((M)->is_locked = 0,                                                \
-     ((M)->h = CreateMutex(NULL, FALSE, NULL)) ? 0 : GetLastError())
+	((M)->is_locked = 0,                                                \
+	 ((M)->h = CreateMutex(NULL, FALSE, NULL)) ? 0 : GetLastError())
 # define k5_os_mutex_destroy(M)                                 \
-    (CloseHandle((M)->h) ? ((M)->h = 0, 0) : GetLastError())
+	(CloseHandle((M)->h) ? ((M)->h = 0, 0) : GetLastError())
 
-static inline int k5_os_mutex_lock(k5_os_mutex *m)
+static inline int k5_os_mutex_lock(k5_os_mutex* m)
 {
-    DWORD res;
-    res = WaitForSingleObject(m->h, INFINITE);
-    if (res == WAIT_FAILED)
-        return GetLastError();
-    /* Eventually these should be turned into some reasonable error
-       code.  */
-    assert(res != WAIT_TIMEOUT);
-    assert(res != WAIT_ABANDONED);
-    assert(res == WAIT_OBJECT_0);
-    /* Avoid locking twice.  */
-    assert(m->is_locked == 0);
-    m->is_locked = 1;
-    return 0;
+	DWORD res;
+	res = WaitForSingleObject(m->h, INFINITE);
+
+	if (res == WAIT_FAILED)
+		return GetLastError();
+
+	/* Eventually these should be turned into some reasonable error
+	   code.  */
+	assert(res != WAIT_TIMEOUT);
+	assert(res != WAIT_ABANDONED);
+	assert(res == WAIT_OBJECT_0);
+	/* Avoid locking twice.  */
+	assert(m->is_locked == 0);
+	m->is_locked = 1;
+	return 0;
 }
 
 # define k5_os_mutex_unlock(M)                  \
-    (assert((M)->is_locked == 1),               \
-     (M)->is_locked = 0,                        \
-     ReleaseMutex((M)->h) ? 0 : GetLastError())
+	(assert((M)->is_locked == 1),               \
+	 (M)->is_locked = 0,                        \
+	 ReleaseMutex((M)->h) ? 0 : GetLastError())
 
 #else
 
@@ -367,27 +379,27 @@ static inline int k5_os_mutex_lock(k5_os_mutex *m)
 
 typedef k5_os_mutex k5_mutex_t;
 #define K5_MUTEX_PARTIAL_INITIALIZER    K5_OS_MUTEX_PARTIAL_INITIALIZER
-static inline int k5_mutex_init(k5_mutex_t *m)
+static inline int k5_mutex_init(k5_mutex_t* m)
 {
-    return k5_os_mutex_init(m);
+	return k5_os_mutex_init(m);
 }
-static inline int k5_mutex_finish_init(k5_mutex_t *m)
+static inline int k5_mutex_finish_init(k5_mutex_t* m)
 {
-    return k5_os_mutex_finish_init(m);
+	return k5_os_mutex_finish_init(m);
 }
 #define k5_mutex_destroy(M)                     \
-    (k5_os_mutex_destroy(M))
+	(k5_os_mutex_destroy(M))
 
-static inline void k5_mutex_lock(k5_mutex_t *m)
+static inline void k5_mutex_lock(k5_mutex_t* m)
 {
-    int r = k5_os_mutex_lock(m);
-    assert(r == 0);
+	int r = k5_os_mutex_lock(m);
+	assert(r == 0);
 }
 
-static inline void k5_mutex_unlock(k5_mutex_t *m)
+static inline void k5_mutex_unlock(k5_mutex_t* m)
 {
-    int r = k5_os_mutex_unlock(m);
-    assert(r == 0);
+	int r = k5_os_mutex_unlock(m);
+	assert(r == 0);
 }
 
 #define k5_mutex_assert_locked(M)       ((void)(M))
@@ -401,7 +413,8 @@ static inline void k5_mutex_unlock(k5_mutex_t *m)
 
    Note that the callback function type is such that the C library
    routine free() is a valid callback.  */
-typedef enum {
+typedef enum
+{
     K5_KEY_COM_ERR,
     K5_KEY_GSS_KRB5_SET_CCACHE_OLD_NAME,
     K5_KEY_GSS_KRB5_CCACHE_NAME,
@@ -416,15 +429,15 @@ typedef enum {
 #define k5_getspecific  krb5int_getspecific
 #define k5_setspecific  krb5int_setspecific
 #define k5_key_delete   krb5int_key_delete
-extern int k5_key_register(k5_key_t, void (*)(void *));
-extern void *k5_getspecific(k5_key_t);
-extern int k5_setspecific(k5_key_t, void *);
+extern int k5_key_register(k5_key_t, void (*)(void*));
+extern void* k5_getspecific(k5_key_t);
+extern int k5_setspecific(k5_key_t, void*);
 extern int k5_key_delete(k5_key_t);
 
-extern int  KRB5_CALLCONV krb5int_mutex_alloc  (k5_mutex_t **);
-extern void KRB5_CALLCONV krb5int_mutex_free   (k5_mutex_t *);
-extern void KRB5_CALLCONV krb5int_mutex_lock   (k5_mutex_t *);
-extern void KRB5_CALLCONV krb5int_mutex_unlock (k5_mutex_t *);
+extern int  KRB5_CALLCONV krb5int_mutex_alloc(k5_mutex_t**);
+extern void KRB5_CALLCONV krb5int_mutex_free(k5_mutex_t*);
+extern void KRB5_CALLCONV krb5int_mutex_lock(k5_mutex_t*);
+extern void KRB5_CALLCONV krb5int_mutex_unlock(k5_mutex_t*);
 
 /* In time, many of the definitions above should move into the support
    library, and this file should be greatly simplified.  For type
