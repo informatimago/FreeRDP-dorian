@@ -285,6 +285,8 @@ int init_creds(LPCWSTR username, size_t username_len, LPCWSTR password, size_t p
 	char* lusername = NULL;
 	char* lrealm = NULL;
 	char* lpassword = NULL;
+	int flags = 0;
+	char* pstr = NULL;
 	size_t krb_name_len = 0;
 	size_t lrealm_len = 0;
 	size_t lusername_len = 0;
@@ -341,7 +343,14 @@ int init_creds(LPCWSTR username, size_t username_len, LPCWSTR password, size_t p
 #ifdef WITH_DEBUG_NLA
 	WLog_DBG(TAG, "copied string is %s\n", krb_name);
 #endif
-	ret = krb5_parse_name(ctx, krb_name, &principal);
+	pstr = strchr(krb_name, '@');
+
+	if (pstr != NULL)
+		flags = KRB5_PRINCIPAL_PARSE_ENTERPRISE;
+
+	/* Use the specified principal name. */
+	ret = krb5_parse_name_flags(ctx, krb_name, flags,
+	                            &principal);
 
 	if (ret)
 	{
