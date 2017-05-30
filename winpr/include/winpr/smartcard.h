@@ -1047,7 +1047,7 @@ typedef LONG(WINAPI* fnSCardAudit)(SCARDCONTEXT hContext, DWORD dwEvent);
 
 typedef LONG(WINAPI* fnSCardAddReaderName)(HANDLE* key, LPSTR readerName);
 
-typedef LONG (WINAPI * fnSCardAddReaderName)(HANDLE* key, LPSTR readerName);
+typedef LONG(WINAPI* fnSCardAddReaderName)(HANDLE* key, LPSTR readerName);
 
 struct _SCardApiFunctionTable
 {
