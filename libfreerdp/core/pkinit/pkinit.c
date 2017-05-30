@@ -1128,9 +1128,7 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings * settings)
 			WLog_ERR(TAG, "Error getting back domain");
 			goto cleanup;
 		}
-	}
-	else{
-		WLog_DBG(TAG, "Domain specified in command line");
+		WLog_DBG(TAG, "Domain / Kerberos realm : %s", *domain);
 	}
 
 	success = 1;
