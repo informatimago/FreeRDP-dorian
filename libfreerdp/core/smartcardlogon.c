@@ -365,7 +365,7 @@ int crypto_init(cert_policy *policy)
  * 	to retrieve valid certificate and UPN.
  *  This function is actually called in get_valid_smartcard_cert()
  *  @param nla - pointer to the rdpNla structure that contains nla connection settings
- *  @return CKR_OK if all pkcs11 functions succeed.
+ *  @return CKR_OK if all PKCS#11 functions succeed.
  */
 CK_RV init_authentication_pin(rdpNla * nla)
 {
@@ -389,7 +389,7 @@ CK_RV init_authentication_pin(rdpNla * nla)
 
 	module = C_LoadModule(opt_module, &p11);
 	if (module == NULL) {
-		WLog_ERR(TAG, "Failed to load pkcs11 module %s", opt_module);
+		WLog_ERR(TAG, "Failed to load PKCS#11 module %s", opt_module);
 		free(nla->p11handle);
 		return CKR_FUNCTION_FAILED;
 	}
@@ -589,7 +589,7 @@ closing_session:
 	free(p11_slots);
 
 	if(session != CK_INVALID_HANDLE){
-		WLog_ERR(TAG, "closing the PKCS #11 session due to previous event");
+		WLog_ERR(TAG, "closing the PKCS#11 session due to previous event");
 		rv = p11->C_CloseSession(session);
 		if ( (rv != CKR_OK) && (rv != CKR_FUNCTION_NOT_SUPPORTED) ) {
 			WLog_ERR(TAG, "C_CloseSession() failed: 0x%08lX", rv);
@@ -604,9 +604,9 @@ closing_session:
 	C_UnloadModule(module);
 	free(nla->p11handle);
 
-	if(rv==CKR_OK) /* means error other than pkcs11 functions */
+	if(rv==CKR_OK) /* means error other than PKCS#11 functions */
 		return CKR_GENERAL_ERROR;
-	else /* means a pkcs11 function failed */
+	else /* means a PKCS#11 function failed */
 		return rv;
 
 exit_failure:
@@ -623,7 +623,7 @@ exit_failure:
  *  @param session - valid PKCS#11 session handle
  *  @param slod_id - slot id of present token
  *  @param settings - pointer to rdpSettings structure that contains settings
- *  @return CKR_OK if pkcs11 login succeed.
+ *  @return CKR_OK if PKCS#11 login succeed.
  */
 CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings * settings)
 {
@@ -710,7 +710,7 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 			return -1;
 		}
 
-		/* perform pkcs #11 login */
+		/* perform PKCS#11 login */
 		ret = pkcs11_login(session, settings, pin);
 
 		ret_token = p11->C_GetTokenInfo( slot_id, &tinfo);
@@ -905,7 +905,7 @@ CK_RV get_info_smartcard(rdpNla * nla)
 	}
 
 	/* release PKCS#11 module */
-	WLog_DBG(TAG, "releasing pkcs #11 module...");
+	WLog_DBG(TAG, "releasing PKCS#11 module...");
 	release_pkcs11_module(nla->p11handle);
 
 	WLog_DBG(TAG, "UPN retrieving process completed");
@@ -1031,7 +1031,7 @@ int close_pkcs11_session(pkcs11_handle * h)
 		WLog_ERR(TAG, "C_Logout() failed: 0x%08lX", rv);
 		return -1;
 	}
-	WLog_DBG(TAG, "closing the PKCS #11 session");
+	WLog_DBG(TAG, "closing the PKCS#11 session");
 	rv = p11->C_CloseSession(h->session);
 	if (rv != CKR_OK && rv != CKR_FUNCTION_NOT_SUPPORTED) {
 		WLog_ERR(TAG, "C_CloseSession() failed: 0x%08lX", rv);
@@ -1050,7 +1050,7 @@ int close_pkcs11_session(pkcs11_handle * h)
 /** get_list_certificate find all certificates present on smartcard.
  *  This function is actually called in get_valid_smartcard_cert().
  *  @param p11handle - pointer to the pkcs11_handle structure that contains the variables
- *  to manage pkcs11 session
+ *  to manage PKCS#11 session
  *  @param ncerts - number of certificates of the smartcard
  *  @return list of certificates found
  */
