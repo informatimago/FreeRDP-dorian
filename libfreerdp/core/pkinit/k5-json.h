@@ -83,7 +83,7 @@
  * careful with it.  Its type can be checked dynamically with k5_json_get_tid()
  * and the above constants.
  */
-typedef void *k5_json_value;
+typedef void* k5_json_value;
 typedef unsigned int k5_json_tid;
 
 k5_json_tid k5_json_get_tid(k5_json_value val);
@@ -105,29 +105,29 @@ void k5_json_release(k5_json_value val);
  * Null
  */
 
-typedef struct k5_json_null_st *k5_json_null;
+typedef struct k5_json_null_st* k5_json_null;
 
-int k5_json_null_create(k5_json_null *null_out);
+int k5_json_null_create(k5_json_null* null_out);
 
 /* Create a null value as a k5_json_value, for polymorphic convenience. */
-int k5_json_null_create_val(k5_json_value *val_out);
+int k5_json_null_create_val(k5_json_value* val_out);
 
 /*
  * Boolean
  */
 
-typedef struct k5_json_bool_st *k5_json_bool;
+typedef struct k5_json_bool_st* k5_json_bool;
 
-int k5_json_bool_create(int truth, k5_json_bool *val_out);
+int k5_json_bool_create(int truth, k5_json_bool* val_out);
 int k5_json_bool_value(k5_json_bool bval);
 
 /*
  * Array
  */
 
-typedef struct k5_json_array_st *k5_json_array;
+typedef struct k5_json_array_st* k5_json_array;
 
-int k5_json_array_create(k5_json_array *val_out);
+int k5_json_array_create(k5_json_array* val_out);
 size_t k5_json_array_length(k5_json_array array);
 
 /* Both of these functions increment the reference count on val. */
@@ -151,19 +151,19 @@ k5_json_value k5_json_array_get(k5_json_array array, size_t idx);
  *      string value
  */
 int
-k5_json_array_fmt(k5_json_array *array_out, const char *template, ...);
+k5_json_array_fmt(k5_json_array* array_out, const char* template, ...);
 
 /*
  * Object
  */
 
-typedef struct k5_json_object_st *k5_json_object;
-typedef void (*k5_json_object_iterator_fn)(void *arg, const char *key,
-                                           k5_json_value val);
+typedef struct k5_json_object_st* k5_json_object;
+typedef void (*k5_json_object_iterator_fn)(void* arg, const char* key,
+        k5_json_value val);
 
-int k5_json_object_create(k5_json_object *val_out);
+int k5_json_object_create(k5_json_object* val_out);
 void k5_json_object_iterate(k5_json_object obj,
-                            k5_json_object_iterator_fn func, void *arg);
+                            k5_json_object_iterator_fn func, void* arg);
 
 /* Return the number of mappings in an object. */
 size_t k5_json_object_count(k5_json_object obj);
@@ -173,46 +173,46 @@ size_t k5_json_object_count(k5_json_object obj);
  * releasing any previous value at key.  If val is NULL, key is removed from
  * obj if it exists, and obj remains unchanged if it does not.
  */
-int k5_json_object_set(k5_json_object obj, const char *key, k5_json_value val);
+int k5_json_object_set(k5_json_object obj, const char* key, k5_json_value val);
 
 /* Get an alias to the object's value for key, without incrementing the
  * reference count.  Returns NULL if there is no value for key. */
-k5_json_value k5_json_object_get(k5_json_object obj, const char *key);
+k5_json_value k5_json_object_get(k5_json_object obj, const char* key);
 
 /*
  * String
  */
 
-typedef struct k5_json_string_st *k5_json_string;
+typedef struct k5_json_string_st* k5_json_string;
 
-int k5_json_string_create(const char *cstring, k5_json_string *val_out);
-int k5_json_string_create_len(const void *data, size_t len,
-                              k5_json_string *val_out);
-const char *k5_json_string_utf8(k5_json_string string);
+int k5_json_string_create(const char* cstring, k5_json_string* val_out);
+int k5_json_string_create_len(const void* data, size_t len,
+                              k5_json_string* val_out);
+const char* k5_json_string_utf8(k5_json_string string);
 
 
 /* Create a base64 string value from binary data. */
-int k5_json_string_create_base64(const void *data, size_t len,
-                                 k5_json_string *val_out);
+int k5_json_string_create_base64(const void* data, size_t len,
+                                 k5_json_string* val_out);
 
 /* Decode the base64 contents of string. */
-int k5_json_string_unbase64(k5_json_string string, unsigned char **data_out,
-                            size_t *len_out);
+int k5_json_string_unbase64(k5_json_string string, unsigned char** data_out,
+                            size_t* len_out);
 
 /*
  * Number
  */
 
-typedef struct k5_json_number_st *k5_json_number;
+typedef struct k5_json_number_st* k5_json_number;
 
-int k5_json_number_create(long long number, k5_json_number *val_out);
+int k5_json_number_create(long long number, k5_json_number* val_out);
 long long k5_json_number_value(k5_json_number number);
 
 /*
  * JSON encoding and decoding
  */
 
-int k5_json_encode(k5_json_value val, char **json_out);
-int k5_json_decode(const char *str, k5_json_value *val_out);
+int k5_json_encode(k5_json_value val, char** json_out);
+int k5_json_decode(const char* str, k5_json_value* val_out);
 
 #endif /* K5_JSON_H */
