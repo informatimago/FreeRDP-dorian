@@ -38,7 +38,7 @@
 #include "../../log.h"
 #define TAG WINPR_TAG("sspi.gss")
 
-static GSSAPI_FUNCTION_TABLE * g_GssApi = NULL;
+static GSSAPI_FUNCTION_TABLE* g_GssApi = NULL;
 static INIT_ONCE g_Initialized = INIT_ONCE_STATIC_INIT;
 
 #ifdef WITH_GSSAPI
@@ -123,7 +123,7 @@ static BOOL CALLBACK sspi_GssApiInit(PINIT_ONCE once, PVOID param, PVOID* contex
 {
 	g_GssApi = gssApi_InitSecurityInterface();
 
-	if(!g_GssApi)
+	if (!g_GssApi)
 		return FALSE;
 
 	return TRUE;
@@ -165,17 +165,15 @@ UINT32 SSPI_GSSAPI sspi_gss_acquire_cred(
     UINT32* time_rec)
 {
 	SECURITY_STATUS status;
-
 	InitOnceExecuteOnce(&g_Initialized, sspi_GssApiInit, NULL, NULL);
 
 	if (!(g_GssApi && g_GssApi->gss_acquire_cred))
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = g_GssApi->gss_acquire_cred(minor_status, desired_name, time_req,
-            desired_mechs, cred_usage, output_cred_handle, actual_mechs, time_rec);
+	                                    desired_mechs, cred_usage, output_cred_handle, actual_mechs, time_rec);
 	WLog_DBG(TAG, "gss_acquire_cred: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -191,8 +189,7 @@ UINT32 SSPI_GSSAPI sspi_gss_release_cred(
 
 	status = g_GssApi->gss_release_cred(minor_status, cred_handle);
 	WLog_DBG(TAG, "gss_release_cred: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -212,18 +209,16 @@ UINT32 SSPI_GSSAPI sspi_gss_init_sec_context(
     UINT32* time_rec)
 {
 	SECURITY_STATUS status;
-
 	InitOnceExecuteOnce(&g_Initialized, sspi_GssApiInit, NULL, NULL);
 
 	if (!(g_GssApi && g_GssApi->gss_init_sec_context))
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = g_GssApi->gss_init_sec_context(minor_status, claimant_cred_handle, context_handle,
-            target_name, mech_type, req_flags, time_req, input_chan_bindings,
-            input_token, actual_mech_type, output_token, ret_flags, time_rec);
+	                                        target_name, mech_type, req_flags, time_req, input_chan_bindings,
+	                                        input_token, actual_mech_type, output_token, ret_flags, time_rec);
 	WLog_DBG(TAG, "gss_init_sec_context: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -247,11 +242,10 @@ UINT32 SSPI_GSSAPI sspi_gss_accept_sec_context(
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = g_GssApi->gss_accept_sec_context(minor_status, context_handle, acceptor_cred_handle,
-            input_token_buffer, input_chan_bindings, src_name, mech_type, output_token,
-            ret_flags, time_rec, delegated_cred_handle);
+	         input_token_buffer, input_chan_bindings, src_name, mech_type, output_token,
+	         ret_flags, time_rec, delegated_cred_handle);
 	WLog_DBG(TAG, "gss_accept_sec_context: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -268,8 +262,7 @@ UINT32 SSPI_GSSAPI sspi_gss_process_context_token(
 
 	status = g_GssApi->gss_process_context_token(minor_status, context_handle, token_buffer);
 	WLog_DBG(TAG, "gss_process_context_token: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -286,8 +279,7 @@ UINT32 SSPI_GSSAPI sspi_gss_delete_sec_context(
 
 	status = g_GssApi->gss_delete_sec_context(minor_status, context_handle, output_token);
 	WLog_DBG(TAG, "gss_delete_sec_context: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -304,8 +296,7 @@ UINT32 SSPI_GSSAPI sspi_gss_context_time(
 
 	status = g_GssApi->gss_context_time(minor_status, context_handle, time_rec);
 	WLog_DBG(TAG, "gss_context_time: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -322,10 +313,10 @@ UINT32 SSPI_GSSAPI sspi_gss_get_mic(
 	if (!(g_GssApi && g_GssApi->gss_get_mic))
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
-	status = g_GssApi->gss_get_mic(minor_status, context_handle, qop_req, message_buffer, message_token);
+	status = g_GssApi->gss_get_mic(minor_status, context_handle, qop_req, message_buffer,
+	                               message_token);
 	WLog_DBG(TAG, "gss_get_mic: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -342,10 +333,10 @@ UINT32 SSPI_GSSAPI sspi_gss_verify_mic(
 	if (!(g_GssApi && g_GssApi->gss_verify_mic))
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
-	status = g_GssApi->gss_verify_mic(minor_status, context_handle, message_buffer, message_token, qop_state);
+	status = g_GssApi->gss_verify_mic(minor_status, context_handle, message_buffer, message_token,
+	                                  qop_state);
 	WLog_DBG(TAG, "gss_verify_mic: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -359,17 +350,15 @@ UINT32 SSPI_GSSAPI sspi_gss_wrap(
     sspi_gss_buffer_t output_message_buffer)
 {
 	SECURITY_STATUS status;
-
 	InitOnceExecuteOnce(&g_Initialized, sspi_GssApiInit, NULL, NULL);
 
 	if (!(g_GssApi && g_GssApi->gss_wrap))
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = g_GssApi->gss_wrap(minor_status, context_handle, conf_req_flag,
-            qop_req, input_message_buffer, conf_state, output_message_buffer);
+	                            qop_req, input_message_buffer, conf_state, output_message_buffer);
 	WLog_DBG(TAG, "gss_acquire_cred: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -388,10 +377,9 @@ UINT32 SSPI_GSSAPI sspi_gss_unwrap(
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = g_GssApi->gss_unwrap(minor_status, context_handle, input_message_buffer,
-            output_message_buffer, conf_state, qop_state);
+	                              output_message_buffer, conf_state, qop_state);
 	WLog_DBG(TAG, "gss_unwrap: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -410,10 +398,9 @@ UINT32 SSPI_GSSAPI sspi_gss_display_status(
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = g_GssApi->gss_display_status(minor_status, status_value, status_type,
-            mech_type, message_context, status_string);
+	                                      mech_type, message_context, status_string);
 	WLog_DBG(TAG, "gss_display_status: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -429,8 +416,7 @@ UINT32 SSPI_GSSAPI sspi_gss_indicate_mechs(
 
 	status = g_GssApi->gss_indicate_mechs(minor_status, mech_set);
 	WLog_DBG(TAG, "gss_indicate_mechs: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -448,8 +434,7 @@ UINT32 SSPI_GSSAPI sspi_gss_compare_name(
 
 	status = g_GssApi->gss_compare_name(minor_status, name1, name2, name_equal);
 	WLog_DBG(TAG, "gss_compare_name: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -467,8 +452,7 @@ UINT32 SSPI_GSSAPI sspi_gss_display_name(
 
 	status = g_GssApi->gss_display_name(minor_status, input_name, output_name_buffer, output_name_type);
 	WLog_DBG(TAG, "gss_display_name: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -486,8 +470,7 @@ UINT32 SSPI_GSSAPI sspi_gss_import_name(
 
 	status = g_GssApi->gss_import_name(minor_status, input_name_buffer, input_name_type, output_name);
 	WLog_DBG(TAG, "gss_import_name: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -503,8 +486,7 @@ UINT32 SSPI_GSSAPI sspi_gss_release_name(
 
 	status = g_GssApi->gss_release_name(minor_status, input_name);
 	WLog_DBG(TAG, "gss_release_name: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -520,8 +502,7 @@ UINT32 SSPI_GSSAPI sspi_gss_release_buffer(
 
 	status = g_GssApi->gss_release_buffer(minor_status, buffer);
 	WLog_DBG(TAG, "gss_release_buffer: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -537,8 +518,7 @@ UINT32 SSPI_GSSAPI sspi_gss_release_oid_set(
 
 	status = g_GssApi->gss_release_oid_set(minor_status, set);
 	WLog_DBG(TAG, "gss_release_oid_set: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -556,10 +536,10 @@ UINT32 SSPI_GSSAPI sspi_gss_inquire_cred(
 	if (!(g_GssApi && g_GssApi->gss_inquire_cred))
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
-	status = g_GssApi->gss_inquire_cred(minor_status, cred_handle, name, lifetime, cred_usage, mechanisms);
+	status = g_GssApi->gss_inquire_cred(minor_status, cred_handle, name, lifetime, cred_usage,
+	                                    mechanisms);
 	WLog_DBG(TAG, "gss_inquire_cred: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -581,10 +561,9 @@ UINT32 SSPI_GSSAPI sspi_gss_inquire_context(
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = g_GssApi->gss_inquire_context(minor_status, context_handle, src_name, targ_name,
-            lifetime_rec, mech_type, ctx_flags, locally_initiated, open);
+	                                       lifetime_rec, mech_type, ctx_flags, locally_initiated, open);
 	WLog_DBG(TAG, "gss_inquire_context: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -603,10 +582,9 @@ UINT32 SSPI_GSSAPI sspi_gss_wrap_size_limit(
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = g_GssApi->gss_wrap_size_limit(minor_status, context_handle,
-            conf_req_flag, qop_req, req_output_size, max_input_size);
+	                                       conf_req_flag, qop_req, req_output_size, max_input_size);
 	WLog_DBG(TAG, "gss_wrap_size_limit: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -624,8 +602,7 @@ UINT32 SSPI_GSSAPI sspi_gss_import_name_object(
 
 	status = g_GssApi->gss_import_name_object(minor_status, input_name, input_name_type, output_name);
 	WLog_DBG(TAG, "gss_import_name_object: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -643,8 +620,7 @@ UINT32 SSPI_GSSAPI sspi_gss_export_name_object(
 
 	status = g_GssApi->gss_export_name_object(minor_status, input_name, desired_name_type, output_name);
 	WLog_DBG(TAG, "gss_export_name_object: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -667,12 +643,12 @@ UINT32 SSPI_GSSAPI sspi_gss_add_cred(
 	if (!(g_GssApi && g_GssApi->gss_add_cred))
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
-	status = g_GssApi->gss_add_cred(minor_status, input_cred_handle, desired_name, desired_mech, cred_usage,
-            initiator_time_req, acceptor_time_req, output_cred_handle, actual_mechs, initiator_time_rec,
-            acceptor_time_rec);
+	status = g_GssApi->gss_add_cred(minor_status, input_cred_handle, desired_name, desired_mech,
+	                                cred_usage,
+	                                initiator_time_req, acceptor_time_req, output_cred_handle, actual_mechs, initiator_time_rec,
+	                                acceptor_time_rec);
 	WLog_DBG(TAG, "gss_add_cred: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -692,10 +668,9 @@ UINT32 SSPI_GSSAPI sspi_gss_inquire_cred_by_mech(
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = g_GssApi->gss_inquire_cred_by_mech(minor_status, cred_handle, mech_type, name,
-            initiator_lifetime, acceptor_lifetime, cred_usage);
+	         initiator_lifetime, acceptor_lifetime, cred_usage);
 	WLog_DBG(TAG, "gss_inquire_cred_by_mech: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -712,8 +687,7 @@ UINT32 SSPI_GSSAPI sspi_gss_export_sec_context(
 
 	status = g_GssApi->gss_export_sec_context(minor_status, context_handle, interprocess_token);
 	WLog_DBG(TAG, "gss_export_sec_context: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -730,8 +704,7 @@ UINT32 SSPI_GSSAPI sspi_gss_import_sec_context(
 
 	status = g_GssApi->gss_import_sec_context(minor_status, interprocess_token, context_handle);
 	WLog_DBG(TAG, "gss_import_sec_context: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -747,8 +720,7 @@ UINT32 SSPI_GSSAPI sspi_gss_release_oid(
 
 	status = g_GssApi->gss_release_oid(minor_status, oid);
 	WLog_DBG(TAG, "gss_release_oid: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -764,8 +736,7 @@ UINT32 SSPI_GSSAPI sspi_gss_create_empty_oid_set(
 
 	status = g_GssApi->gss_create_empty_oid_set(minor_status, oid_set);
 	WLog_DBG(TAG, "gss_create_empty_oid_set: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -782,8 +753,7 @@ UINT32 SSPI_GSSAPI sspi_gss_add_oid_set_member(
 
 	status = g_GssApi->gss_add_oid_set_member(minor_status, member_oid, oid_set);
 	WLog_DBG(TAG, "gss_add_oid_set_member: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -801,8 +771,7 @@ UINT32 SSPI_GSSAPI sspi_gss_test_oid_set_member(
 
 	status = g_GssApi->gss_test_oid_set_member(minor_status, member, set, present);
 	WLog_DBG(TAG, "gss_test_oid_set_member: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -819,8 +788,7 @@ UINT32 SSPI_GSSAPI sspi_gss_str_to_oid(
 
 	status = g_GssApi->gss_str_to_oid(minor_status, oid_str, oid);
 	WLog_DBG(TAG, "gss_str_to_oid: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -837,8 +805,7 @@ UINT32 SSPI_GSSAPI sspi_gss_oid_to_str(
 
 	status = g_GssApi->gss_oid_to_str(minor_status, oid, oid_str);
 	WLog_DBG(TAG, "gss_oid_to_str: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -855,8 +822,7 @@ UINT32 SSPI_GSSAPI sspi_gss_inquire_names_for_mech(
 
 	status = g_GssApi->gss_inquire_names_for_mech(minor_status, mechanism, name_types);
 	WLog_DBG(TAG, "gss_inquire_names_for_mech: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -873,8 +839,7 @@ UINT32 SSPI_GSSAPI sspi_gss_inquire_mechs_for_name(
 
 	status = g_GssApi->gss_inquire_mechs_for_name(minor_status, input_name, mech_types);
 	WLog_DBG(TAG, "gss_inquire_mechs_for_name: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -893,8 +858,7 @@ UINT32 SSPI_GSSAPI sspi_gss_sign(
 
 	status = g_GssApi->gss_sign(minor_status, context_handle, qop_req, message_buffer, message_token);
 	WLog_DBG(TAG, "gss_sign: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -911,10 +875,10 @@ UINT32 SSPI_GSSAPI sspi_gss_verify(
 	if (!(g_GssApi && g_GssApi->gss_verify))
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
-	status = g_GssApi->gss_verify(minor_status, context_handle, message_buffer, token_buffer, qop_state);
+	status = g_GssApi->gss_verify(minor_status, context_handle, message_buffer, token_buffer,
+	                              qop_state);
 	WLog_DBG(TAG, "gss_verify: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -934,10 +898,9 @@ UINT32 SSPI_GSSAPI sspi_gss_seal(
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = g_GssApi->gss_seal(minor_status, context_handle, conf_req_flag, qop_req,
-            input_message_buffer, conf_state, output_message_buffer);
+	                            input_message_buffer, conf_state, output_message_buffer);
 	WLog_DBG(TAG, "gss_seal: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -955,11 +918,11 @@ UINT32 SSPI_GSSAPI sspi_gss_unseal(
 	if (!(g_GssApi && g_GssApi->gss_unseal))
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
-	status = g_GssApi->gss_unseal(minor_status, context_handle, input_message_buffer, output_message_buffer,
-            conf_state, qop_state);
+	status = g_GssApi->gss_unseal(minor_status, context_handle, input_message_buffer,
+	                              output_message_buffer,
+	                              conf_state, qop_state);
 	WLog_DBG(TAG, "gss_unseal: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -976,8 +939,7 @@ UINT32 SSPI_GSSAPI sspi_gss_export_name(
 
 	status = g_GssApi->gss_export_name(minor_status, input_name, exported_name);
 	WLog_DBG(TAG, "gss_export_name: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -994,8 +956,7 @@ UINT32 SSPI_GSSAPI sspi_gss_duplicate_name(
 
 	status = g_GssApi->gss_duplicate_name(minor_status, input_name, dest_name);
 	WLog_DBG(TAG, "gss_duplicate_name: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -1013,8 +974,7 @@ UINT32 SSPI_GSSAPI sspi_gss_canonicalize_name(
 
 	status = g_GssApi->gss_canonicalize_name(minor_status, input_name, mech_type, output_name);
 	WLog_DBG(TAG, "gss_canonicalize_name: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -1033,10 +993,9 @@ UINT32 SSPI_GSSAPI sspi_gss_pseudo_random(
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = g_GssApi->gss_pseudo_random(minor_status, context, prf_key, prf_in, desired_output_len,
-            prf_out);
+	                                     prf_out);
 	WLog_DBG(TAG, "gss_pseudo_random: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -1057,10 +1016,9 @@ UINT32 SSPI_GSSAPI sspi_gss_store_cred(
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = g_GssApi->gss_store_cred(minor_status, input_cred_handle, input_usage, desired_mech,
-            overwrite_cred, default_cred, elements_stored, cred_usage_stored);
+	                                  overwrite_cred, default_cred, elements_stored, cred_usage_stored);
 	WLog_DBG(TAG, "gss_store_cred: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
 
@@ -1077,7 +1035,6 @@ UINT32 SSPI_GSSAPI sspi_gss_set_neg_mechs(
 
 	status = g_GssApi->gss_set_neg_mechs(minor_status, cred_handle, mech_set);
 	WLog_DBG(TAG, "gss_set_neg_mechs: %s (0x%08"PRIX32")",
-				GetSecurityStatusString(status), status);
-
+	         GetSecurityStatusString(status), status);
 	return status;
 }
