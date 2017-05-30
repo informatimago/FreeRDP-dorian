@@ -1100,8 +1100,8 @@ struct rdp_settings
 	ALIGN64 UINT64 IdCertificateLength; /* 1299 */
 	ALIGN64 char* PkinitIdentity; /* 1300 */
 	ALIGN64 char* PkinitAnchors; /* 1301*/
-	ALIGN64 char * SlotID; /* 1302 */
-	ALIGN64 char * TokenLabel; /* 1303 */
+	ALIGN64 char* SlotID;  /* 1302 */
+	ALIGN64 char* TokenLabel;  /* 1303 */
 	ALIGN64 INT32 TokenFlags; /* 1304 */
 	ALIGN64 UINT64 StartTime; /* 1305 */
 	ALIGN64 UINT64 LifeTime; /* 1306 */

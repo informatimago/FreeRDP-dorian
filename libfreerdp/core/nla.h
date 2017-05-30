@@ -40,12 +40,12 @@ typedef struct rdp_nla rdpNla;
 
 enum _NLA_STATE
 {
-	NLA_STATE_INITIAL,
-	NLA_STATE_NEGO_TOKEN,
-	NLA_STATE_PUB_KEY_AUTH,
-	NLA_STATE_AUTH_INFO,
-	NLA_STATE_POST_NEGO,
-	NLA_STATE_FINAL
+    NLA_STATE_INITIAL,
+    NLA_STATE_NEGO_TOKEN,
+    NLA_STATE_PUB_KEY_AUTH,
+    NLA_STATE_AUTH_INFO,
+    NLA_STATE_POST_NEGO,
+    NLA_STATE_FINAL
 };
 typedef enum _NLA_STATE NLA_STATE;
 
@@ -88,7 +88,7 @@ struct rdp_nla
 	PSecurityFunctionTable table;
 	SecPkgContext_Sizes ContextSizes;
 	SEC_DELEGATION_CREDENTIALS_TYPE credType;
-	pkcs11_handle * p11handle;
+	pkcs11_handle* p11handle;
 };
 
 FREERDP_LOCAL int nla_authenticate(rdpNla* nla);
