@@ -36,9 +36,9 @@
 
 /* k5-platform.h, k5-json.h, k5-thread.h, autoconf.h are not installed
  * by default in /usr/include. These files and their include files (autoconf.h, k5-thread.h)
- * have been copied from krb5 sources manually into local pkinit/ directory */
-#include "k5-platform.h"
-#include "k5-json.h"
+ * Execute install_pkinit.sh script to install them */
+#include <pkinit/k5-platform.h>
+#include <pkinit/k5-json.h>
 
 //#define HANDLE_PINPAD_WITH_LOGIN_REQUIRED
 

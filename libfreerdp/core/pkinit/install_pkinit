@@ -1,0 +1,61 @@
+#!/bin/bash
+
+#set -x
+
+if [[ $(id -u) -ne 0 ]] ; then echo "Please run as root" ; exit 1 ; fi
+
+KRB5CONFIG=$(which krb5-config)
+
+if [ ! -x $KRB5CONFIG ]; then
+  echo "No krb5-config found in path, please install."
+  exit 1
+fi
+
+# Need at least Kerberos V5 1.15.0 due to bugs in PKINIT older versions
+STR_VERSION=$(($KRB5CONFIG --version) 2>&1)
+VERSION=$(echo $STR_VERSION | cut -d ' ' -f1-4)
+NUM_VERSION=$(echo $VERSION | cut -d ' ' -f4)
+MAJOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f1)
+MINOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f2)
+
+if [ "$MAJOR_VERSION" -lt "1" ]; then
+  echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
+  exit 1
+fi
+
+if [ "$MINOR_VERSION" -lt "15" ]; then
+  echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
+  exit 1
+fi
+
+if [ $# -le 0 ]; then
+  echo "Usage:"
+  echo -e "\t$0 <Kerberos source files directory>"
+  exit 2
+fi
+
+SOURCES=$1
+#echo "src=$src"
+#DESTINATION="/home/dorian/Documents/divers/rep_test_cp"
+KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
+echo $KRB5PREFIX 
+DESTINATION="$KRB5PREFIX/include/pkinit"
+echo $DESTINATION
+
+
+mkdir -p $DESTINATION
+find $SOURCES \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print -exec cp {} $DESTINATION \;
+
+SUCCESS=$(echo $?)
+echo $SUCCESS
+
+if [ $SUCCESS -ne 0 ]; then
+	echo "Script failed to copy all files in $DESTINATION"
+	exit 2
+fi
+
+echo "All files have been copied with success in $DESTINATION"
+
+exit 0
+
+#set +x
