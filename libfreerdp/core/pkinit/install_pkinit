@@ -1,11 +1,11 @@
 #!/bin/bash
 
-#set -x
-
-if [[ $(id -u) -ne 0 ]] ; then echo "Please run as root" ; exit 1 ; fi
+if [[ $(id -u) -ne 0 ]]; then
+  echo "Please run as root"
+  exit 1
+fi
 
 KRB5CONFIG=$(which krb5-config)
-
 if [ ! -x $KRB5CONFIG ]; then
   echo "No krb5-config found in path, please install."
   exit 1
@@ -34,33 +34,28 @@ if [ $# -le 0 ]; then
   exit 2
 fi
 
-#add krb5support lib flag to krb5-config file
+# Add krb5support lib flag to krb5-config file
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
-touch $KRB5CONFIG/bin/krb5-config.tmp
-chmod 733 $KRB5CONFIG/bin/krb5-config.tmp
-sed s/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lkrb5support\ \-lcom_err\"/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lkrb5support\ \-lcom_err\ \-lkrb5support\"/g /usr/local/bin/krb5-config.save.2 > /usr/local/bin/krb5-config.tmp
-mv /usr/local/bin/krb5-config.tmp /usr/local/bin/krb5-config.save.2
-#rm $KRB5CONFIG/bin/krb5-config.tmp
+touch /tmp/krb5-config
+chmod 755 /tmp/krb5-config
+sed s/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lcom_err\"/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lcom_err\ \-lkrb5support\"/g $KRB5PREFIX/bin/krb5-config > /tmp/krb5-config
+mv /tmp/krb5-config $KRB5PREFIX/bin/krb5-config
+if [ $? -ne 0 ]; then
+  echo "Failed to add krb5support flag to krb5-config file"
+  exit 2
+else
+  echo "Added krb5support flag to krb5-config file"
+fi
 
-exit 0
-
-#copy sources files in install directory
+# Copy source files in install directory
 SOURCES=$1
-DESTINATION="$KRB5PREFIX/include/pkinit"
-
+DESTINATION=$KRB5PREFIX/include/pkinit
 mkdir -p $DESTINATION
 find $SOURCES \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print -exec cp {} $DESTINATION \;
-
-SUCCESS=$(echo $?)
-echo $SUCCESS
-
-if [ $SUCCESS -ne 0 ]; then
-	echo "Script failed to copy all files in $DESTINATION"
-	exit 2
+if [ $? -ne 0 ]; then
+  echo "Script failed to copy all files in $DESTINATION"
+  exit 2
 fi
 
 echo "All files have been copied with success in $DESTINATION"
-
 exit 0
-
-#set +x
