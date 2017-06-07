@@ -53,10 +53,6 @@ set(${MODULE_PREFIX}_PKINIT_DIR "pkinit")
 
 if(GSS_FOUND)
 set(${MODULE_PREFIX}_PKINIT_SRCS
-	${${MODULE_PREFIX}_PKINIT_DIR}/autoconf.h
-	${${MODULE_PREFIX}_PKINIT_DIR}/k5-platform.h
-	${${MODULE_PREFIX}_PKINIT_DIR}/k5-json.h
-	${${MODULE_PREFIX}_PKINIT_DIR}/k5-thread.h
 	${${MODULE_PREFIX}_PKINIT_DIR}/pkinit.h
 	${${MODULE_PREFIX}_PKINIT_DIR}/pkinit.c)
 endif()
