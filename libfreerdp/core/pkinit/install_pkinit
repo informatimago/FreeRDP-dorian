@@ -34,14 +34,19 @@ if [ $# -le 0 ]; then
   exit 2
 fi
 
-SOURCES=$1
-#echo "src=$src"
-#DESTINATION="/home/dorian/Documents/divers/rep_test_cp"
+#add krb5support lib flag to krb5-config file
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
-echo $KRB5PREFIX 
-DESTINATION="$KRB5PREFIX/include/pkinit"
-echo $DESTINATION
+touch $KRB5CONFIG/bin/krb5-config.tmp
+chmod 733 $KRB5CONFIG/bin/krb5-config.tmp
+sed s/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lkrb5support\ \-lcom_err\"/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lkrb5support\ \-lcom_err\ \-lkrb5support\"/g /usr/local/bin/krb5-config.save.2 > /usr/local/bin/krb5-config.tmp
+mv /usr/local/bin/krb5-config.tmp /usr/local/bin/krb5-config.save.2
+#rm $KRB5CONFIG/bin/krb5-config.tmp
 
+exit 0
+
+#copy sources files in install directory
+SOURCES=$1
+DESTINATION="$KRB5PREFIX/include/pkinit"
 
 mkdir -p $DESTINATION
 find $SOURCES \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print -exec cp {} $DESTINATION \;
