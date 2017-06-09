@@ -71,7 +71,7 @@ else()
 	message(WARNING "WITH_GSSAPI_MIT NOT OK dans libfreerdp/core")
 endif()
 
-if(${GSS_FLAVOUR} STREQUAL "HEIMDAL") 
+if((${GSS_FLAVOUR} STREQUAL "HEIMDAL") OR (${GSS_FLAVOUR} STREQUAL "Heimdal")) 
 	message(WARNING "WITH_GSSAPI_HEIMDAL OK dans libfreerdp/core")
 	set(${${MODULE_PREFIX}_PKINIT_HEIMDAL_DIR}_PKINIT_SRCS
 		${${MODULE_PREFIX}_PKINIT_HEIMDAL_DIR}/heimbase.h
