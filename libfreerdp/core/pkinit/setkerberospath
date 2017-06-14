@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# check if Kerberos is installed
+KRB5CONFIG=$(which krb5-config)
+echo KRB5CONFIG=$KRB5CONFIG
+if [ ! -x $KRB5CONFIG ]; then
+  echo "No krb5-config found in path, please install."
+  return 1
+fi
+
+echo "\$#"=$#
+echo "\$1"=$1
+echo "\$2"=$2
+echo "\$3"=$3
+
+KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
+echo KRB5PREFIX=$KRB5PREFIX
+
+if [[ $2 != "MIT" ]]; then
+  echo "$PATH" | grep -qE "[H|h]eimdal"
+  if [ $? -ne 0 ]; then
+    # Heimdal not set in path, set by default 
+    # in /default-repertory-of-kerberos-install/heimdal.
+    if [[ $3 = "" ]]; then
+      export PATH=$KRB5PREFIX/heimdal/bin:$PATH
+    else
+      export PATH=$3/bin:$PATH
+    fi
+    echo PATH=$PATH
+  else
+    echo "Heimdal already set in path"
+    # on le supprime et on le reset pour qu'il etre sur qu'il soit
+    # en premier dans le PATH
+    # TODO
+
+    #if [[ $3 = "" ]]; then
+    #  export PATH=$KRB5PREFIX/heimdal/bin:$PATH
+    #else
+    #  export PATH=$3/bin:$PATH
+    #fi
+    echo PATH=$PATH
+  fi
+else
+  echo "MIT"
+fi
