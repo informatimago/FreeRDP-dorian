@@ -1,13 +1,11 @@
 #!/bin/bash
 
-#source setkerberospath.sh
-
-#KRB5CONFIG=$(which krb5-config)
-#echo KRB5CONFIG=$KRB5CONFIG
-#if [ ! -x $KRB5CONFIG ]; then
-#  echo "No krb5-config found in path, please install."
-#  return 1
-#fi
+KRB5CONFIG=$(which krb5-config)
+echo KRB5CONFIG=$KRB5CONFIG
+if [ ! -x $KRB5CONFIG ]; then
+  echo "No krb5-config found in path, please install."
+  return 1
+fi
 
 if [ $# -le 0 ]; then
   echo "Usage:"
@@ -15,31 +13,18 @@ if [ $# -le 0 ]; then
   return 1
 fi
 
-# set PATH according to Kerberos flavour we choose to use,
-# i.e MIT or Heimdal (both not case sensitive).
-OLD_PATH=$(echo $PATH);
-echo OLD_PATH=$OLD_PATH
-
 echo arg nb=$#
 
 if [ $# = 1 ]; then
   FLAVOUR=MIT
   echo "LA"
-elif [[ $2 == `echo "[H|h]eimdal"` ]]; then
+elif [[ $2 = `echo "[H|h]eimdal"` || $2 = "HEIMDAL" ]]; then
   FLAVOUR=Heimdal
   echo "ICI" 
   echo FLAVOUR=$FLAVOUR 
-elif [[ $2 == "HEIMDAL" ]]; then
-  FLAVOUR=Heimdal
-  echo "ICI" 
-  echo FLAVOUR=$FLAVOUR 
-elif [[ $2 == `echo "[M|m]it"` ]]; then  
+elif [[ $2 = `echo "[M|m]it"` || $2 = "MIT" ]]; then  
   FLAVOUR=MIT
   echo "PAR LA ET LA"
-  echo FLAVOUR=$FLAVOUR
-elif [[ $2 == "MIT" ]]; then  
-  FLAVOUR=MIT
-  echo "PAR ICI ET LA"
   echo FLAVOUR=$FLAVOUR
 else
   echo "\$2"=$2
@@ -56,40 +41,24 @@ echo "inst:\$3"=$3
 
 echo PATH AVANT ICI=$PATH
 
-if [[ $FLAVOUR == "MIT" ]]; then
+# set PATH according to Kerberos flavour we choose to use,
+# i.e MIT or Heimdal.
+if [ $FLAVOUR = "MIT" ]; then
   echo "setkerberos path MIT"
-  source setkerberospath MIT
+  source setkerberospath $2
 else
   echo "setkerberos path Heimdal"
   source setkerberospath $3
 fi
 
 echo PATH APRES ICI=$PATH
-
-#echo "$PATH" | grep -qE "[H|h]eimdal"
-#if [ $? -ne 0 ]; then
-  # Heimdal not set in path, set by default in /usr/local/heimdal.
-#  if [ $# = 2 ]; then
-#    export PATH=$KRB5PREFIX/heimdal/bin:$PATH
-#  else
-#    export PATH=$3/bin:$PATH
-#  fi
-#  echo PATH=$PATH
-#else
-#  echo "Heimdal already set in path"
-#fi
-
 echo NEW FLAVOUR=$FLAVOUR 
 
 # check if Kerberos is installed
 KRB5CONFIG=$(which krb5-config)
 echo KRB5CONFIG ICI=$KRB5CONFIG
-#if [ ! -x $KRB5CONFIG ]; then
-#  echo "No krb5-config found in path, please install."
-#  return 1
-#fi
 
-if [[ $FLAVOUR == "MIT" ]]; then
+if [ $FLAVOUR = "MIT" ]; then
   # Need at least Kerberos V5 1.15.0 due to bugs in PKINIT older versions
   VERSION=$(($KRB5CONFIG --version) 2>&1)
   echo VERSION=$VERSION
@@ -114,9 +83,7 @@ if [[ $FLAVOUR == "MIT" ]]; then
 else
   # Need at least Heimdal Kerberos 7.3.0 (not tested below)
   VERSION=$(($KRB5CONFIG --version) 2>&1)
-  echo VERSION_Heimdal=$STR_VERSION
-  #VERSION=$(echo $STR_VERSION | cut -d ' ' -f1-2)
-  #echo VERSION_Heimdal=$VERSION
+  echo VERSION_Heimdal=$VERSION
   NUM_VERSION=$(echo $VERSION | cut -d ' ' -f2)
   echo NUM_VERSION=$NUM_VERSION
   MAJOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f1)
@@ -150,16 +117,19 @@ fi
 
 # Add krb5support lib flag to krb5-config file
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
-echo KRB5PREFIX=$KRB5PREFIX
-touch /tmp/krb5-config
-chmod 755 /tmp/krb5-config
-sed s/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lcom_err\"/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lcom_err\ \-lkrb5support\"/g $KRB5PREFIX/bin/krb5-config > /tmp/krb5-config
-sudo mv /tmp/krb5-config $KRB5PREFIX/bin/krb5-config
-if [ $? -ne 0 ]; then
-  echo "Failed to add krb5support flag to krb5-config file"
-  return 1
-else
-  echo "Added krb5support flag to krb5-config file"
+echo KRB5PREFIX avant copie fichiers=$KRB5PREFIX
+
+if [ $FLAVOUR = "MIT" ]; then
+  touch /tmp/krb5-config
+  chmod 755 /tmp/krb5-config
+  sed s/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lcom_err\"/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lcom_err\ \-lkrb5support\"/g $KRB5PREFIX/bin/krb5-config > /tmp/krb5-config
+  sudo mv /tmp/krb5-config $KRB5PREFIX/bin/krb5-config
+  if [ $? -ne 0 ]; then
+    echo "Failed to add krb5support flag to krb5-config file"
+    return 1
+  else
+    echo "Added krb5support flag to krb5-config file"
+  fi
 fi
 
 # set env var GSS_ROOT_DIR to be able to detect Kerberos flavour (MIT or Heimdal) in FindGSSAPI.cmake
@@ -172,10 +142,12 @@ echo "GSS_ROOT_DIR=$GSS_ROOT_DIR"
 SOURCES=$1
 DESTINATION=$KRB5PREFIX/include/pkinit
 sudo mkdir -p $DESTINATION
-find $SOURCES \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print -exec sudo cp {} $DESTINATION \;
-if [ $? -ne 0 ]; then
-  echo "Script failed to copy all files in $DESTINATION"
-  return 1
-fi
 
-echo "All files have been copied with success in $DESTINATION"
+if [ $FLAVOUR = "MIT" ]; then
+  find $SOURCES \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print -exec sudo cp {} $DESTINATION \;
+  if [ $? -ne 0 ]; then
+    echo "Script failed to copy all files in $DESTINATION"
+    return 1
+  fi
+  echo "All files have been copied with success in $DESTINATION"
+fi
