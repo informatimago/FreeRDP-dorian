@@ -48,13 +48,23 @@ fi
 
 echo PATH AVANT=$PATH
 
+
+echo "inst:\$\#"=$#
+echo "inst:\$1"=$1
+echo "inst:\$2"=$2
+echo "inst:\$3"=$3
+
+echo PATH AVANT ICI=$PATH
+
 if [[ $FLAVOUR == "MIT" ]]; then
+  echo "setkerberos path MIT"
   source setkerberospath MIT
 else
+  echo "setkerberos path Heimdal"
   source setkerberospath $3
 fi
 
-echo PATH APRES=$PATH
+echo PATH APRES ICI=$PATH
 
 #echo "$PATH" | grep -qE "[H|h]eimdal"
 #if [ $? -ne 0 ]; then
@@ -72,8 +82,8 @@ echo PATH APRES=$PATH
 echo NEW FLAVOUR=$FLAVOUR 
 
 # check if Kerberos is installed
-#KRB5CONFIG=$(which krb5-config)
-#echo KRB5CONFIG=$KRB5CONFIG
+KRB5CONFIG=$(which krb5-config)
+echo KRB5CONFIG ICI=$KRB5CONFIG
 #if [ ! -x $KRB5CONFIG ]; then
 #  echo "No krb5-config found in path, please install."
 #  return 1
@@ -81,11 +91,16 @@ echo NEW FLAVOUR=$FLAVOUR
 
 if [[ $FLAVOUR == "MIT" ]]; then
   # Need at least Kerberos V5 1.15.0 due to bugs in PKINIT older versions
-  STR_VERSION=$(($KRB5CONFIG --version) 2>&1)
-  VERSION=$(echo $STR_VERSION | cut -d ' ' -f1-4)
+  VERSION=$(($KRB5CONFIG --version) 2>&1)
+  echo VERSION=$VERSION
+ # VERSION=$(echo $STR_VERSION | cut -d ' ' -f1-4)
+ # echo VERSION=$VERSION
   NUM_VERSION=$(echo $VERSION | cut -d ' ' -f4)
+  echo NUM_VERSION=$NUM_VERSION
   MAJOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f1)
+  echo MAJOR_VERSION=$MAJOR_VERSION
   MINOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f2)
+  echo MINOR_VERSION=$MINOR_VERSION
 
   if [ "$MAJOR_VERSION" -lt "1" ]; then
     echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
@@ -97,22 +112,34 @@ if [[ $FLAVOUR == "MIT" ]]; then
     return 1
   fi
 else
-  # Need at least Heimdal Kerberos 7.0.0
-  STR_VERSION=$(($KRB5CONFIG --version) 2>&1)
-  VERSION=$(echo $STR_VERSION | cut -d ' ' -f1-4)
-  NUM_VERSION=$(echo $VERSION | cut -d ' ' -f4)
+  # Need at least Heimdal Kerberos 7.3.0 (not tested below)
+  VERSION=$(($KRB5CONFIG --version) 2>&1)
+  echo VERSION_Heimdal=$STR_VERSION
+  #VERSION=$(echo $STR_VERSION | cut -d ' ' -f1-2)
+  #echo VERSION_Heimdal=$VERSION
+  NUM_VERSION=$(echo $VERSION | cut -d ' ' -f2)
+  echo NUM_VERSION=$NUM_VERSION
   MAJOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f1)
+  echo MAJOR_VERSION=$MAJOR_VERSION
   MINOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f2)
+  echo MINOR_VERSION=$MINOR_VERSION
+  PATCH_VERSION=$(echo $NUM_VERSION | cut -d '.' -f3)
+  echo PATCH_VERSION=$PATCH_VERSION
 
-  #if [ "$MAJOR_VERSION" -lt "1" ]; then
-   # echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
-    #return 1
-  #fi
+  if [ "$MAJOR_VERSION" -lt "7" ]; then
+    echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
+    return 1
+  fi
 
-  #if [ "$MINOR_VERSION" -lt "15" ]; then
-  #  echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
-  #  return 1
-  #fi
+  if [ "$MINOR_VERSION" -lt "3" ]; then
+    echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
+    return 1
+  fi
+
+  if [ "$PATCH_VERSION" -lt "0" ]; then
+    echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
+    return 1
+  fi
 fi 
 
 if [ $# -le 0 ]; then
