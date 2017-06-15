@@ -8,6 +8,8 @@ if [ ! -x $KRB5CONFIG ]; then
   return 1
 fi
 
+echo arg setpath nb=$#
+
 echo "\$#"=$#
 echo "\$1"=$1
 echo "\$2"=$2
@@ -15,13 +17,13 @@ echo "\$3"=$3
 
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
 echo KRB5PREFIX=$KRB5PREFIX
-
-if [[ $2 != "MIT" ]]; then
+  
+if [[ $1 = "Heimdal" ]]; then
   echo "$PATH" | grep -qE "[H|h]eimdal"
   if [ $? -ne 0 ]; then
     # Heimdal not set in path, set by default 
-    # in /default-repertory-of-kerberos-install/heimdal.
-    if [[ $3 = "" ]]; then
+    # in /default-directory-of-kerberos-installation/heimdal.
+    if [[ $2 = "" ]]; then
       export PATH=$KRB5PREFIX/heimdal/bin:$PATH
     else
       export PATH=$3/bin:$PATH
@@ -29,9 +31,16 @@ if [[ $2 != "MIT" ]]; then
     echo PATH=$PATH
   else
     echo "Heimdal already set in path"
-    # on le supprime et on le reset pour qu'il etre sur qu'il soit
+    # on le supprime et on le reset pour etre sur qu\'il soit
     # en premier dans le PATH
     # TODO
+    # delete Heimdal in PATH
+    #echo PATH AVANT DELETE=$PATH
+    #MYPATH=$PATH
+    #MYPATHCUT=`echo ${MYPATH#*:}`
+    #echo MYPATHCUT=$MYPATHCUT
+    #export PATH=$MYPATHCUT
+    #echo PATH APRES DELETE=$PATH
 
     #if [[ $3 = "" ]]; then
     #  export PATH=$KRB5PREFIX/heimdal/bin:$PATH
@@ -41,5 +50,41 @@ if [[ $2 != "MIT" ]]; then
     echo PATH=$PATH
   fi
 else
-  echo "MIT"
+  echo "MIT: KRB5CONFIG=$KRB5CONFIG"
+  echo "$KRB5CONFIG" | grep -qE "[H|h]eimdal"
+  if [ $? -eq 0 ]; then
+    # delete Heimdal in PATH
+
+    echo "avant le until"
+
+    ORIGIN_PATH=$PATH
+    CURRENT_PATH=$PATH
+    while true
+    do
+      echo CURRENT_PATH avant=$CURRENT_PATH
+      HEIMDAL_PATH=`echo ${CURRENT_PATH%%:*}`
+      echo CURRENT_PATH apres=$CURRENT_PATH
+      echo HEIMDAL_PATH=$HEIMDAL_PATH
+      CURRENT_PATH=`echo ${CURRENT_PATH#*:}`  
+      echo CURRENT ICI=$CURRENT_PATH
+      echo "$HEIMDAL_PATH" | grep -qE "[H|h]eimdal"
+
+      if [ $? -eq 0 ]; then
+        break
+      fi
+
+    done
+     
+    NEW_PATH=`echo ${ORIGIN_PATH/$HEIMDAL_PATH:/}`
+    echo NEW_PATH=$NEW_PATH
+
+    #echo "on passe la" 
+    #echo PATH AVANT DELETE=$PATH
+    #echo ${$PATH#*:}
+    #echo PATH APRES DELETE=$PATH
+  #  echo PATH AVANT DELETE=$PATH
+#    echo ${$PATH%:*}
+  else
+     echo "pas de heimdal dans le path"
+  fi
 fi
