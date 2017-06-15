@@ -41,20 +41,24 @@ echo "inst:\$3"=$3
 
 echo PATH AVANT ICI=$PATH
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo DIR=$DIR 
+
+echo BASH_SOURCE=$BASH_SOURCE
+
 # set PATH according to Kerberos flavour we choose to use,
 # i.e MIT or Heimdal.
 if [ $FLAVOUR = "MIT" ]; then
   echo "setkerberos path MIT"
-  source setkerberospath $2
+  source $DIR/setkerberospath $2
 else
   echo "setkerberos path Heimdal"
-  source setkerberospath $3
+  source $DIR/setkerberospath $3
 fi
 
 echo PATH APRES ICI=$PATH
 echo NEW FLAVOUR=$FLAVOUR 
 
-# check if Kerberos is installed
 KRB5CONFIG=$(which krb5-config)
 echo KRB5CONFIG ICI=$KRB5CONFIG
 
