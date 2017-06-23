@@ -13,19 +13,32 @@ echo "\$2"=$2
 echo "\$3"=$3
 
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
-echo KRB5PREFIX=$KRB5PREFIX
+KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
+echo KRB5PREFIX dodo=$KRB5PREFIX
+echo KRB5VENDOR dodo=$KRB5VENDOR
   
 if [[ $2 != "MIT" && $2 != `echo "[M|m]it"` && $2 != "" ]]; then
   echo "$PATH" | grep -qE "[H|h]eimdal"
   if [ $? -ne 0 ]; then
-    # Heimdal not set in path, set by default 
-    # in /default-directory-of-kerberos-installation/heimdal.
+    # Heimdal not set in path. We set it to : 
+    # /default-directory-of-MIT-Kerberos/heimdal 
+    # (default directory if no --prefix has been given to configure during MIT installation).
+    # MIT means MIT, not Heimdal, because here we are supposed to be in a \case 
+    # where MIT is installed and running over Heimdal (at least that Heimdal is being 
+    # installed in a non-default directory, so no "heimdal" string presents in PATH).
+    # Note below if in the particular \case where Heimdal is already running, 
+    # the Heimdal PATH is one the default existing paths.
     if [[ $3 = "" ]]; then
-      export PATH=$KRB5PREFIX/heimdal/bin:$PATH
+      echo "on est la avant vendor"
+      [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] \
+        && true \
+        || export PATH=$KRB5PREFIX/heimdal/bin:$PATH
+	echo PATH regex premier =$PATH
     else
+      echo "par la apres vendor"
       export PATH=$3/bin:$PATH
     fi
-    echo PATH=$PATH
+    echo PATH apres vendor=$PATH
   else
     echo "Heimdal already set in path"
     # delete Heimdal in PATH and export PATH with Heimdal 
@@ -54,7 +67,10 @@ if [[ $2 != "MIT" && $2 != `echo "[M|m]it"` && $2 != "" ]]; then
     echo PATH apres reinit heimdal=$PATH
 
     if [[ $3 = "" ]]; then
-      export PATH=$KRB5PREFIX/heimdal/bin:$PATH
+      [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] \
+        && export PATH=$KRB5PREFIX/bin:$PATH \
+        || export PATH=$KRB5PREFIX/heimdal/bin:$PATH
+	echo PATH regex =$PATH
     else
       export PATH=$3/bin:$PATH
     fi
@@ -65,7 +81,6 @@ else
   echo "$KRB5CONFIG" | grep -qE "[H|h]eimdal"
   if [ $? -eq 0 ]; then
     # delete Heimdal in PATH
-
     echo "avant le while"
 
     ORIGIN_PATH=$PATH
@@ -90,6 +105,6 @@ else
     export PATH=$NEW_PATH
     echo PATH apres sup heimdal=$PATH
   else
-     echo "pas de heimdal dans le path"
+     echo "no Heimdal specific path : use default for MIT"
   fi
 fi
