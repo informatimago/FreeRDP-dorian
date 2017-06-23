@@ -1104,8 +1104,9 @@ struct rdp_settings
 	ALIGN64 UINT64 StartTime; /* 1305 */
 	ALIGN64 UINT64 LifeTime; /* 1306 */
 	ALIGN64 UINT64 RenewableLifeTime; /* 1307 */
-	ALIGN64 BOOL Krb5Trace; /* 1308 */
-	UINT64 padding1344[1344 - 1309]; /* 1309 */
+	ALIGN64 char* PkinitCertificate; /* 1308 */
+	ALIGN64 BOOL Krb5Trace; /* 1309 */
+	UINT64 padding1344[1344 - 1310]; /* 1310 */
 
 	/* Kerberos Authentication */
 	ALIGN64 char* KerberosKdc; /* 1344 */
