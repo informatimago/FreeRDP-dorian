@@ -139,8 +139,13 @@ fi
 # set env var GSS_ROOT_DIR to be able to detect Kerberos flavour (MIT or Heimdal) in FindGSSAPI.cmake
 GSS_ROOT_DIR=$(($KRB5CONFIG --prefix) 2>&1)
 export GSS_ROOT_DIR=$GSS_ROOT_DIR
-#export GSS_ROOT_DIR=/usr/local/heimdal
+KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
+[[ $KRB5VENDOR =~ [H|h]eimdal$ ]] \
+  && export GSS_ROOT_FLAVOUR=Heimdal \
+  || export GSS_ROOT_FLAVOUR=MIT
+
 echo "GSS_ROOT_DIR=$GSS_ROOT_DIR"
+echo "GSS_ROOT_FLAVOUR=$GSS_ROOT_FLAVOUR"
 
 # Copy source files in install directory
 SOURCES=$1
