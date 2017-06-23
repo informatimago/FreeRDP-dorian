@@ -15,13 +15,14 @@
 #                In case the library is found but no version info availabe it'll be set to "unknown"
 
 set(_MIT_MODNAME mit-krb5-gssapi)
-set(_HEIMDAL_MODNAME heimdal-gssapi)
+#set(_HEIMDAL_MODNAME heimdal-gssapi)
+set(_HEIMDAL_MODNAME heimdal-krb5)
 
 include(CheckIncludeFile)
 include(CheckIncludeFiles)
 include(CheckTypeSize)
 
-message(WARNING "GSS_ROOT_DIR=${GSS_ROOT_DIR} ; GSS_ROOT_DIR=$ENV{GSS_ROOT_DIR}")
+#message(WARNING "GSS_ROOT_DIR=${GSS_ROOT_DIR} ; GSS_ROOT_DIR=$ENV{GSS_ROOT_DIR}")
 
 # set root dir if not specified to avoid using pkg-config system under UNIX
 # pkg-config system meets trouble when trying to find library not when others ones 
@@ -30,12 +31,22 @@ message(WARNING "GSS_ROOT_DIR=${GSS_ROOT_DIR} ; GSS_ROOT_DIR=$ENV{GSS_ROOT_DIR}"
 # That's why, we need first of all to set GSS_ROOT_DIR to avoid any potential problems 
 # if we have two Kerberos flavours installed on the filesystem.
 if(UNIX)
-    if("$ENV{GSS_ROOT_DIR} " STREQUAL " ")
-        set(GSS_ROOT_DIR "`which krb5-config` --prefix")
-	message(WARNING "GSS_ROOT_DIR set to ${GSS_ROOT_DIR}")
-    else()	
-	message(WARNING "GSS_ROOT_DIR ($ENV{GSS_ROOT_DIR}) already set")
+  if("$ENV{GSS_ROOT_DIR} " STREQUAL " ")
+    set(GSS_ROOT_DIR "`which krb5-config` --prefix")
+    message(WARNING "GSS_ROOT_DIR=${GSS_ROOT_DIR}")
+  else()
+    string(REGEX MATCH "[H|h]eimdal" check_heimdal "$ENV{GSS_ROOT_DIR}")
+    message(WARNING "check_heimdal=${check_heimdal}; GSS_ROOT_DIR=${GSS_ROOT_DIR} ; ENV{GSS_ROOT_DIR}=$ENV{GSS_ROOT_DIR}")
+    if("${check_heimdal} " STREQUAL " ")
+      if("$ENV{GSS_ROOT_FLAVOUR}" STREQUAL "MIT" OR "$ENV{GSS_ROOT_FLAVOUR} " STREQUAL " ")
+        message(WARNING "vendor MIT")
+        set(GSS_FLAVOUR "MIT")
+      endif()
+    else()
+      message(WARNING "vendor Heimdal")
+      set(GSS_FLAVOUR "Heimdal")
     endif()
+  endif()
 endif()
 
 set(_GSS_ROOT_HINTS
@@ -44,18 +55,30 @@ set(_GSS_ROOT_HINTS
 )
 
 message(WARNING "_GSS_ROOT_HINTS=${_GSS_ROOT_HINTS}")
+message(WARNING "ENV{GSS_ROOT_DIR}=$ENV{GSS_ROOT_DIR}")
+
+set(vendor "`which krb5-config` --vendor")
+message(WARNING "vendor=${vendor}") 
 
 # try to find library using system pkg-config if user didn't specify root dir
-if(NOT GSS_ROOT_DIR AND NOT "$ENV{GSS_ROOT_DIR}")
+#if(NOT GSS_ROOT_DIR AND NOT "$ENV{GSS_ROOT_DIR}")
     if(UNIX)
 	message(WARNING "NOT GSS ROOT DIR & NOT ENV GSS ROOT DIR")
         find_package(PkgConfig QUIET)
-        pkg_search_module(_GSS_PKG ${_MIT_MODNAME} ${_HEIMDAL_MODNAME})
+#        pkg_search_module(_GSS_PKG ${_MIT_MODNAME} ${_HEIMDAL_MODNAME})
+	if(GSS_FLAVOUR STREQUAL "MIT")
+          message(WARNING "pkg mit flavour")
+          pkg_search_module(_GSS_PKG ${_MIT_MODNAME})
+	else()
+          message(WARNING "pkg heimdal flavour")
+          pkg_search_module(_GSS_PKG ${_HEIMDAL_MODNAME})
+        endif()
         list(APPEND _GSS_ROOT_HINTS "${_GSS_PKG_PREFIX}")
+	message(WARNING "_GSS_PKG_PREFIX=${_GSS_PKG_PREFIX} ; _GSS_ROOT_HINTS=${_GSS_ROOT_HINTS}")
     elseif(WIN32)
         list(APPEND _GSS_ROOT_HINTS "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MIT\\Kerberos;InstallDir]")
     endif()
-endif()
+#endif()
 
 #message(WARNING "l.40 : _GSS_ROOT_HINTS=${_GSS_ROOT_HINTS} ; GSS_FLAVOUR=${GSS_FLAVOUR}")
 
@@ -82,9 +105,10 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
     )
 
     if(_GSS_CONFIGURE_SCRIPT)
-	message(WARNING "on est la : l.63")
+	#message(WARNING "on est la : l.63")
         execute_process(
-            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi"
+            #COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi"
+            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "krb5"
             OUTPUT_VARIABLE _GSS_CFLAGS
             RESULT_VARIABLE _GSS_CONFIGURE_FAILED
         )
@@ -105,12 +129,23 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
             endforeach()
         endif()
 
-	message(WARNING "on est la : l.85")
+	#message(WARNING "on est la : l.85")
         execute_process(
-            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "gssapi"
+            #COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "gssapi"
+            #COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "gssapi" "krb5"
+            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "krb5"
             OUTPUT_VARIABLE _GSS_LIB_FLAGS
             RESULT_VARIABLE _GSS_CONFIGURE_FAILED
         )
+	#message("avant : OUTPUT_VARIABLE=${OUTPUT_VARIABLE} ; RESULT_VARIABLE=${RESULT_VARIABLE}")
+	#message("avant : _GSS_LIB_FLAGS=${_GSS_LIB_FLAGS} ; _GSS_CONFIGURE_FAILED=${_GSS_CONFIGURE_FAILED}")
+#        execute_process(
+            #COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "gssapi"
+#            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "krb5"
+ #           OUTPUT_VARIABLE _GSS_LIB_FLAGS
+ #           RESULT_VARIABLE _GSS_CONFIGURE_FAILED
+ #       )
+	#message("apres : OUTPUT_VARIABLE=${OUTPUT_VARIABLE} ; RESULT_VARIABLE=${RESULT_VARIABLE}")
         if(NOT _GSS_CONFIGURE_FAILED) # 0 means success
             # this script gives us libraries and link directories. Blah. We have to deal with it.
             # string(STRIP "krb5support ${_GSS_LIB_FLAGS}" _GSS_LIB_FLAGS)
@@ -131,7 +166,7 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
             endforeach()
         endif()
 
-	message(WARNING "on est la : l.112 : _GSS_CONFIGURE_SCRIPT=${_GSS_CONFIGURE_SCRIPT}")
+	#message(WARNING "on est la : l.112 : _GSS_CONFIGURE_SCRIPT=${_GSS_CONFIGURE_SCRIPT}")
 
         execute_process(
             COMMAND ${_GSS_CONFIGURE_SCRIPT} "--version"
@@ -150,16 +185,16 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
             OUTPUT_VARIABLE _GSS_VENDOR
             RESULT_VARIABLE _GSS_CONFIGURE_FAILED
         )
-	message(WARNING "on est la : l.153")
+	#message(WARNING "on est la : l.153")
 
         # older versions may not have the "--vendor" parameter. In this case we just don't care.
         if(_GSS_CONFIGURE_FAILED)
-	message(WARNING "on est la : l.157")
+	#message(WARNING "on est la : l.157")
             set(GSS_FLAVOUR "Heimdal") # most probably, shouldn't really matter
         else()
-	message(WARNING "on est la : l.160")
+	#message(WARNING "on est la : l.160")
             if(_GSS_VENDOR MATCHES ".*H|heimdal.*")
-	message(WARNING "on est la : l.162")
+	#message(WARNING "on est la : l.162")
                 set(GSS_FLAVOUR "Heimdal")
             else()
                 set(GSS_FLAVOUR "MIT")
@@ -167,7 +202,7 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
         endif()
 
     else() # either there is no config script or we are on platform that doesn't provide one (Windows?)
-	message(WARNING "on est la : l.142")
+	#message(WARNING "on est la : l.142")
 
         find_path(_GSS_INCLUDE_DIR
             NAMES
@@ -180,14 +215,14 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
         )
 
         if(_GSS_INCLUDE_DIR) #jay, we've found something
-	message(WARNING "on est la : l.180")
+	#message(WARNING "on est la : l.180")
             set(CMAKE_REQUIRED_INCLUDES "${_GSS_INCLUDE_DIR}")
             check_include_files( "gssapi/gssapi_generic.h;gssapi/gssapi_krb5.h" _GSS_HAVE_MIT_HEADERS)
 
             if(_GSS_HAVE_MIT_HEADERS)
                 set(GSS_FLAVOUR "MIT")
             else()
-		message(WARNING "on est la : l.190")
+		#message(WARNING "on est la : l.190")
                 # prevent compiling the header - just check if we can include it
                 set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D__ROKEN_H__")
                 check_include_file( "roken.h" _GSS_HAVE_ROKEN_H)
@@ -211,7 +246,7 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
             )
 
             if(_GSS_INCLUDE_DIR)
-		message(WARNING "on est la : l.211")
+		#message(WARNING "on est la : l.211")
                 set(GSS_FLAVOUR "Heimdal")
             endif()
         endif()
@@ -240,17 +275,20 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
                     endif()
                 endif()
             else()
+                message(STATUS "avant append libdir suffixes")
                 list(APPEND _GSS_LIBDIR_SUFFIXES "lib;lib64") # those suffixes are not checked for HINTS
                 if(GSS_FLAVOUR STREQUAL "MIT")
-		    message(WARNING "on est la : l.242")
+		    message(STATUS "on est la : l.278")
                     set(_GSS_LIBNAME "gssapi_krb5")
                 else()
-		    message(WARNING "on est la : l.245")
+		    message(STATUS "on est la : l.281")
                     set(_GSS_LIBNAME "gssapi")
+                    set(_GSS_LIBNAME "krb5")
+                    set(_GSS_LIBNAME "kafs")
                 endif()
             endif()
 
-            message(WARNING "l.250: _GSS_LIBNAME=${_GSS_LIBNAME}; _GSS_LIBDIR_HINTS=${_GSS_LIBDIR_HINTS}; _GSS_LIBDIR_SUFFIXES=${_GSS_LIBDIR_SUFFIXES}")
+            message(STATUS "l.289: _GSS_LIBNAME=${_GSS_LIBNAME}; _GSS_LIBDIR_HINTS=${_GSS_LIBDIR_HINTS}; _GSS_LIBDIR_SUFFIXES=${_GSS_LIBDIR_SUFFIXES}")
 
             find_library(_GSS_LIBRARIES
                 NAMES
@@ -265,18 +303,18 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
 
     endif()
 else()
-	message(WARNING "on est la : l.235")
+	#message(WARNING "on est la : l.235")
     if(_GSS_PKG_${_MIT_MODNAME}_VERSION)
         set(GSS_FLAVOUR "MIT")
         set(_GSS_VERSION _GSS_PKG_${_MIT_MODNAME}_VERSION)
     else()
-	message(WARNING "on est la : l.240")
+	#message(WARNING "on est la : l.240")
         set(GSS_FLAVOUR "Heimdal")
         set(_GSS_VERSION _GSS_PKG_${_HEIMDAL_MODNAME}_VERSION)
     endif()
 endif()
 	
-message(WARNING "l.246: _GSS_LIBRARIES=${_GSS_LIBRARIES}")
+message(STATUS "l.314: _GSS_LIBRARIES=${_GSS_LIBRARIES}")
 
 set(GSS_INCLUDE_DIR ${_GSS_INCLUDE_DIR})
 set(GSS_LIBRARIES ${_GSS_LIBRARIES})
