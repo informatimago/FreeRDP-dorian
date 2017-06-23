@@ -31,9 +31,9 @@
 #include <heimdal/gssapi.h>
 #include <heimdal/krb5.h>
 #include <heimdal/getarg.h>
-#include <heimdal/krb5_asn1.h>
-#include <heimdal/parse_time.h>
-#include <heimdal/kafs.h>
+//#include <heimdal/krb5_asn1.h>
+//#include <heimdal/parse_time.h>
+//#include <heimdal/kafs.h>
 #include "hx509.h"
 
 #include <errno.h>
