@@ -23,20 +23,14 @@
 
 #ifndef COUCOU
 
-//#include "kuser_locl.h"
-//#include "kuser_locl.h"
-
-#include "pkinit.h"
-//#include <errno.h>
-//#include <heimdal/getarg.h>
-//#include <locale.h>
-//#include <heimdal/krb5_asn1.h>
-
 #include <openssl/ui.h>
 #include <err.h>
 
-//#include <heimdal/krb5.h>
-//#include <heimdal/krb5-protos.h>
+#include "pkinit.h"
+
+#ifdef WITH_GSSAPI_HEIMDAL
+//#include <krb5-protos.h>
+#endif
 
 #define TAG FREERDP_TAG("core.pkinit")
 #define PKINIT_ANCHORS_MAX 10

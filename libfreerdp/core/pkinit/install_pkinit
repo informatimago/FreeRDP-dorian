@@ -31,16 +31,6 @@ else
   echo "PAR ICI ET LA lala la la la"
 fi
 
-echo PATH AVANT=$PATH
-
-
-echo "inst:\$\#"=$#
-echo "inst:\$1"=$1
-echo "inst:\$2"=$2
-echo "inst:\$3"=$3
-
-echo PATH AVANT ICI=$PATH
-
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo DIR=$DIR 
 
@@ -66,8 +56,6 @@ if [ $FLAVOUR = "MIT" ]; then
   # Need at least Kerberos V5 1.15.0 due to bugs in PKINIT older versions
   VERSION=$(($KRB5CONFIG --version) 2>&1)
   echo VERSION=$VERSION
- # VERSION=$(echo $STR_VERSION | cut -d ' ' -f1-4)
- # echo VERSION=$VERSION
   NUM_VERSION=$(echo $VERSION | cut -d ' ' -f4)
   echo NUM_VERSION=$NUM_VERSION
   MAJOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f1)
@@ -158,5 +146,5 @@ if [ $FLAVOUR = "MIT" ]; then
     echo "Script failed to copy all files in $DESTINATION"
     return 1
   fi
-  echo "All files have been copied with success in $DESTINATION"
+  echo "All files have been copied successfully in $DESTINATION"
 fi
