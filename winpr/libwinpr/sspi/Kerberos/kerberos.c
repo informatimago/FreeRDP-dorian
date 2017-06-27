@@ -343,7 +343,7 @@ int init_creds(LPCWSTR username, size_t username_len, LPCWSTR password, size_t p
 #ifdef WITH_DEBUG_NLA
 	WLog_DBG(TAG, "copied string is %s\n", krb_name);
 #endif
-	pstr = strchr(krb_name, '@');
+	pstr = strchr(lusername, '@');
 
 	if (pstr != NULL)
 		flags = KRB5_PRINCIPAL_PARSE_ENTERPRISE;
