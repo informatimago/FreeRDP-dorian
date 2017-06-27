@@ -110,8 +110,8 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
         execute_process(
             #COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi" "krb5" "kafs" "kadm-server"
 #            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "heimdal-gssapi"
-            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "kafs"
-            #COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "krb5"
+            #COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "kafs"
+            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "krb5"
             OUTPUT_VARIABLE _GSS_CFLAGS
             RESULT_VARIABLE _GSS_CONFIGURE_FAILED
         )
@@ -142,8 +142,8 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
 	message(STATUS "on est la : l.132 : _GSS_CONFIGURE_SCRIPT=${_GSS_CONFIGURE_SCRIPT}")
         execute_process(
             #COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "gssapi"
-            #COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "krb5"
-            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "kafs"
+            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "krb5"
+#            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "kafs"
             #COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "gssapi" "krb5" "kafs" "kadm-server"
 #            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "heimdal-gssapi"
             OUTPUT_VARIABLE _GSS_LIB_FLAGS
@@ -296,9 +296,9 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
                 else()
 		    message(STATUS "on est la : l.281")
                     set(_GSS_LIBNAME "gssapi")
-                    #set(_GSS_LIBNAME "krb5")
+                    set(_KRB5_LIBNAME "krb5")
                     set(_KAFS_LIBNAME "kafs")
-#                    list(APPEND _GSS_LIBNAME "kafs")
+                    set(_ROKEN_LIBNAME "roken")
                 endif()
             endif()
 
@@ -314,7 +314,14 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
             )
      
             if(${GSS_FLAVOUR} STREQUAL "Heimdal")
-#                add_library(${module_name} 
+		find_library(_KRB5_LIBRARY
+		    NAMES
+                        ${_KRB5_LIBNAME}
+                    HINTS
+                        ${_GSS_LIBDIR_HINTS}
+                    PATH_SUFFIXES
+                        ${_GSS_LIBDIR_SUFFIXES}
+               )
 		find_library(_KAFS_LIBRARY
 		    NAMES
                         ${_KAFS_LIBNAME}
@@ -323,9 +330,16 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
                     PATH_SUFFIXES
                         ${_GSS_LIBDIR_SUFFIXES}
                )
-	#	target_link_libraries(
+		find_library(_ROKEN_LIBRARY
+		    NAMES
+                        ${_ROKEN_LIBNAME}
+                    HINTS
+                        ${_GSS_LIBDIR_HINTS}
+                    PATH_SUFFIXES
+                        ${_GSS_LIBDIR_SUFFIXES}
+               )
                 message(STATUS "_GSS_LIBRARIES avant append=${_GSS_LIBRARIES}")
-		list(APPEND _GSS_LIBRARIES ${_KAFS_LIBRARY})
+		list(APPEND _GSS_LIBRARIES ${_KRB5_LIBRARY} ${_KAFS_LIBRARY} ${_ROKEN_LIBRARY})
                 message(STATUS "_GSS_LIBRARIES apres append=${_GSS_LIBRARIES}")
             endif()
 
