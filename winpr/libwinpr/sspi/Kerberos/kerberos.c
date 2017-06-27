@@ -32,6 +32,10 @@
 
 #include "kerberos.h"
 
+#ifdef WITH_GSSAPI_HEIMDAL
+#include <krb5-protos.h>
+#endif
+
 #include "../sspi.h"
 #include "../../log.h"
 #define TAG WINPR_TAG("sspi.Kerberos")
