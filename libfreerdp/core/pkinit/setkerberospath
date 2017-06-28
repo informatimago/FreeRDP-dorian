@@ -1,13 +1,11 @@
 #!/bin/bash
 
-echo BASH_SOURCE ici=$BASH_SOURCE
-echo BASH_SOURCE[0]=${BASH_SOURCE[0]}
-echo BASH_SOURCE[1]=${BASH_SOURCE[1]}
-
 KRB5CONFIG=$(which krb5-config)
 echo arg setpath nb=$#
 
+echo "voici les arguments de setkerberospath :"
 echo "\$#"=$#
+echo "\$0"=$0
 echo "\$1"=$1
 echo "\$2"=$2
 echo "\$3"=$3
@@ -17,33 +15,34 @@ KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 echo KRB5PREFIX dodo=$KRB5PREFIX
 echo KRB5VENDOR dodo=$KRB5VENDOR
   
-if [[ $2 != "MIT" && $2 != `echo "[M|m]it"` && $2 != "" ]]; then
+if ! [ $1 = "MIT" ]; then
   echo "$PATH" | grep -qE "[H|h]eimdal"
   if [ $? -ne 0 ]; then
-    # Heimdal not set in path. We set it to : 
-    # /default-directory-of-MIT-Kerberos/heimdal 
-    # (default directory if no --prefix has been given to configure during MIT installation).
-    # MIT means MIT, not Heimdal, because here we are supposed to be in a \case 
-    # where MIT is installed and running over Heimdal (at least that Heimdal is being 
+    # Heimdal not set in path(*). Here we are supposed to be in a \case 
+    # where MIT is installed and running over Heimdal (unless Heimdal is being 
     # installed in a non-default directory, so no "heimdal" string presents in PATH).
-    # Note below if in the particular \case where Heimdal is already running, 
-    # the Heimdal PATH is one the default existing paths.
+    # We set it by default to the default installation of Heimdal (/usr/heimdal).
+    # If you want an other PATH please specify $3. 
+    # (*) Note in the particular \case where Heimdal is already running, 
+    # the Heimdal PATH is one of the default existing paths.
     if [[ $3 = "" ]]; then
       echo "on est la avant vendor"
       [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] \
         && true \
-        || export PATH=$KRB5PREFIX/heimdal/bin:$PATH
-	echo PATH regex premier =$PATH
+        || export PATH=/usr/heimdal/bin:$PATH
+      echo "/usr/heimdal/bin has been added to PATH"
     else
       echo "par la apres vendor"
-      export PATH=$3/bin:$PATH
+      [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] \
+        && true \
+        || export PATH=$3/bin:$PATH
+      echo "$3/bin has been added to PATH"
     fi
     echo PATH apres vendor=$PATH
   else
     echo "Heimdal already set in path"
     # delete Heimdal in PATH and export PATH with Heimdal 
     # to ensure Heimdal is first Kerberos in PATH
-
     ORIGIN_PATH=$PATH
     CURRENT_PATH=$PATH
     while true
@@ -61,18 +60,28 @@ if [[ $2 != "MIT" && $2 != `echo "[M|m]it"` && $2 != "" ]]; then
     done
      
     NEW_PATH=`echo ${ORIGIN_PATH/$HEIMDAL_PATH:/}`
-    echo NEW_PATH=$NEW_PATH
+    echo NEW_PATH l.63=$NEW_PATH
 
-    export PATH=$NEW_PATH
-    echo PATH apres reinit heimdal=$PATH
-
-    if [[ $3 = "" ]]; then
-      [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] \
-        && export PATH=$KRB5PREFIX/bin:$PATH \
-        || export PATH=$KRB5PREFIX/heimdal/bin:$PATH
-	echo PATH regex =$PATH
-    else
-      export PATH=$3/bin:$PATH
+    if ! [[ $3 = "" ]]; then
+      MY_PATH=$3/bin:$NEW_PATH
+      echo "MY_PATH apres subs avec \$3 non vide : MY_PATH=$MY_PATH"
+      export PATH=$MY_PATH
+    else    
+      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
+        echo "c etait deja heimdal" 
+        export PATH=$KRB5PREFIX/bin:$NEW_PATH 
+      else
+        ANSWER=no
+        while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
+        do
+          read -p "Please specify prefix directory of your Heimdal installation : " YOURPREFIX
+          echo "You entered : $YOURPREFIX. OK ? [Y/n]"
+          read ANSWER
+        done
+        export PATH=$YOURPREFIX/bin:$NEW_PATH
+        echo "$YOURPREFIX/bin has been added to PATH"
+      fi
+      echo PATH regex l.83=$PATH
     fi
     echo PATH apres reinit et ajout heimdal=$PATH
   fi
@@ -102,9 +111,29 @@ else
     NEW_PATH=`echo ${ORIGIN_PATH/$HEIMDAL_PATH:/}`
     echo NEW_PATH=$NEW_PATH
 
-    export PATH=$NEW_PATH
+    [[ $2 = "" ]] && export PATH=$NEW_PATH \
+      || export PATH=$2/bin:$NEW_PATH
+
     echo PATH apres sup heimdal=$PATH
   else
-     echo "no Heimdal specific path : use default for MIT"
+     if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
+        if [[ $2 = "" ]]; then
+          echo "avant until : \$2=$2"
+          ANSWER=no
+          while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
+          do
+            read -p "Please specify prefix directory of your MIT installation : " YOURPREFIX
+            echo "You entered : $YOURPREFIX. OK ? [Y/n]"
+            read ANSWER
+          done
+          export PATH=$YOURPREFIX/bin:$PATH
+          echo "$YOURPREFIX/bin has been added to PATH"
+        else
+          export PATH=$2/bin:$PATH
+          echo "$2/bin has been added to PATH"
+        fi
+     else
+       echo "PATH is not changed : MIT is already being configured as Kerberos flavour"
+     fi
   fi
 fi
