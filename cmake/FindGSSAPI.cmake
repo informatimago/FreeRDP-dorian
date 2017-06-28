@@ -1,8 +1,8 @@
-# - Try to find the GSS Kerberos library
+# - Try to find the GSS Kerberos libraries
 # Once done this will define
 #
 #  GSS_ROOT_DIR - Set this variable to the root installation of GSS
-#  GSS_ROOT_FLAVOUR - Set this variable to the flavour of Kerberos installation
+#  GSS_ROOT_FLAVOUR - Set this variable to the flavour of Kerberos installation (MIT or Heimdal)
 #
 # Read-Only variables:
 #  GSS_FOUND - system has the Heimdal library
@@ -118,7 +118,7 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
     endif()
 
     # we fail to link Heimdal libraries via configure script, we do it "manually"
-    if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND NOT ${GSS_FLAVOUR} STREQUAL "Heimdal") #"Heimdal")
+    if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND NOT ${GSS_FLAVOUR} STREQUAL "Heimdal")
       message(STATUS "on est la : l.108 : _GSS_CONFIGURE_SCRIPT=${_GSS_CONFIGURE_SCRIPT}")
       execute_process(
             COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi"
@@ -149,7 +149,7 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
         )
 
         if(NOT _GSS_CONFIGURE_FAILED) # 0 means success
-            # this script gives us libraries and link directories. Blah. We have to deal with it.
+            # this script gives us libraries and link directories. We have to deal with it.
             string(STRIP "${_GSS_LIB_FLAGS}" _GSS_LIB_FLAGS)
             string(REGEX REPLACE " +-(L|l)" ";-\\1" _GSS_LIB_FLAGS "${_GSS_LIB_FLAGS}")
             string(REGEX REPLACE " +-([^Ll][^ \\t;]*)" ";-\\1" _GSS_LIB_FLAGS "${_GSS_LIB_FLAGS}")
@@ -179,7 +179,7 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
         endif()
 
     else() # either there is no config script or we are on platform that doesn't provide one (Windows?)
-        message(STATUS "on est la : l.171 : _GSS_CONFIGURE_SCRIPT=${_GSS_CONFIGURE_SCRIPT} failed or Heimdl flavour")
+        message(STATUS "on est la : l.171 : _GSS_CONFIGURE_SCRIPT=${_GSS_CONFIGURE_SCRIPT} failed or Heimdal flavour")
         find_path(_GSS_INCLUDE_DIR
             NAMES
                 "gssapi/gssapi.h"
@@ -208,7 +208,7 @@ if(NOT _GSS_FOUND) #not found by pkg-config. Let's take more traditional approac
                 set(CMAKE_REQUIRED_DEFINITIONS "")
             endif()
         else()
-            # I'm not convinced if this is the right way but this is what autotools do at the moment
+            # may not be the right way but this is what autotools do at the moment
             find_path(_GSS_INCLUDE_DIR
                 NAMES
                     "gssapi.h"

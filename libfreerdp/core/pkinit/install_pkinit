@@ -14,6 +14,10 @@ if [ $# -le 0 ]; then
 fi
 
 echo arg nb=$#
+echo "\$0=$0"
+echo "\$1=$1"
+echo "\$2=$2"
+echo "\$3=$3"
 
 if [ $# = 1 ]; then
   FLAVOUR=MIT
@@ -22,13 +26,10 @@ elif [[ $2 = `echo "[H|h]eimdal"` || $2 = "HEIMDAL" ]]; then
   FLAVOUR=Heimdal
   echo "ICI" 
   echo FLAVOUR=$FLAVOUR 
-elif [[ $2 = `echo "[M|m]it"` || $2 = "MIT" ]]; then  
+else
   FLAVOUR=MIT
   echo "PAR LA ET LA"
   echo FLAVOUR=$FLAVOUR
-else
-  echo "\$2"=$2
-  echo "PAR ICI ET LA lala la la la"
 fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -39,11 +40,17 @@ echo BASH_SOURCE=$BASH_SOURCE
 # set PATH according to Kerberos flavour we choose to use,
 # i.e MIT or Heimdal.
 if [ $FLAVOUR = "MIT" ]; then
-  echo "setkerberos path MIT"
-  source $DIR/setkerberospath $2
+  echo "setkerberos path MIT : \$1=$1 ; \$2=$2 ; \$3=$3"
+  if [[ $3 = "" ]] && ! [[ $2 =~ [M|m]it || $2 = "MIT" ]]; then
+     echo "rep MIT ; pas Mmit ; pas MIT"
+    source $DIR/setkerberospath MIT $2
+  else
+    echo "rep MIT pas vide ; et Mmit ou MIT : \$1=$1 ; \$2=$2 ; \$3=$3"
+    source $DIR/setkerberospath MIT $3
+  fi
 else
-  echo "setkerberos path Heimdal"
-  source $DIR/setkerberospath $3
+  echo "setkerberos path Heimdal : \$1=$1 ; \$2=$2 ; \$3=$3"
+  source $DIR/setkerberospath
 fi
 
 echo PATH APRES ICI=$PATH
@@ -63,12 +70,12 @@ if [ $FLAVOUR = "MIT" ]; then
   MINOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f2)
   echo MINOR_VERSION=$MINOR_VERSION
 
-  if [ "$MAJOR_VERSION" -lt "1" ]; then
+  if [ "$MAJOR_VERSION" -lt 1 ]; then
     echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
     return 1
   fi
 
-  if [ "$MINOR_VERSION" -lt "15" ]; then
+  if [ "$MINOR_VERSION" -lt 15 ]; then
     echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
     return 1
   fi
@@ -85,17 +92,17 @@ else
   PATCH_VERSION=$(echo $NUM_VERSION | cut -d '.' -f3)
   echo PATCH_VERSION=$PATCH_VERSION
 
-  if [ "$MAJOR_VERSION" -lt "7" ]; then
+  if [ "$MAJOR_VERSION" -lt 7 ]; then
     echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
     return 1
   fi
 
-  if [ "$MINOR_VERSION" -lt "3" ]; then
+  if [ "$MINOR_VERSION" -lt 3 ]; then
     echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
     return 1
   fi
 
-  if [ "$PATCH_VERSION" -lt "0" ]; then
+  if [ "$PATCH_VERSION" -lt 0 ]; then
     echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
     return 1
   fi
