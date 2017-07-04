@@ -3,6 +3,7 @@
  * H.264 Bitmap Compression
  *
  * Copyright 2014 Mike McDonald <Mike.McDonald@software.dell.com>
+ * Copyright 2017 David Fort <contact@hardening-consulting.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
