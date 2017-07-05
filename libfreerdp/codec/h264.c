@@ -449,13 +449,10 @@ static BOOL CALLBACK h264_register_subsystems(PINIT_ONCE once, PVOID param, PVOI
 		i++;
 	}
 #endif
-#ifdef WITH_OPENH264
 
 	return i > 0;
 }
 
-#endif
-#ifdef WITH_X264
 
 BOOL h264_context_init(H264_CONTEXT* h264)
 {
