@@ -32,11 +32,13 @@ if ! [ $1 = "MIT" ]; then
         || export PATH=/usr/heimdal/bin:$PATH
       echo "/usr/heimdal/bin has been added to PATH"
     else
-      echo "par la apres vendor"
+      echo "avant delete trailing: $3"
+      SHAVED_PREFIX_DIR=`echo -e "$3" | sed -e 's/\/$//'`
+      echo "apres delete trailing: \$3=$3 ; SHAVED_PREFIX_DIR=$SHAVED_PREFIX_DIR"
       [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] \
         && true \
-        || export PATH=$3/bin:$PATH
-      echo "$3/bin has been added to PATH"
+        || export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
+      echo "$SHAVED_PREFIX_DIR/bin has been added to PATH"
     fi
     echo PATH apres vendor=$PATH
   else
@@ -63,12 +65,13 @@ if ! [ $1 = "MIT" ]; then
     echo NEW_PATH l.63=$NEW_PATH
 
     if ! [[ $3 = "" ]]; then
-      MY_PATH=$3/bin:$NEW_PATH
-      echo "MY_PATH apres subs avec \$3 non vide : MY_PATH=$MY_PATH"
+      SHAVED_PREFIX_DIR=`echo -e "$3" | sed -e 's/\/$//'`
+      MY_PATH=$SHAVED_PREFIX_DIR/bin:$NEW_PATH
+      echo "$SHAVED_PREFIX_DIR has been added to PATH"
       export PATH=$MY_PATH
     else    
       if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
-        echo "c etait deja heimdal" 
+        echo "Heimdal already configured in PATH" 
         export PATH=$KRB5PREFIX/bin:$NEW_PATH 
       else
         ANSWER=no
@@ -78,8 +81,9 @@ if ! [ $1 = "MIT" ]; then
           echo "You entered : $YOURPREFIX. OK ? [Y/n]"
           read ANSWER
         done
-        export PATH=$YOURPREFIX/bin:$NEW_PATH
-        echo "$YOURPREFIX/bin has been added to PATH"
+        SHAVED_PREFIX_DIR=`echo -e "$YOURPREFIX" | sed -e 's/\/$//'`
+        export PATH=$SHAVED_PREFIX_DIR/bin:$NEW_PATH
+        echo "$SHAVED_PREFIX_DIR/bin has been added to PATH"
       fi
       echo PATH regex l.83=$PATH
     fi
@@ -126,8 +130,9 @@ else
             echo "You entered : $YOURPREFIX. OK ? [Y/n]"
             read ANSWER
           done
-          export PATH=$YOURPREFIX/bin:$PATH
-          echo "$YOURPREFIX/bin has been added to PATH"
+          SHAVED_PREFIX_DIR=`echo -e "$YOURPREFIX" | sed -e 's/\/$//'`
+          export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
+          echo "$SHAVED_PREFIX_DIR/bin has been added to PATH"
         else
           export PATH=$2/bin:$PATH
           echo "$2/bin has been added to PATH"
