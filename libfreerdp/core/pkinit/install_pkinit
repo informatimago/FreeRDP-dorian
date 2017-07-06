@@ -7,30 +7,67 @@ if [ ! -x $KRB5CONFIG ]; then
   return 1
 fi
 
-if [ $# -le 0 ]; then
-  echo "Usage:"
-  echo -e "\t$0 <Kerberos source files directory>"
-  return 1
-fi
-
 echo arg nb=$#
 echo "\$0=$0"
 echo "\$1=$1"
 echo "\$2=$2"
 echo "\$3=$3"
 
-if [ $# = 1 ]; then
+display_help(){
+  echo; echo "Usage:"
+  echo -e "\t-m [--mit-flavour]\tuse MIT flavour for Kerberos" 
+  echo -e "\t-h [--heimdal-flavour]\tuse Heimdal flavour for Kerberos"
+  echo -e "\t-i [--krb-install-dir]\tspecify Kerberos install directory" 
+  echo -e "\t-s [--krb-sources-dir]\tspecify Kerberos sources directory"
+  echo -e "\t-h [--help]\t\tdisplay this help and exit"; echo
+}
+
+if [ $# -le 0 ]; then
+  display_help
+  return 1
+fi
+
+# NOTE: This requires GNU getopt.  On Mac OS X and FreeBSD, 
+# you have to install this separately.
+TEMP=`getopt -o mHh: --long mit-flavour,heimdal-flavour,krb-install-dir:,krb-sources-dir:,help \
+             -n 'pkinit_install' -- "$@"`
+
+if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
+
+# Note the quotes around `$TEMP': they are essential!
+eval set -- "$TEMP"
+
+MIT=true
+HEIMDAL=false
+
+while true; do
+  case "$1" in
+    -m | --mit-flavour ) MIT=true; shift;;
+    -H | --heimdal-flavour ) HEIMDAL=true; shift;;
+    -i | --krb-install-dir ) KRB_INSTALL_DIR=$2; shift 2;;
+    -s | --krb-sources-dir ) KRB_SOURCES_DIR="$2"; shift 2 ;;
+    -h | --help ) display_help; break;;
+    -- ) shift; break ;;
+    * ) break ;;
+  esac
+done
+
+echo "MIT=$MIT; HEIMDAL=$HEIMDAL; KRB_INSTALL_DIR=$KRB_INSTALL_DIR; KRB_SOURCES_DIR=$KRB_SOURCES_DIR"
+
+if [ MIT = true ]; then
   FLAVOUR=MIT
-  echo "LA"
-elif [[ $2 = `echo "[H|h]eimdal"` || $2 = "HEIMDAL" ]]; then
+  echo "MIT chosen"
+elif [ HEIMDAL = true ]; then
   FLAVOUR=Heimdal
-  echo "ICI" 
+  echo "Heimdal chosen" 
   echo FLAVOUR=$FLAVOUR 
 else
   FLAVOUR=MIT
-  echo "PAR LA ET LA"
+  echo "MIT by default"
   echo FLAVOUR=$FLAVOUR
 fi
+
+return 1
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo DIR=$DIR 
