@@ -15,26 +15,26 @@ KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 echo KRB5PREFIX dodo=$KRB5PREFIX
 echo KRB5VENDOR dodo=$KRB5VENDOR
   
-if ! [ $1 = "MIT" ]; then
+if [ $1 = "Heimdal" ]; then
   echo "$PATH" | grep -qE "[H|h]eimdal"
   if [ $? -ne 0 ]; then
     # Heimdal not set in path(*). Here we are supposed to be in a \case 
     # where MIT is installed and running over Heimdal (unless Heimdal is being 
     # installed in a non-default directory, so no "heimdal" string presents in PATH).
     # We set it by default to the default installation of Heimdal (/usr/heimdal).
-    # If you want an other PATH please specify $3. 
+    # If you want an other PATH please specify KRB_INSTALL_DIR. 
     # (*) Note in the particular \case where Heimdal is already running, 
     # the Heimdal PATH is one of the default existing paths.
-    if [[ $3 = "" ]]; then
+    if [[ $2 = "" ]]; then
       echo "on est la avant vendor"
       [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] \
         && true \
         || export PATH=/usr/heimdal/bin:$PATH
       echo "/usr/heimdal/bin has been added to PATH"
     else
-      echo "avant delete trailing: $3"
-      SHAVED_PREFIX_DIR=`echo -e "$3" | sed -e 's/\/$//'`
-      echo "apres delete trailing: \$3=$3 ; SHAVED_PREFIX_DIR=$SHAVED_PREFIX_DIR"
+      echo "avant delete trailing: $2"
+      SHAVED_PREFIX_DIR=`echo -e "$2" | sed -e 's/\/$//'`
+      echo "apres delete trailing: \$2=$2 ; SHAVED_PREFIX_DIR=$SHAVED_PREFIX_DIR"
       [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] \
         && true \
         || export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
@@ -64,8 +64,8 @@ if ! [ $1 = "MIT" ]; then
     NEW_PATH=`echo ${ORIGIN_PATH/$HEIMDAL_PATH:/}`
     echo NEW_PATH l.63=$NEW_PATH
 
-    if ! [[ $3 = "" ]]; then
-      SHAVED_PREFIX_DIR=`echo -e "$3" | sed -e 's/\/$//'`
+    if ! [[ $2 = "" ]]; then
+      SHAVED_PREFIX_DIR=`echo -e "$2" | sed -e 's/\/$//'`
       MY_PATH=$SHAVED_PREFIX_DIR/bin:$NEW_PATH
       echo "$SHAVED_PREFIX_DIR has been added to PATH"
       export PATH=$MY_PATH
@@ -90,7 +90,7 @@ if ! [ $1 = "MIT" ]; then
     echo PATH apres reinit et ajout heimdal=$PATH
   fi
 else
-  echo "MIT: KRB5CONFIG=$KRB5CONFIG"
+  echo "MIT wanted : KRB5CONFIG=$KRB5CONFIG"
   echo "$KRB5CONFIG" | grep -qE "[H|h]eimdal"
   if [ $? -eq 0 ]; then
     # delete Heimdal in PATH
@@ -115,14 +115,19 @@ else
     NEW_PATH=`echo ${ORIGIN_PATH/$HEIMDAL_PATH:/}`
     echo NEW_PATH=$NEW_PATH
 
-    [[ $2 = "" ]] && export PATH=$NEW_PATH \
-      || export PATH=$2/bin:$NEW_PATH
+    if [[ $3 = "" ]]; then
+      export PATH=$NEW_PATH
+    else
+      SHAVED_PREFIX_DIR=`echo -e "$3" | sed -e 's/\/$//'`
+      export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
+      echo "$SHAVED_PREFIX_DIR/bin has been added to PATH" 
+    fi
 
     echo PATH apres sup heimdal=$PATH
   else
      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
-        if [[ $2 = "" ]]; then
-          echo "avant until : \$2=$2"
+        if [[ $3 = "" ]]; then
+          echo "avant until : \$3=$3"
           ANSWER=no
           while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
           do
@@ -134,8 +139,9 @@ else
           export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
           echo "$SHAVED_PREFIX_DIR/bin has been added to PATH"
         else
-          export PATH=$2/bin:$PATH
-          echo "$2/bin has been added to PATH"
+          SHAVED_PREFIX_DIR=`echo -e "$3" | sed -e 's/\/$//'`
+          export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
+          echo "$SHAVED_PREFIX_DIR/bin has been added to PATH"
         fi
      else
        echo "PATH is not changed : MIT is already being configured as Kerberos flavour"
