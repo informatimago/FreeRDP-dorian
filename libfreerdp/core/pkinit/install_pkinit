@@ -74,6 +74,7 @@ echo DIR=$DIR
 
 echo BASH_SOURCE=$BASH_SOURCE
 START_PATH=$PATH
+echo START_PATH=$PATH
 
 # set PATH according to Kerberos flavour we choose to use,
 # i.e MIT or Heimdal.
@@ -92,10 +93,8 @@ reset_path(){
     CURRENT_PATH=$PATH
     echo CURRENT_PATH avant=$CURRENT_PATH
     LAST_ADDED_PATH=`echo ${CURRENT_PATH%%:*}`
-    echo "Incorrect Kerberos path given : $LAST_ADDED_PATH"
-    PATH_RESET=`echo ${CURRENT_PATH#*:}`  
-    echo PATH_RESET=$PATH_RESET
-    export PATH=$PATH_RESET
+    echo "Incorrect Kerberos path given : $LAST_ADDED_PATH. PATH not changed."
+    export PATH=$START_PATH
   fi
 }
 
@@ -104,8 +103,10 @@ echo KRB5CONFIG ICI=$KRB5CONFIG
 
 KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 if ! [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "Heimdal" ]]; then
-  reset_path
-  return 1
+  if ! [[ $KRB5VENDOR = "Massachusetts Institute of Technology" && $FLAVOUR = "MIT" ]]; then
+    reset_path
+    return 1
+  fi   
 fi
 
 echo "apres test reset path : PATH=$PATH"
@@ -197,6 +198,11 @@ DESTINATION=$KRB5PREFIX/include/pkinit
 sudo mkdir -p $DESTINATION
 
 if [ $FLAVOUR = "MIT" ]; then
+  echo KRB_SOURCES_DIR=$KRB_SOURCES_DIR
+  if [[ $KRB_SOURCES_DIR = "" ]]; then
+    echo "Please specify Kerberos MIT sources directory [-s|--krb-sources-dir]"
+    return 1
+  fi
   find $KRB_SOURCES_DIR \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print -exec sudo cp {} $DESTINATION \;
   if [ $? -ne 0 ]; then
     echo "Script failed to copy all files in $DESTINATION"
