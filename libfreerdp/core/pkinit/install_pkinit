@@ -12,6 +12,8 @@ echo "\$0=$0"
 echo "\$1=$1"
 echo "\$2=$2"
 echo "\$3=$3"
+echo "\$4=$4"
+echo "\$5=$5"
 
 display_help(){
   echo; echo "Usage:"
@@ -24,29 +26,29 @@ display_help(){
 
 if [ $# -le 0 ]; then
   display_help
-  return 1
 fi
 
-# NOTE: This requires GNU getopt.  On Mac OS X and FreeBSD, 
+# NOTE: This requires GNU getopt. On Mac OS X and FreeBSD, 
 # you have to install this separately.
-TEMP=`getopt -o mHh: --long mit-flavour,heimdal-flavour,krb-install-dir:,krb-sources-dir:,help \
+TEMP=`getopt -o mHi:s:h --long mit-flavour,heimdal-flavour,krb-install-dir:,krb-sources-dir:,help \
              -n 'pkinit_install' -- "$@"`
 
-if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
+if [ $? != 0 ] ; then echo "Terminating..." >&2 ; return 1 ; fi
 
-# Note the quotes around `$TEMP': they are essential!
 eval set -- "$TEMP"
 
 MIT=true
 HEIMDAL=false
+KRB_INSTALL_DIR=
+KRB_SOURCES_DIR=
 
 while true; do
   case "$1" in
     -m | --mit-flavour ) MIT=true; shift;;
-    -H | --heimdal-flavour ) HEIMDAL=true; shift;;
-    -i | --krb-install-dir ) KRB_INSTALL_DIR=$2; shift 2;;
-    -s | --krb-sources-dir ) KRB_SOURCES_DIR="$2"; shift 2 ;;
-    -h | --help ) display_help; break;;
+    -H | --heimdal-flavour ) HEIMDAL=true; MIT=false; shift;;
+    -i | --krb-install-dir ) KRB_INSTALL_DIR="$2"; shift 2;;
+    -s | --krb-sources-dir ) KRB_SOURCES_DIR="$2"; shift 2;;
+    -h | --help ) display_help; return 1;;
     -- ) shift; break ;;
     * ) break ;;
   esac
@@ -54,10 +56,10 @@ done
 
 echo "MIT=$MIT; HEIMDAL=$HEIMDAL; KRB_INSTALL_DIR=$KRB_INSTALL_DIR; KRB_SOURCES_DIR=$KRB_SOURCES_DIR"
 
-if [ MIT = true ]; then
+if [ $MIT = true ]; then
   FLAVOUR=MIT
   echo "MIT chosen"
-elif [ HEIMDAL = true ]; then
+elif [ $HEIMDAL = true ]; then
   FLAVOUR=Heimdal
   echo "Heimdal chosen" 
   echo FLAVOUR=$FLAVOUR 
@@ -67,37 +69,49 @@ else
   echo FLAVOUR=$FLAVOUR
 fi
 
-return 1
-
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo DIR=$DIR 
 
 echo BASH_SOURCE=$BASH_SOURCE
+START_PATH=$PATH
 
 # set PATH according to Kerberos flavour we choose to use,
 # i.e MIT or Heimdal.
+echo "setkerberos path MIT : FLAVOUR=$FLAVOUR ; KRB_SOURCES_DIR=$KRB_SOURCES_DIR ; KRB_INSTALL_DIR=$KRB_INSTALL_DIR"
 if [ $FLAVOUR = "MIT" ]; then
-  echo "setkerberos path MIT : \$1=$1 ; \$2=$2 ; \$3=$3"
-  if [[ $3 = "" ]] && ! [[ $2 =~ [M|m]it || $2 = "MIT" ]]; then
-     echo "rep MIT ; pas Mmit ; pas MIT"
-    source $DIR/setkerberospath MIT $2
-  else
-    echo "rep MIT pas vide ; et Mmit ou MIT : \$1=$1 ; \$2=$2 ; \$3=$3"
-    source $DIR/setkerberospath MIT $3
-  fi
+  source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $KRB_INSTALL_DIR
 else
-  echo "setkerberos path Heimdal : \$1=$1 ; \$2=$2 ; \$3=$3"
-  source $DIR/setkerberospath
+  source $DIR/setkerberospath $FLAVOUR $KRB_INSTALL_DIR
 fi
 
 echo PATH APRES ICI=$PATH
 echo NEW FLAVOUR=$FLAVOUR 
 
+reset_path(){
+  if ! [ $START_PATH = $PATH ]; then 
+    CURRENT_PATH=$PATH
+    echo CURRENT_PATH avant=$CURRENT_PATH
+    LAST_ADDED_PATH=`echo ${CURRENT_PATH%%:*}`
+    echo "Incorrect Kerberos path given : $LAST_ADDED_PATH"
+    PATH_RESET=`echo ${CURRENT_PATH#*:}`  
+    echo PATH_RESET=$PATH_RESET
+    export PATH=$PATH_RESET
+  fi
+}
+
 KRB5CONFIG=$(which krb5-config)
 echo KRB5CONFIG ICI=$KRB5CONFIG
 
+KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
+if ! [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "Heimdal" ]]; then
+  reset_path
+  return 1
+fi
+
+echo "apres test reset path : PATH=$PATH"
+
 if [ $FLAVOUR = "MIT" ]; then
-  # Need at least Kerberos V5 1.15.0 due to bugs in PKINIT older versions
+  # Need at least Kerberos V5 1.15.0 due to bugs in older versions of PKINIT
   VERSION=$(($KRB5CONFIG --version) 2>&1)
   echo VERSION=$VERSION
   NUM_VERSION=$(echo $VERSION | cut -d ' ' -f4)
@@ -109,11 +123,13 @@ if [ $FLAVOUR = "MIT" ]; then
 
   if [ "$MAJOR_VERSION" -lt 1 ]; then
     echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
+    reset_path
     return 1
   fi
 
   if [ "$MINOR_VERSION" -lt 15 ]; then
     echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
+    reset_path
     return 1
   fi
 else
@@ -131,25 +147,22 @@ else
 
   if [ "$MAJOR_VERSION" -lt 7 ]; then
     echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
+    reset_path
     return 1
   fi
 
   if [ "$MINOR_VERSION" -lt 3 ]; then
     echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
+    reset_path
     return 1
   fi
 
   if [ "$PATCH_VERSION" -lt 0 ]; then
     echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
+    reset_path
     return 1
   fi
 fi 
-
-if [ $# -le 0 ]; then
-  echo "Usage:"
-  echo -e "\t$0 <Kerberos source files directory>"
-  return 1
-fi
 
 # Add krb5support lib flag to krb5-config file
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
@@ -180,12 +193,11 @@ echo "GSS_ROOT_DIR=$GSS_ROOT_DIR"
 echo "GSS_ROOT_FLAVOUR=$GSS_ROOT_FLAVOUR"
 
 # Copy source files in install directory
-SOURCES=$1
 DESTINATION=$KRB5PREFIX/include/pkinit
 sudo mkdir -p $DESTINATION
 
 if [ $FLAVOUR = "MIT" ]; then
-  find $SOURCES \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print -exec sudo cp {} $DESTINATION \;
+  find $KRB_SOURCES_DIR \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print -exec sudo cp {} $DESTINATION \;
   if [ $? -ne 0 ]; then
     echo "Script failed to copy all files in $DESTINATION"
     return 1
