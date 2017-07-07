@@ -36,7 +36,12 @@ typedef struct rdp_nla rdpNla;
 
 #include "transport.h"
 #include "smartcardlogon.h"
-#include "pkinit/pkinit.h"
+#if defined(WITH_PKCS11H) && defined(WITH_GSSAPI_MIT)
+#include "pkinit/MIT/pkinit.h"
+#endif
+#if defined(WITH_PKCS11H) && defined(WITH_GSSAPI_HEIMDAL)
+#include "pkinit/Heimdal/pkinit.h"
+#endif
 
 enum _NLA_STATE
 {
