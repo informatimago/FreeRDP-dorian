@@ -34,7 +34,7 @@
 //#include <heimdal/krb5_asn1.h>
 #include <heimdal/parse_time.h>
 #include <heimdal/kafs.h>
-#include "hx509.h"
+#include <heimdal/hx509.h>
 
 #define _GNU_SOURCE
 #include <stdio.h> /* asprintf */

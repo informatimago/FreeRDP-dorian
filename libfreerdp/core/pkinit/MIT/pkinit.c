@@ -888,11 +888,8 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 			goto cleanup;
 		}
 
-		if (opts->verbose)
-		{
-			WLog_INFO(TAG, "PA Option %s = %s ", opts->pa_opts[i].attr,
-			          opts->pa_opts[i].value);
-		}
+		WLog_DBG(TAG, "PA Option %s = %s ", opts->pa_opts[i].attr,
+		         opts->pa_opts[i].value);
 	}
 
 	if (k5->in_cc)
@@ -936,7 +933,7 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 	{
 		case INIT_CREDS_PINPAD:
 			code = krb5_get_init_creds_password(k5->ctx, my_creds, k5->me,
-			                                    0, /*kinit_prompter*/ 0, 0,
+			                                    0, 0, 0,
 			                                    opts->starttime,
 			                                    opts->service_name,
 			                                    options);
@@ -1061,9 +1058,7 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 			goto cleanup;
 		}
 
-		if (opts->verbose)
-			WLog_INFO(TAG, "%s : Initialized cache", progname);
-
+		WLog_DBG(TAG, "%s : Initialized cache", progname);
 		code = krb5_cc_store_cred(k5->ctx, k5->out_cc, my_creds);
 
 		if (code)
@@ -1072,8 +1067,7 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 			goto cleanup;
 		}
 
-		if (opts->verbose)
-			WLog_INFO(TAG, "%s : Stored credentials", progname);
+		WLog_DBG(TAG, "%s : Stored credentials", progname);
 	}
 
 	/* Get canonicalized principal name for credentials delegation (CredSSP) */
@@ -1202,7 +1196,8 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 
 	errctx = k5->ctx;
 
-	if (opts->verbose == 1)
+	/* make KRB5 PKINIT verbose */
+	if (settings->Krb5Trace)
 	{
 		WLog_INFO(TAG, "%s : Krb5 trace activated", progname);
 		int ret = krb5_set_trace_callback(k5->ctx, &trace_callback, NULL);
@@ -1222,11 +1217,8 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 			goto cleanup;
 		}
 
-		if (opts->verbose)
-		{
-			WLog_INFO(TAG, "%s : Using specified cache: %s",
-			          progname, opts->k5_out_cache_name);
-		}
+		WLog_DBG(TAG, "%s : Using specified cache: %s",
+		         progname, opts->k5_out_cache_name);
 	}
 	else
 	{
@@ -1337,12 +1329,8 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 
 		if (code == 0)
 		{
-			if (opts->verbose)
-			{
-				WLog_INFO(TAG, "Using existing cache: %s",
-				          krb5_cc_get_name(k5->ctx, k5->out_cc));
-			}
-
+			WLog_DBG(TAG, "Using existing cache: %s",
+			         krb5_cc_get_name(k5->ctx, k5->out_cc));
 			k5->switch_to_cache = 1;
 		}
 		else if (defcache_princ != NULL)
@@ -1357,12 +1345,8 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 				goto cleanup;
 			}
 
-			if (opts->verbose)
-			{
-				WLog_INFO(TAG, "Using new cache: %s",
-				          krb5_cc_get_name(k5->ctx, k5->out_cc));
-			}
-
+			WLog_DBG(TAG, "Using new cache: %s",
+			         krb5_cc_get_name(k5->ctx, k5->out_cc));
 			k5->switch_to_cache = 1;
 		}
 	}
@@ -1372,12 +1356,8 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 	{
 		k5->out_cc = defcache;
 		defcache = NULL;
-
-		if (opts->verbose)
-		{
-			WLog_INFO(TAG, "Using default cache: %s",
-			          krb5_cc_get_name(k5->ctx, k5->out_cc));
-		}
+		WLog_DBG(TAG, "Using default cache: %s",
+		          krb5_cc_get_name(k5->ctx, k5->out_cc));
 	}
 
 	if (opts->k5_in_cache_name)
@@ -1391,11 +1371,8 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 			goto cleanup;
 		}
 
-		if (opts->verbose)
-		{
-			WLog_INFO(TAG, "Using specified input cache: %s",
-			          opts->k5_in_cache_name);
-		}
+		WLog_DBG(TAG, "Using specified input cache: %s",
+		          opts->k5_in_cache_name);
 	}
 
 	/* free before krb5_unparse_name change its address */
@@ -1408,8 +1385,7 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 		goto cleanup;
 	}
 
-	if (opts->verbose)
-		WLog_INFO(TAG, "Using principal: %s", k5->name);
+	WLog_DBG(TAG, "Using principal: %s", k5->name);
 
 	/* get back domain in settings if not specified in command line */
 	if (*domain == NULL)
@@ -1503,11 +1479,6 @@ BOOL init_cred_cache(rdpSettings* settings)
 	memset(&opts, 0, sizeof(opts));
 	memset(&k5, 0, sizeof(k5));
 	set_com_err_hook(extended_com_err_fn);
-
-	/* make KRB5 PKINIT verbose */
-	if (settings->Krb5Trace)
-		opts.verbose = 1;
-
 	opts.principal_name = calloc(strlen(settings->UserPrincipalName) + 1, sizeof(char));
 
 	if (opts.principal_name == NULL)
