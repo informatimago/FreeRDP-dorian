@@ -98,8 +98,6 @@ struct k_opts
 	int not_proxiable;
 	int no_addresses;
 
-	int verbose;
-
 	char* principal_name;
 	char* service_name;
 	char* keytab_name;
