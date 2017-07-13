@@ -18,7 +18,7 @@ echo "\$5=$5"
 display_help(){
   echo; echo "Usage:"
   echo -e "\t-m [--mit-flavour]\tuse MIT flavour for Kerberos" 
-  echo -e "\t-h [--heimdal-flavour]\tuse Heimdal flavour for Kerberos"
+  echo -e "\t-H [--heimdal-flavour]\tuse Heimdal flavour for Kerberos"
   echo -e "\t-i [--krb-install-dir]\tspecify Kerberos install directory" 
   echo -e "\t-s [--krb-sources-dir]\tspecify Kerberos sources directory"
   echo -e "\t-h [--help]\t\tdisplay this help and exit"; echo
@@ -192,6 +192,10 @@ KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 
 echo "GSS_ROOT_DIR=$GSS_ROOT_DIR"
 echo "GSS_ROOT_FLAVOUR=$GSS_ROOT_FLAVOUR"
+
+# set env var PKG_CONFIG_PATH to allow pkg-config to work correctly to link Kerberos libraries
+export PKG_CONFIG_PATH=$GSS_ROOT_DIR/lib/pkgconfig
+echo PKG_CONFIG_PATH=$PKG_CONFIG_PATH
 
 # Copy source files in install directory
 DESTINATION=$KRB5PREFIX/include/pkinit
