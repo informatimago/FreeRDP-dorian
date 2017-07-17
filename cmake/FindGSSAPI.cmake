@@ -27,11 +27,27 @@ message(STATUS "ENV{GSS_ROOT_FLAVOUR}=$ENV{GSS_ROOT_FLAVOUR} ; GSS_ROOT_DIR=$ENV
 # export GSS_ROOT_FLAVOUR to use pkg-config system under UNIX
 if(UNIX)
   if(NOT "$ENV{GSS_ROOT_FLAVOUR} " STREQUAL " ")
-      if("$ENV{GSS_ROOT_FLAVOUR}" STREQUAL "[M|m]it" OR "$ENV{GSS_ROOT_FLAVOUR}" STREQUAL "MIT")
-        set(GSS_FLAVOUR "MIT")
-      elseif("$ENV{GSS_ROOT_FLAVOUR}" STREQUAL "[H|h]eimdal" OR "$ENV{GSS_ROOT_FLAVOUR}" STREQUAL "HEIMDAL")
-        set(GSS_FLAVOUR "Heimdal")
-      endif()
+    string(REGEX MATCH "^[M|m]it$" MIT_FLAVOUR "$ENV{GSS_ROOT_FLAVOUR}")
+    if(NOT MIT_FLAVOUR)
+      message(STATUS "not mit flavour Mmit")
+      string(REGEX MATCH "^MIT$" MIT_FLAVOUR "$ENV{GSS_ROOT_FLAVOUR}")
+    endif()
+    string(REGEX MATCH "^[H|h]eimdal$" HEIMDAL_FLAVOUR "$ENV{GSS_ROOT_FLAVOUR}")
+    if(NOT HEIMDAL_FLAVOUR)
+      message(STATUS "not mit flavour Hheimdaml")
+      string(REGEX MATCH "^HEIMDAL$" HEIMDAL_FLAVOUR "$ENV{GSS_ROOT_FLAVOUR}")
+    endif()
+    if(MIT_FLAVOUR)
+      message(STATUS "root mit flavour true : ${MIT_FLAVOUR}")
+      set(GSS_FLAVOUR "MIT")
+    else()
+      message(STATUS "root mit flavour void : ${MIT_FLAVOUR}")
+    endif()
+    if(NOT "${HEIMDAL_FLAVOUR} " STREQUAL " ")
+      message(STATUS "root heimdal flavour true : ${HEIMDAL_FLAVOUR}")
+      set(GSS_FLAVOUR "Heimdal")
+    else()
+      message(STATUS "root heimdal flavour void : ${HEIMDAL_FLAVOUR}")
     endif()
   endif()
 endif()
@@ -72,14 +88,26 @@ if(UNIX)
         message(STATUS "_GSS_ROOT_HINTS=${_GSS_ROOT_HINTS}; _GSS_PKG_PREFIX=${_GSS_PKG_PREFIX}")
       endif()
     else()
-      message(WARNING "Please export GSS_ROOT_FLAVOUR to use pkg-config")
+      message(WARNING "export GSS_ROOT_FLAVOUR to use pkg-config")
     endif()
   endif()
 elseif(WIN32)
   list(APPEND _GSS_ROOT_HINTS "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MIT\\Kerberos;InstallDir]")
 endif()
 
+if(GSS_FOUND)
+  message(STATUS "l.99: gss found")
+else()
+  message(STATUS "l.101: gss not found")
+endif()
+if(_GSS_FOUND)
+  message(STATUS "l.104: _gss found")
+else()
+  message(STATUS "l.106: _gss not found")
+endif()
+
 if(NOT _GSS_FOUND) # not found by pkg-config. Let's take more traditional approach.
+  message(STATUS "not found by pkg-config. Take more traditional approach")
     find_file(_GSS_CONFIGURE_SCRIPT
         NAMES
             "krb5-config"
@@ -101,29 +129,27 @@ if(NOT _GSS_FOUND) # not found by pkg-config. Let's take more traditional approa
 	
     message(STATUS "on est la avant gss script : l.85 : _GSS_CONFIGURE_SCRIPT=${_GSS_CONFIGURE_SCRIPT}")
 
-    if(NOT GSS_FLAVOUR)
-      execute_process(
-           COMMAND ${_GSS_CONFIGURE_SCRIPT} "--vendor"
-           OUTPUT_VARIABLE _GSS_VENDOR
-           RESULT_VARIABLE _GSS_CONFIGURE_FAILED
-      )
-
-      if(_GSS_CONFIGURE_FAILED)
-        set(GSS_FLAVOUR "Heimdal") # most probably, shouldn't really matter
+    execute_process(
+         COMMAND ${_GSS_CONFIGURE_SCRIPT} "--vendor"
+         OUTPUT_VARIABLE _GSS_VENDOR
+         RESULT_VARIABLE _GSS_CONFIGURE_FAILED
+    )
+    
+    if(NOT _GSS_CONFIGURE_FAILED)
+      string(STRIP "${_GSS_VENDOR}" _GSS_VENDOR)
+      if(GSS_FLAVOUR STREQUAL "Heimdal" AND NOT _GSS_VENDOR STREQUAL "Heimdal")
+        message(WARNING "GSS vendor and GSS flavour not matching : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}") 
+        message(SEND_ERROR "Try to export PKG_CONFIG_PATH to \"GSS_ROOT_DIR/lib/pkconfig\" ")
       else()
-        if(_GSS_VENDOR MATCHES ".*H|heimdal.*")
-          set(GSS_FLAVOUR "Heimdal")
-        else()
-          set(GSS_FLAVOUR "MIT")
-        endif()
+        message(STATUS "dans le else : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}")                                   
       endif()
     else()
-      message(STATUS "flavour already set") 
+      message(WARNING "gss configure script failed to get vendor") 
     endif()
 
     message(STATUS "on est apres vendor : l.106 : GSS_FLAVOUR=${GSS_FLAVOUR} ; _GSS_CONFIGURE_SCRIPT=${_GSS_CONFIGURE_SCRIPT}")
 
-    # FIXME : fail to link Heimdal libraries using configure script, script do it "manually"
+    # FIXME : fail to link Heimdal libraries using configure script, we do it "manually"
     if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND NOT ${GSS_FLAVOUR} STREQUAL "Heimdal")
       message(STATUS "on est la : l.108 : _GSS_CONFIGURE_SCRIPT=${_GSS_CONFIGURE_SCRIPT}")
 
@@ -159,31 +185,24 @@ if(NOT _GSS_FOUND) # not found by pkg-config. Let's take more traditional approa
                     list(APPEND _GSS_COMPILER_FLAGS "${_flag}")
                 endif()
             endforeach()
-        endif()
+      endif()
 
-     if(NOT ${GSS_FLAVOUR} STREQUAL "Heimdal")
-        execute_process(
-            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "gssapi"
-            OUTPUT_VARIABLE _GSS_LIB_FLAGS
-            RESULT_VARIABLE _GSS_CONFIGURE_FAILED
-        )
-        message(STATUS "_GSS_LIB_FLAGS=${_GSS_LIB_FLAGS}")
-     else()
-        message(STATUS "on est la : l.163 : Heimdal gssapi")
-        execute_process(
-            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "gssapi"
-            OUTPUT_VARIABLE _GSS_LIB_FLAGS
-            RESULT_VARIABLE _GSS_CONFIGURE_FAILED
-        )
+      execute_process(
+          COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "gssapi"
+          OUTPUT_VARIABLE _GSS_LIB_FLAGS
+          RESULT_VARIABLE _GSS_CONFIGURE_FAILED
+      )
+     
+      if(${GSS_FLAVOUR} STREQUAL "Heimdal")
         #message(STATUS "_GSS_LIB_FLAGS exec=${_GSS_LIB_FLAGS}")
         string(STRIP "${_GSS_LIB_FLAGS}" _GSS_LIB_FLAGS)
         list(APPEND _GSS_LIB_FLAGS "-lkrb5 -lkafs -lroken")
         string(STRIP "${_GSS_LIB_FLAGS}" _GSS_LIB_FLAGS)
         #message(STATUS "_GSS_LIB_FLAGS 0.0=${_GSS_LIB_FLAGS}")
-        #string(REGEX REPLACE ";-(L|l)" " -\\1" _GSS_LIB_FLAGS "${_GSS_LIB_FLAGS}")
+        string(REGEX REPLACE ";-(L|l)" " -\\1" _GSS_LIB_FLAGS "${_GSS_LIB_FLAGS}")
         message(STATUS "_GSS_LIB_FLAGS 1.0=${_GSS_LIB_FLAGS}")
+      endif()
 
-     endif()
 
         if(NOT _GSS_CONFIGURE_FAILED) # 0 means success
             # this script gives us libraries and link directories. We have to deal with it.

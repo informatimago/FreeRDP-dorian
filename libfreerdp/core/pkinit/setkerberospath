@@ -22,7 +22,7 @@ if [ $1 = "Heimdal" ]; then
     # where MIT is installed and running over Heimdal (unless Heimdal is being 
     # installed in a non-default directory, so no "heimdal" string presents in PATH).
     # We set it by default to the default installation of Heimdal (/usr/heimdal).
-    # If you want an other PATH please specify KRB_INSTALL_DIR. 
+    # If you want an other PATH please specify KRB_INSTALLED_DIR. 
     # (*) Note in the particular \case where Heimdal is already running, 
     # the Heimdal PATH is one of the default existing paths.
     if [[ $2 = "" ]]; then

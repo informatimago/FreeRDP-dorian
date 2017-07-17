@@ -30,6 +30,11 @@
 #ifdef WITH_GSSAPI
 #include <krb5.h>
 #include <gssapi.h>
+
+#ifdef WITH_GSSAPI_HEIMDAL
+#include <krb5-protos.h>
+#endif
+
 #endif
 
 struct _KRB_CONTEXT
