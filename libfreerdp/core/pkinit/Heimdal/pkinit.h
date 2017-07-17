@@ -28,6 +28,16 @@
 
 //#define HANDLE_PINPAD_WITH_LOGIN_REQUIRED
 
+
+#include <gssapi.h>
+#include <krb5.h>
+#include <getarg.h>
+//#include <krb5_asn1.h>
+#include <parse_time.h>
+#include <kafs.h>
+#include <hx509.h>
+
+/*
 #include <heimdal/gssapi.h>
 #include <heimdal/krb5.h>
 #include <heimdal/getarg.h>
@@ -35,7 +45,7 @@
 #include <heimdal/parse_time.h>
 #include <heimdal/kafs.h>
 #include <heimdal/hx509.h>
-
+*/
 #define _GNU_SOURCE
 #include <stdio.h> /* asprintf */
 
