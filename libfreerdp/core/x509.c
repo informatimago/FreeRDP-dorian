@@ -23,6 +23,13 @@
 
 #include "x509.h"
 
+static char** cert_info_cn(X509* x509);
+static char** cert_info_subject(X509* x509);
+static char** cert_info_issuer(X509* x509);
+static char** cert_info_kpn(X509* x509);
+static char** cert_info_upn(X509* x509);
+static char** cert_key_alg(X509* x509);
+
 #define TAG FREERDP_TAG("core.x509")
 
 /* returns a clone of provided string */
