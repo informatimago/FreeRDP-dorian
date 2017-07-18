@@ -1,23 +1,13 @@
 #!/bin/bash
 
 KRB5CONFIG=$(which krb5-config)
-echo arg setpath nb=$#
-
-echo "voici les arguments de setkerberospath :"
-echo "\$#"=$#
-echo "\$0"=$0
-echo "\$1"=$1
-echo "\$2"=$2
-echo "\$3"=$3
-
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
 KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 echo KRB5PREFIX dodo=$KRB5PREFIX
 echo KRB5VENDOR dodo=$KRB5VENDOR
   
 if [ $1 = "Heimdal" ]; then
-  echo "$PATH" | grep -qE "[H|h]eimdal"
-  if [ $? -ne 0 ]; then
+  if ! [[ $PATH =~ [H|h]eimdal ]]; then
     # Heimdal not set in path(*). Here we are supposed to be in a \case 
     # where MIT is installed and running over Heimdal (unless Heimdal is being 
     # installed in a non-default directory, so no "heimdal" string presents in PATH).
@@ -47,21 +37,26 @@ if [ $1 = "Heimdal" ]; then
     # to ensure Heimdal is first Kerberos in PATH
     ORIGIN_PATH=$PATH
     CURRENT_PATH=$PATH
+    PATH_DELETED=
     while true
     do
       echo CURRENT_PATH avant=$CURRENT_PATH
       HEIMDAL_PATH=`echo ${CURRENT_PATH%%:*}`
-      echo CURRENT_PATH apres=$CURRENT_PATH
       echo HEIMDAL_PATH=$HEIMDAL_PATH
+      if [[ $PATH_DELETED = "" ]]; then
+        PATH_DELETED=$HEIMDAL_PATH
+      else
+        PATH_DELETED=$PATH_DELETED:$HEIMDAL_PATH
+      fi
+      echo PATH_DELETED=$PATH_DELETED
       CURRENT_PATH=`echo ${CURRENT_PATH#*:}`  
       echo CURRENT ICI=$CURRENT_PATH
-      echo "$HEIMDAL_PATH" | grep -qE "[H|h]eimdal"
-      if [ $? -eq 0 ]; then
+      if [[ $HEIMDAL_PATH =~ [H|h]eimdal ]] && ! [[ $CURRENT_PATH =~ [H|h]eimdal ]]; then
         break
       fi
     done
      
-    NEW_PATH=`echo ${ORIGIN_PATH/$HEIMDAL_PATH:/}`
+    NEW_PATH=`echo ${ORIGIN_PATH/$PATH_DELETED:/}`
     echo NEW_PATH l.63=$NEW_PATH
 
     if ! [[ $2 = "" ]]; then
@@ -91,29 +86,33 @@ if [ $1 = "Heimdal" ]; then
   fi
 else
   echo "MIT wanted : KRB5CONFIG=$KRB5CONFIG"
-  echo "$KRB5CONFIG" | grep -qE "[H|h]eimdal"
-  if [ $? -eq 0 ]; then
+  if [[ $KRB5CONFIG =~ [H|h]eimdal ]]; then
     # delete Heimdal in PATH
-    echo "avant le while"
-
     ORIGIN_PATH=$PATH
     CURRENT_PATH=$PATH
+    PATH_DELETED=
+
     while true
     do
       echo CURRENT_PATH avant=$CURRENT_PATH
       HEIMDAL_PATH=`echo ${CURRENT_PATH%%:*}`
-      echo CURRENT_PATH apres=$CURRENT_PATH
       echo HEIMDAL_PATH=$HEIMDAL_PATH
+      if [[ $PATH_DELETED = "" ]]; then
+        PATH_DELETED=$HEIMDAL_PATH
+      else
+        PATH_DELETED=$PATH_DELETED:$HEIMDAL_PATH
+      fi
+      echo PATH_DELETED=$PATH_DELETED
       CURRENT_PATH=`echo ${CURRENT_PATH#*:}`  
       echo CURRENT ICI=$CURRENT_PATH
-      echo "$HEIMDAL_PATH" | grep -qE "[H|h]eimdal"
-      if [ $? -eq 0 ]; then
+      if [[ $HEIMDAL_PATH =~ [H|h]eimdal ]] && ! [[ $CURRENT_PATH =~ [H|h]eimdal ]]; then
+        echo "on break"
         break
       fi
+     echo "on continue"
     done
      
-    NEW_PATH=`echo ${ORIGIN_PATH/$HEIMDAL_PATH:/}`
-    echo NEW_PATH=$NEW_PATH
+    NEW_PATH=`echo ${ORIGIN_PATH/$PATH_DELETED:/}`
 
     if [[ $3 = "" ]]; then
       export PATH=$NEW_PATH
@@ -122,12 +121,9 @@ else
       export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
       echo "$SHAVED_PREFIX_DIR/bin has been added to PATH" 
     fi
-
-    echo PATH apres sup heimdal=$PATH
   else
      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
         if [[ $3 = "" ]]; then
-          echo "avant until : \$3=$3"
           ANSWER=no
           while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
           do

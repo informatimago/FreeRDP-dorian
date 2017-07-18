@@ -17,11 +17,11 @@ echo "\$5=$5"
 
 display_help(){
   echo; echo "Usage:"
-  echo -e "\t-m [--mit-flavour]\tuse MIT flavour for Kerberos" 
-  echo -e "\t-H [--heimdal-flavour]\tuse Heimdal flavour for Kerberos"
-  echo -e "\t-i [--krb-installed-dir]\tspecify Kerberos installed directory" 
-  echo -e "\t-s [--krb-sources-dir]\tspecify Kerberos sources directory"
-  echo -e "\t-h [--help]\t\tdisplay this help and exit"; echo
+  echo -e "\t-m [--mit-flavour]\t\tuse MIT flavour for Kerberos" 
+  echo -e "\t-H [--heimdal-flavour]\t\tuse Heimdal flavour for Kerberos"
+  echo -e "\t-i [--krb-installed-dir]\tspecify Kerberos-installed prefix directory" 
+  echo -e "\t-s [--krb-sources-dir]\t\tspecify Kerberos sources directory"
+  echo -e "\t-h [--help]\t\t\tdisplay this help and exit"; echo
 }
 
 if [ $# -le 0 ]; then
@@ -101,15 +101,19 @@ reset_path(){
 KRB5CONFIG=$(which krb5-config)
 echo KRB5CONFIG ICI=$KRB5CONFIG
 
+test=$(($KRB5CONFIG --vendor) 2>&1)
+echo $test
+
 KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 if ! [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "Heimdal" ]]; then
   if ! [[ $KRB5VENDOR = "Massachusetts Institute of Technology" && $FLAVOUR = "MIT" ]]; then
+    echo "on reset path par ici"
     reset_path
     return 1
   fi   
 fi
 
-echo "apres test reset path : PATH=$PATH"
+echo "apres test reset path : KRB5VENDOR=$KRB5VENDOR; PATH=$PATH"
 
 if [ $FLAVOUR = "MIT" ]; then
   # Need at least Kerberos V5 1.15.0 due to bugs in older versions of PKINIT
