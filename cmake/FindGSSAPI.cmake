@@ -95,18 +95,7 @@ elseif(WIN32)
   list(APPEND _GSS_ROOT_HINTS "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MIT\\Kerberos;InstallDir]")
 endif()
 
-if(GSS_FOUND)
-  message(STATUS "l.99: gss found")
-else()
-  message(STATUS "l.101: gss not found")
-endif()
-if(_GSS_FOUND)
-  message(STATUS "l.104: _gss found")
-else()
-  message(STATUS "l.106: _gss not found")
-endif()
-
-if(NOT _GSS_FOUND) # not found by pkg-config. Let's take more traditional approach.
+if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approach.
   message(STATUS "not found by pkg-config. Take more traditional approach")
     find_file(_GSS_CONFIGURE_SCRIPT
         NAMES
@@ -138,7 +127,7 @@ if(NOT _GSS_FOUND) # not found by pkg-config. Let's take more traditional approa
     if(NOT _GSS_CONFIGURE_FAILED)
       string(STRIP "${_GSS_VENDOR}" _GSS_VENDOR)
       if(GSS_FLAVOUR STREQUAL "Heimdal" AND NOT _GSS_VENDOR STREQUAL "Heimdal")
-        message(WARNING "GSS vendor and GSS flavour not matching : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}") 
+        message(WARNING "GSS vendor and GSS flavour are not matching : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}") 
         message(SEND_ERROR "Try to export PKG_CONFIG_PATH to \"GSS_ROOT_DIR/lib/pkconfig\" ")
       else()
         message(STATUS "dans le else : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}")                                   
@@ -461,7 +450,6 @@ if(GSS_FLAVOUR)
         endif()
     endif()
 endif()
-
 
 include(FindPackageHandleStandardArgs)
 
