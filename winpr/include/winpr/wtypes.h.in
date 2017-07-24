@@ -154,7 +154,7 @@ typedef unsigned long long      __uint64;
 #endif /* WINPR_HAVE_STDINT_H */
 
 
-typedef void* PVOID, *LPVOID, *PVOID64, *LPVOID64;
+typedef void *PVOID, *LPVOID, *PVOID64, *LPVOID64;
 
 #ifndef XMD_H /* X11/Xmd.h typedef collision with BOOL */
 #ifndef __OBJC__ /* objc.h typedef collision with BOOL */
@@ -171,7 +171,7 @@ typedef signed char BOOL;
 #endif /* __OBJC__ */
 #endif /* XMD_H */
 
-typedef BOOL* PBOOL, *LPBOOL;
+typedef BOOL *PBOOL, *LPBOOL;
 
 #ifndef FALSE
 #define FALSE 0
@@ -195,12 +195,12 @@ typedef __int8 CHAR;
 typedef __uint8 UCHAR;
 #endif
 typedef CHAR CCHAR, *PCHAR, *LPCH, *PCH, *PSTR, *LPSTR;
-typedef const CHAR* LPCCH, *PCCH, *LPCSTR, *PCSTR;
+typedef const CHAR *LPCCH, *PCCH, *LPCSTR, *PCSTR;
 typedef UCHAR* PUCHAR;
 
 typedef __uint16 WCHAR;
 typedef WCHAR UNICODE, *PWCHAR, *LPWCH, *PWCH, *BSTR, *LMSTR, *LPWSTR, *PWSTR;
-typedef const WCHAR* LPCWCH, *PCWCH, *LMCSTR, *LPCWSTR, *PCWSTR;
+typedef const WCHAR *LPCWCH, *PCWCH, *LMCSTR, *LPCWSTR, *PCWSTR;
 
 typedef __int16 SHORT, *PSHORT;
 typedef __int32 INT, *PINT, *LPINT;
