@@ -61,11 +61,27 @@ if(UNIX)
       if("${_GSS_PKG_PREFIX} " STREQUAL " ")
         if(NOT "$ENV{PKG_CONFIG_PATH} " STREQUAL " ")
           list(APPEND _GSS_ROOT_HINTS "$ENV{PKG_CONFIG_PATH}")
+          message(STATUS "append pkg config path to gss root hints")
         else()
-          message(SEND_ERROR "Please export PKG_CONFIG_PATH=PREFIX_INSTALL_KERBEROS/lib/pkgconfig")
+          message(SEND_ERROR "pkg_search_module failed : try to set PKG_CONFIG_PATH to INSTALLED_KERBEROS_PREFIX/lib/pkgconfig")
         endif()
       else()
-        list(APPEND _GSS_ROOT_HINTS "${_GSS_PKG_PREFIX}")
+	message(STATUS "_GSS_PKG_PREFIX NOT NULL : _GSS_PKG_PREFIX=${_GSS_PKG_PREFIX} ; PKG_CONFIG_PATH=$ENV{PKG_CONFIG_PATH}")
+	message(STATUS "GSS_ROOT_FLAVOUR=$ENV{GSS_ROOT_FLAVOUR}")
+	if($ENV{GSS_ROOT_FLAVOUR} STREQUAL "Heimdal")
+	  string(FIND "${_GSS_PKG_PREFIX}" "heimdal" PKG_HEIMDAL_PREFIX_POSITION)
+	  message(STATUS "PKG_HEIMDAL_PREFIX_POSITION=${PKG_HEIMDAL_PREFIX_POSITION}")
+          if(PKG_HEIMDAL_PREFIX_POSITION STREQUAL "-1")
+	    message(STATUS "PKG_HEIMDAL_PREFIX_POSITION ici=${PKG_HEIMDAL_PREFIX_POSITION}")
+	    message(SEND_ERROR "Try to set PKG_CONFIG_PATH to \"INSTALLED_KERBEROS_PREFIX/lib/pkgconfig\"")
+	  else()
+    	    list(APPEND _GSS_ROOT_HINTS "${_GSS_PKG_PREFIX}")
+	    message(STATUS "PAR ICI")
+          endif()
+	else()
+	  list(APPEND _GSS_ROOT_HINTS "${_GSS_PKG_PREFIX}")
+	  message(STATUS "PAR LA")
+	endif()
       endif()
     else()
       message(WARNING "export GSS_ROOT_FLAVOUR to use pkg-config")
@@ -105,8 +121,8 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
     if(NOT _GSS_CONFIGURE_FAILED)
       string(STRIP "${_GSS_VENDOR}" _GSS_VENDOR)
       if(GSS_FLAVOUR STREQUAL "Heimdal" AND NOT _GSS_VENDOR STREQUAL "Heimdal")
-        message(WARNING "GSS vendor and GSS flavour are not matching : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}") 
-        message(SEND_ERROR "Try to export PKG_CONFIG_PATH to \"GSS_ROOT_DIR/lib/pkconfig\" ")
+        message(SEND_ERROR "GSS vendor and GSS flavour are not matching : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}") 
+        message(WARNING "Try to set the path to GSS root folder in the system variable GSS_ROOT_DIR")
       endif()
     else()
       message(WARNING "GSS configure script failed to get vendor") 
@@ -189,23 +205,45 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
       endif()
 
     else() # either there is no config script or we are on platform that doesn't provide one (Windows?)
-      find_path(_GSS_INCLUDE_DIR
-            NAMES
-                "gssapi/gssapi.h"
-            HINTS
-                ${_GSS_ROOT_HINTS}
-            PATH_SUFFIXES
-                include
-                inc
-      )
+      if(_GSS_VENDOR STREQUAL "Massachusetts Institute of Technology")
+        message(STATUS "Vendor MIT")
+	find_path(_GSS_INCLUDE_DIR
+              NAMES
+                  "gssapi/gssapi_generic.h"
+              HINTS
+                  ${_GSS_ROOT_HINTS}
+              PATH_SUFFIXES
+                  include
+                  inc
+        )
 
-      if(_GSS_INCLUDE_DIR) # we've found something
-        set(CMAKE_REQUIRED_INCLUDES "${_GSS_INCLUDE_DIR}")
-        check_include_files( "gssapi/gssapi_generic.h;gssapi/gssapi_krb5.h" _GSS_HAVE_MIT_HEADERS)
+        message(STATUS "GSS_FLAVOUR avant check include file : GSS_FLAVOUR=${GSS_FLAVOUR} ; _GSS_VENDOR=${_GSS_VENDOR}")
+        message(STATUS "_GSS_INCLUDE_DIR=${_GSS_INCLUDE_DIR} ; GSS_ROOT_HINTS=${GSS_ROOT_HINTS}")
 
-        if(_GSS_HAVE_MIT_HEADERS AND NOT GSS_FLAVOUR STREQUAL "Heimdal")
-          set(GSS_FLAVOUR "MIT")
-        else()
+        if(_GSS_INCLUDE_DIR) # we've found something
+          set(CMAKE_REQUIRED_INCLUDES "${_GSS_INCLUDE_DIR}")
+          check_include_files( "gssapi/gssapi_generic.h;gssapi/gssapi_ext.h" _GSS_HAVE_MIT_HEADERS)
+          if(_GSS_HAVE_MIT_HEADERS AND NOT GSS_FLAVOUR STREQUAL "Heimdal")
+            set(GSS_FLAVOUR "MIT")
+          endif()
+        endif()
+      elseif(_GSS_VENDOR STREQUAL "Heimdal")
+        message(STATUS "Vendor Heimdal")
+        find_path(_GSS_INCLUDE_DIR
+              NAMES
+                  "gssapi/gssapi_spnego.h"
+              HINTS
+                  ${_GSS_ROOT_HINTS}
+              PATH_SUFFIXES
+                  include
+                  inc
+        )
+
+        message(STATUS "GSS_FLAVOUR avant check include file : GSS_FLAVOUR=${GSS_FLAVOUR} ; _GSS_VENDOR=${_GSS_VENDOR}")
+        message(STATUS "_GSS_INCLUDE_DIR=${_GSS_INCLUDE_DIR} ; GSS_ROOT_HINTS=${GSS_ROOT_HINTS}")
+
+        if(_GSS_INCLUDE_DIR) # we've found something
+          set(CMAKE_REQUIRED_INCLUDES "${_GSS_INCLUDE_DIR}")
           # prevent compiling the header - just check if we can include it
           set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D__ROKEN_H__")
           check_include_file( "roken.h" _GSS_HAVE_ROKEN_H)
@@ -216,20 +254,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
           set(CMAKE_REQUIRED_DEFINITIONS "")
         endif()
       else()
-        # may not be the right way but this is what autotools do at the moment
-        find_path(_GSS_INCLUDE_DIR
-                NAMES
-                    "gssapi.h"
-                HINTS
-                    ${_GSS_ROOT_HINTS}
-                PATH_SUFFIXES
-                    include
-                    inc
-        )
-
-        if(_GSS_INCLUDE_DIR)
-          set(GSS_FLAVOUR "Heimdal")
-        endif()
+        message(SEND_ERROR "Kerberos vendor unknown (${_GSS_VENDOR})")
       endif()
 
       # if we have headers, check if we can link libraries
@@ -395,6 +420,8 @@ endif()
 include(FindPackageHandleStandardArgs)
 
 set(_GSS_REQUIRED_VARS GSS_LIBRARIES GSS_FLAVOUR)
+
+message(STATUS "GSS_VERSION=${GSS_VERSION} ; GSS_FLAVOUR=${GSS_FLAVOUR}")
 
 find_package_handle_standard_args(GSS
     REQUIRED_VARS
