@@ -10,7 +10,7 @@ display_help(){
   echo; echo "Usage:"
   echo -e "\t-m [--mit-flavour]\t\tuse MIT flavour for Kerberos"
   echo -e "\t-H [--heimdal-flavour]\t\tuse Heimdal flavour for Kerberos"
-  echo -e "\t-i [--krb-installed-dir]\tspecify Kerberos-installed prefix directory"
+  echo -e "\t-p [--krb-installed-prefix]\tspecify Kerberos installed prefix"
   echo -e "\t-s [--krb-sources-dir]\t\tspecify Kerberos sources directory"
   echo -e "\t-h [--help]\t\t\tdisplay this help and exit"; echo
 }
@@ -21,7 +21,7 @@ fi
 
 # NOTE: This requires GNU getopt. On Mac OS X and FreeBSD,
 # you have to install this separately.
-TEMP=`getopt -o mHi:s:h --long mit-flavour,heimdal-flavour,krb-install-dir:,krb-sources-dir:,help \
+TEMP=`getopt -o mHp:s:h --long mit-flavour,heimdal-flavour,krb-installed-prefix:,krb-sources-dir:,help \
              -n 'pkinit_install' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; return 1 ; fi
@@ -30,14 +30,14 @@ eval set -- "$TEMP"
 
 MIT=true
 HEIMDAL=false
-KRB_INSTALLED_DIR=
+KRB_INSTALLED_PREFIX=
 KRB_SOURCES_DIR=
 
 while true; do
   case "$1" in
     -m | --mit-flavour ) MIT=true; shift;;
     -H | --heimdal-flavour ) HEIMDAL=true; MIT=false; shift;;
-    -i | --krb-installed-dir ) KRB_INSTALLED_DIR="$2"; shift 2;;
+    -p | --krb-installed-prefix ) KRB_INSTALLED_PREFIX="$2"; shift 2;;
     -s | --krb-sources-dir ) KRB_SOURCES_DIR="$2"; shift 2;;
     -h | --help ) display_help; return 1;;
     -- ) shift; break ;;
@@ -60,9 +60,9 @@ START_PATH=$PATH
 # set PATH according to Kerberos flavour we choose to use,
 # i.e MIT or Heimdal.
 if [ $FLAVOUR = "MIT" ]; then
-  source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $KRB_INSTALLED_DIR
+  source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $KRB_INSTALLED_PREFIX
 else
-  source $DIR/setkerberospath $FLAVOUR $KRB_INSTALLED_DIR
+  source $DIR/setkerberospath $FLAVOUR $KRB_INSTALLED_PREFIX
 fi
 
 reset_path(){
