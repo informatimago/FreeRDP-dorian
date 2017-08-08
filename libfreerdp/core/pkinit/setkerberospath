@@ -15,7 +15,7 @@ if [ $1 = "Heimdal" ]; then
     # the Heimdal PATH is one of the default existing paths.
     if [[ $2 = "" ]]; then
       if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
-        echo "Heimdal is already being configured as Kerberos flavour"
+        echo "Heimdal is already being set as Kerberos flavour"
         MESSAGE=true
       else
         export PATH=/usr/heimdal/bin:$PATH
@@ -23,7 +23,7 @@ if [ $1 = "Heimdal" ]; then
     else
       SHAVED_PREFIX_DIR=`echo -e "$2" | sed -e 's/\/$//'`
       if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
-        echo "Heimdal is already being configured as Kerberos flavour"
+        echo "Heimdal is already being set as Kerberos flavour"
         MESSAGE=true
       else
         export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
@@ -57,7 +57,7 @@ if [ $1 = "Heimdal" ]; then
       export PATH=$MY_PATH
     else
       if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
-        echo "Heimdal is already being configured as Kerberos flavour"
+        echo "Heimdal is already being set as Kerberos flavour"
         MESSAGE=true
         export PATH=$KRB5PREFIX/bin:$NEW_PATH
       else
@@ -119,7 +119,7 @@ else
           export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
         fi
      else
-       echo "MIT is already being configured as Kerberos flavour"
+       echo "MIT is already being set as Kerberos flavour"
        MESSAGE=true
      fi
   fi
