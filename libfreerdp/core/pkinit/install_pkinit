@@ -130,9 +130,9 @@ fi
 
 if [ $MESSAGE = false ]; then
   if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
-    echo "Heimdal has been configured as Kerberos flavour"
+    echo "Heimdal has been set as Kerberos flavour"
   elif [[ $KRB5VENDOR = "Massachusetts Institute of Technology" ]]; then
-    echo "MIT has been configured as Kerberos flavour"
+    echo "MIT has been set as Kerberos flavour"
   fi
 fi
 
