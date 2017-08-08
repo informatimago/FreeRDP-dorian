@@ -63,7 +63,7 @@ if(UNIX)
           list(APPEND _GSS_ROOT_HINTS "$ENV{PKG_CONFIG_PATH}")
           message(STATUS "append pkg config path to gss root hints")
         else()
-          message(SEND_ERROR "pkg_search_module failed : try to set PKG_CONFIG_PATH to INSTALLED_KERBEROS_PREFIX/lib/pkgconfig")
+          message(SEND_ERROR "pkg_search_module failed : try to set PKG_CONFIG_PATH to PREFIX_OF_KERBEROS/lib/pkgconfig")
         endif()
       else()
 	message(STATUS "_GSS_PKG_PREFIX NOT NULL : _GSS_PKG_PREFIX=${_GSS_PKG_PREFIX} ; PKG_CONFIG_PATH=$ENV{PKG_CONFIG_PATH}")
@@ -73,7 +73,7 @@ if(UNIX)
 	  message(STATUS "PKG_HEIMDAL_PREFIX_POSITION=${PKG_HEIMDAL_PREFIX_POSITION}")
           if(PKG_HEIMDAL_PREFIX_POSITION STREQUAL "-1")
 	    message(STATUS "PKG_HEIMDAL_PREFIX_POSITION ici=${PKG_HEIMDAL_PREFIX_POSITION}")
-	    message(SEND_ERROR "Try to set PKG_CONFIG_PATH to \"INSTALLED_KERBEROS_PREFIX/lib/pkgconfig\"")
+	    message(WARNING "Try to set PKG_CONFIG_PATH to \"PREFIX_OF_KERBEROS/lib/pkgconfig\"")
 	  else()
     	    list(APPEND _GSS_ROOT_HINTS "${_GSS_PKG_PREFIX}")
 	    message(STATUS "PAR ICI")
@@ -104,6 +104,8 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
         NO_CMAKE_ENVIRONMENT_PATH
     )
 
+    message(STATUS "_GSS_CONFIGURE_SCRIPT ici =${_GSS_CONFIGURE_SCRIPT}")
+
     # if not found in user-supplied directories, maybe system knows better
     find_file(_GSS_CONFIGURE_SCRIPT
         NAMES
@@ -111,6 +113,8 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
         PATH_SUFFIXES
             bin
     )
+    
+    message(STATUS "_GSS_CONFIGURE_SCRIPT la =${_GSS_CONFIGURE_SCRIPT}")
 	
     execute_process(
          COMMAND ${_GSS_CONFIGURE_SCRIPT} "--vendor"
@@ -118,11 +122,13 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
          RESULT_VARIABLE _GSS_CONFIGURE_FAILED
     )
     
+    message(STATUS "_GSS_CONFIGURE_FAILED la =${_GSS_CONFIGURE_FAILED}")
+
     if(NOT _GSS_CONFIGURE_FAILED)
       string(STRIP "${_GSS_VENDOR}" _GSS_VENDOR)
       if(GSS_FLAVOUR STREQUAL "Heimdal" AND NOT _GSS_VENDOR STREQUAL "Heimdal")
         message(SEND_ERROR "GSS vendor and GSS flavour are not matching : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}") 
-        message(WARNING "Try to set the path to GSS root folder in the system variable GSS_ROOT_DIR")
+        message(STATUS "Try to set the path to GSS root folder in the system variable GSS_ROOT_DIR")
       endif()
     else()
       message(WARNING "GSS configure script failed to get vendor") 
@@ -143,6 +149,8 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
           RESULT_VARIABLE _GSS_CONFIGURE_FAILED
         )
       endif()
+    
+      message(STATUS "_GSS_CONFIGURE_FAILED par ici =${_GSS_CONFIGURE_FAILED}")
         
       if(NOT _GSS_CONFIGURE_FAILED) # 0 means success
             # should also work in an odd case when multiple directories are given
@@ -218,14 +226,17 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
         )
 
         message(STATUS "GSS_FLAVOUR avant check include file : GSS_FLAVOUR=${GSS_FLAVOUR} ; _GSS_VENDOR=${_GSS_VENDOR}")
-        message(STATUS "_GSS_INCLUDE_DIR=${_GSS_INCLUDE_DIR} ; GSS_ROOT_HINTS=${GSS_ROOT_HINTS}")
+        message(STATUS "_GSS_INCLUDE_DIR 230 =${_GSS_INCLUDE_DIR} ; GSS_ROOT_HINTS=${GSS_ROOT_HINTS}")
+        message(STATUS "_GSS_ROOT_HINTS 231 =${_GSS_ROOT_HINTS}")
 
         if(_GSS_INCLUDE_DIR) # we've found something
           set(CMAKE_REQUIRED_INCLUDES "${_GSS_INCLUDE_DIR}")
           check_include_files( "gssapi/gssapi_generic.h;gssapi/gssapi_ext.h" _GSS_HAVE_MIT_HEADERS)
-          if(_GSS_HAVE_MIT_HEADERS AND NOT GSS_FLAVOUR STREQUAL "Heimdal")
+          if(_GSS_HAVE_MIT_HEADERS)
             set(GSS_FLAVOUR "MIT")
           endif()
+	elseif("$ENV{PKG_CONFIG_PATH} " STREQUAL " ")
+	  message(WARNING "Try to set PKG_CONFIG_PATH to PREFIX_OF_KERBEROS/lib/pkgconfig")
         endif()
       elseif(_GSS_VENDOR STREQUAL "Heimdal")
         message(STATUS "Vendor Heimdal")
@@ -234,13 +245,17 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
                   "gssapi/gssapi_spnego.h"
               HINTS
                   ${_GSS_ROOT_HINTS}
+      	      PATHS 
+		  /usr/heimdal
+		  /usr/local/heimdal
               PATH_SUFFIXES
                   include
                   inc
         )
 
+        message(STATUS "_GSS_INCLUDE_DIR 252=${_GSS_INCLUDE_DIR} ; GSS_ROOT_HINTS=${GSS_ROOT_HINTS} ; GSS_ROOT_DIR=${GSS_ROOT_DIR}")
         message(STATUS "GSS_FLAVOUR avant check include file : GSS_FLAVOUR=${GSS_FLAVOUR} ; _GSS_VENDOR=${_GSS_VENDOR}")
-        message(STATUS "_GSS_INCLUDE_DIR=${_GSS_INCLUDE_DIR} ; GSS_ROOT_HINTS=${GSS_ROOT_HINTS}")
+        message(STATUS "_GSS_ROOT_HINTS 254=${_GSS_ROOT_HINTS}")
 
         if(_GSS_INCLUDE_DIR) # we've found something
           set(CMAKE_REQUIRED_INCLUDES "${_GSS_INCLUDE_DIR}")
@@ -252,6 +267,9 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
             set(GSS_FLAVOUR "Heimdal")
           endif()
           set(CMAKE_REQUIRED_DEFINITIONS "")
+	elseif("$ENV{PKG_CONFIG_PATH} " STREQUAL " ")
+	  message(STATUS "_GSS_INCLUDE_DIR 265=${_GSS_INCLUDE_DIR}")
+	  message(WARNING "Try to set PKG_CONFIG_PATH to PREFIX_OF_KERBEROS/lib/pkgconfig")
         endif()
       else()
         message(SEND_ERROR "Kerberos vendor unknown (${_GSS_VENDOR})")
