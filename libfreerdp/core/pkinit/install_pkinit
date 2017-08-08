@@ -8,15 +8,16 @@ fi
 
 display_help(){
   echo; echo "Usage:"
-  echo -e "\t-m [--mit-flavour]\t\tuse MIT flavour for Kerberos"
+  echo -e "\t-m [--mit-flavour]\t\tuse MIT flavour for Kerberos (used by default)"
   echo -e "\t-H [--heimdal-flavour]\t\tuse Heimdal flavour for Kerberos"
   echo -e "\t-p [--krb-installed-prefix]\tspecify Kerberos installed prefix"
-  echo -e "\t-s [--krb-sources-dir]\t\tspecify Kerberos sources directory"
+  echo -e "\t-s [--krb-sources-dir]\t\tspecify Kerberos sources directory (used by MIT only)"
   echo -e "\t-h [--help]\t\t\tdisplay this help and exit"; echo
 }
 
 if [ $# -le 0 ]; then
   display_help
+  return 1
 fi
 
 # NOTE: This requires GNU getopt. On Mac OS X and FreeBSD,
