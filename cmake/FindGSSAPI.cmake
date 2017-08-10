@@ -118,24 +118,16 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
       message(STATUS "Try to set the path to GSS root folder in the system variable GSS_ROOT_DIR")
     endif()
   else()
-    message(WARNING "GSS configure script failed to get vendor") 
+    message(SEND_ERROR "GSS configure script failed to get vendor")
   endif()
 
   # FIXME : fail to link Heimdal libraries using configure script, we do it "manually"
-  if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND NOT ${GSS_FLAVOUR} STREQUAL "Heimdal")
-    if(NOT ${GSS_FLAVOUR} STREQUAL "Heimdal")
-      execute_process(
-            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi"
-            OUTPUT_VARIABLE _GSS_CFLAGS
-            RESULT_VARIABLE _GSS_CONFIGURE_FAILED
-      )
-    else()
-      execute_process(
-            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi"
-            OUTPUT_VARIABLE _GSS_CFLAGS
-            RESULT_VARIABLE _GSS_CONFIGURE_FAILED
-      )
-    endif()
+  if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND NOT ${_GSS_VENDOR} STREQUAL "Heimdal")
+    execute_process(
+          COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi"
+          OUTPUT_VARIABLE _GSS_CFLAGS
+          RESULT_VARIABLE _GSS_CONFIGURE_FAILED
+    )
     
     if(NOT _GSS_CONFIGURE_FAILED) # 0 means success
       # should also work in an odd case when multiple directories are given
@@ -153,17 +145,20 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
       endforeach()
     endif()
 
-    execute_process(
-          COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "gssapi"
-          OUTPUT_VARIABLE _GSS_LIB_FLAGS
-          RESULT_VARIABLE _GSS_CONFIGURE_FAILED
-    )
-     
-    if(${GSS_FLAVOUR} STREQUAL "Heimdal")
-      string(STRIP "${_GSS_LIB_FLAGS}" _GSS_LIB_FLAGS)
-      list(APPEND _GSS_LIB_FLAGS "-lkrb5 -lkafs -lroken")
-      string(STRIP "${_GSS_LIB_FLAGS}" _GSS_LIB_FLAGS)
-      string(REGEX REPLACE ";-(L|l)" " -\\1" _GSS_LIB_FLAGS "${_GSS_LIB_FLAGS}")
+    if(${_GSS_VENDOR} STREQUAL "Massachusetts Institute of Technology")
+      execute_process(
+            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "gssapi"
+            OUTPUT_VARIABLE _GSS_LIB_FLAGS
+            RESULT_VARIABLE _GSS_CONFIGURE_FAILED
+      )
+    elseif(${_GSS_VENDOR} STREQUAL "Heimdal")
+      execute_process(
+            COMMAND ${_GSS_CONFIGURE_SCRIPT} "--deps --libs" "gssapi kafs"
+            OUTPUT_VARIABLE _GSS_LIB_FLAGS
+            RESULT_VARIABLE _GSS_CONFIGURE_FAILED
+      )
+    else()
+      message(SEND_ERROR "Unknown vendor")
     endif()
 
     if(NOT _GSS_CONFIGURE_FAILED) # 0 means success
