@@ -122,7 +122,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
   endif()
 
   # FIXME : fail to link Heimdal libraries using configure script, we do it "manually"
-  if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND NOT ${_GSS_VENDOR} STREQUAL "Heimdal")
+  if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND NOT ${_GSS_VENDOR} STREQUAL "Heimdal" AND GSS_FLAVOUR)
     execute_process(
           COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi"
           OUTPUT_VARIABLE _GSS_CFLAGS
