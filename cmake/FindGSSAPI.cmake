@@ -120,9 +120,8 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
     message(SEND_ERROR "GSS configure script failed to get vendor")
   endif()
 
-  # FIXME : fail to find Heimdal libraries using configure script, requires us to set LIBRARY_PATH
-  # to make it work. So it's more convenient here to do it "manually" if Heimdal flavour is detected.
-  if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR AND NOT ${_GSS_VENDOR} STREQUAL "Heimdal")
+  # FIXME : fail to find Heimdal libraries using configure script, we do it "manually"
+  if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR AND NOT _GSS_VENDOR STREQUAL "Heimdal")
     execute_process(
           COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi"
           OUTPUT_VARIABLE _GSS_CFLAGS
@@ -145,13 +144,13 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
       endforeach()
     endif()
 
-    if(${_GSS_VENDOR} STREQUAL "Massachusetts Institute of Technology")
+    if(_GSS_VENDOR STREQUAL "Massachusetts Institute of Technology")
       execute_process(
             COMMAND ${_GSS_CONFIGURE_SCRIPT} "--libs" "gssapi"
             OUTPUT_VARIABLE _GSS_LIB_FLAGS
             RESULT_VARIABLE _GSS_CONFIGURE_FAILED
       )
-    elseif(${_GSS_VENDOR} STREQUAL "Heimdal")
+    elseif(_GSS_VENDOR STREQUAL "Heimdal")
       execute_process(
             COMMAND ${_GSS_CONFIGURE_SCRIPT} "--deps --libs" "gssapi kafs"
             OUTPUT_VARIABLE _GSS_LIB_FLAGS
