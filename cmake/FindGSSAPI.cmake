@@ -57,7 +57,7 @@ if(UNIX)
       else()
         pkg_search_module(_GSS_PKG ${_HEIMDAL_MODNAME})
       endif()
-    
+
       if("${_GSS_PKG_PREFIX} " STREQUAL " ")
         if(NOT "$ENV{PKG_CONFIG_PATH} " STREQUAL " ")
           list(APPEND _GSS_ROOT_HINTS "$ENV{PKG_CONFIG_PATH}")
@@ -70,7 +70,7 @@ if(UNIX)
           if(PKG_HEIMDAL_PREFIX_POSITION STREQUAL "-1")
 	    message(WARNING "Try to set PKG_CONFIG_PATH to \"PREFIX_OF_KERBEROS/lib/pkgconfig\"")
 	  else()
-    	    list(APPEND _GSS_ROOT_HINTS "${_GSS_PKG_PREFIX}")
+	    list(APPEND _GSS_ROOT_HINTS "${_GSS_PKG_PREFIX}")
           endif()
 	else()
 	  list(APPEND _GSS_ROOT_HINTS "${_GSS_PKG_PREFIX}")
@@ -103,13 +103,13 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
       PATH_SUFFIXES
           bin
   )
-    
+
   execute_process(
        COMMAND ${_GSS_CONFIGURE_SCRIPT} "--vendor"
        OUTPUT_VARIABLE _GSS_VENDOR
        RESULT_VARIABLE _GSS_CONFIGURE_FAILED
   )
-    
+
   if(NOT _GSS_CONFIGURE_FAILED)
     string(STRIP "${_GSS_VENDOR}" _GSS_VENDOR)
     if(GSS_FLAVOUR STREQUAL "Heimdal" AND NOT _GSS_VENDOR STREQUAL "Heimdal")
@@ -127,7 +127,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
           OUTPUT_VARIABLE _GSS_CFLAGS
           RESULT_VARIABLE _GSS_CONFIGURE_FAILED
     )
-    
+
     if(NOT _GSS_CONFIGURE_FAILED) # 0 means success
       # should also work in an odd case when multiple directories are given
       string(STRIP "${_GSS_CFLAGS}" _GSS_CFLAGS)
@@ -218,7 +218,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
                    "gssapi/gssapi_spnego.h"
                HINTS
                    ${_GSS_ROOT_HINTS}
-      	       PATHS 
+	       PATHS
 	           /usr/heimdal
 		   /usr/local/heimdal
                PATH_SUFFIXES
@@ -280,7 +280,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
           set(_ROKEN_LIBNAME "roken")
         endif()
       endif()
-           
+
       find_library(_GSS_LIBRARIES
                   NAMES
                       ${_GSS_LIBNAME}
@@ -317,7 +317,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
         )
         list(APPEND _GSS_LIBRARIES ${_KRB5_LIBRARY} ${_KRB5SUPPORT_LIBRARY} ${_COMERR_LIBRARY})
       endif()
-     
+
       if(${GSS_FLAVOUR} STREQUAL "Heimdal")
         find_library(_KRB5_LIBRARY
 	            NAMES
@@ -335,7 +335,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
                     PATH_SUFFIXES
                         ${_GSS_LIBDIR_SUFFIXES}
         )
-       	find_library(_ROKEN_LIBRARY
+	find_library(_ROKEN_LIBRARY
 		    NAMES
                         ${_ROKEN_LIBNAME}
                     HINTS
@@ -368,7 +368,7 @@ else()
     set(_GSS_VERSION _GSS_PKG_${_HEIMDAL_MODNAME}_VERSION)
   endif()
 endif()
-	
+
 set(GSS_INCLUDE_DIR ${_GSS_INCLUDE_DIR})
 set(GSS_LIBRARIES ${_GSS_LIBRARIES})
 set(GSS_LINK_DIRECTORIES ${_GSS_LINK_DIRECTORIES})
