@@ -2776,7 +2776,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 	{
 		free(settings->Username);
 
-		if (!settings->Domain && user)
+		if (!settings->SmartcardLogon && !settings->Domain && user)
 		{
 			BOOL ret;
 			free(settings->Domain);
@@ -2786,8 +2786,15 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 			if (!ret)
 				return COMMAND_LINE_ERROR;
 		}
-		else
+		else if(!settings->SmartcardLogon)
+		{
 			settings->Username = user;
+		}
+		else
+		{
+			/* Don't need user name for smartcard logon */
+			settings->Username = NULL;
+		}
 	}
 
 	if (gwUser)

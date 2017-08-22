@@ -370,6 +370,9 @@ cleanup:
 	free(lusername);
 	free(lpassword);
 
+	if (status <= 0)
+		return 1;
+
 	if (krb_name)
 		free(krb_name);
 
@@ -435,9 +438,11 @@ SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextA(PCredHandle phCred
 
 		if (SSPI_GSS_ERROR(context->major_status))
 		{
+#if !defined(WITH_PKCS11H)
 			/* GSSAPI failed because we do not have credentials */
 			if (context->major_status & SSPI_GSS_S_NO_CRED)
 			{
+
 				/* Then let's try to acquire credentials using login and password,
 				 * and only those two, means not with a smartcard.
 				 * If we use smartcard-logon, the credentials have already
@@ -459,11 +464,16 @@ SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextA(PCredHandle phCred
 
 				if (SSPI_GSS_ERROR(context->major_status))
 				{
-					/* We can't use Kerberos */
+					/* We can't use Kerberos with login/password*/
 					WLog_ERR(TAG, "Init GSS security context failed : can't use Kerberos");
 					return SEC_E_INTERNAL_ERROR;
 				}
 			}
+#else
+		/* We can't use Kerberos with smartcard */
+		WLog_ERR(TAG, "Init GSS security context failed : can't use Kerberos");
+		return SEC_E_INTERNAL_ERROR;
+#endif
 		}
 
 #endif
