@@ -350,16 +350,17 @@ int get_slot_login_required(CK_SLOT_ID slot_id)
 	return tinfo.flags & CKF_LOGIN_REQUIRED;
 }
 
-int get_slot_protected_authentication_path(rdpSettings* settings, CK_SLOT_ID slot_id)
+CK_RV get_slot_protected_authentication_path(rdpSettings* settings, CK_SLOT_ID slot_id)
 {
-	int rv;
+	CK_RV rv;
 	CK_TOKEN_INFO tinfo;
+	memset(&tinfo, 0, sizeof(CK_TOKEN_INFO));
 	rv = p11->C_GetTokenInfo(slot_id, &tinfo);
 
 	if (rv != CKR_OK)
 	{
 		WLog_ERR(TAG, "C_GetTokenInfo() failed: 0x%08lX", rv);
-		return -1;
+		return rv;
 	}
 
 	/* get token label */
@@ -368,7 +369,7 @@ int get_slot_protected_authentication_path(rdpSettings* settings, CK_SLOT_ID slo
 	if (settings->TokenLabel == NULL)
 	{
 		WLog_ERR(TAG, "Error allocation LabelToken");
-		return -1;
+		return CKR_GENERAL_ERROR;
 	}
 
 	unsigned int i = 1;
@@ -393,7 +394,13 @@ int get_slot_protected_authentication_path(rdpSettings* settings, CK_SLOT_ID slo
 
 	settings->TokenLabel[i] = '\0';
 	WLog_DBG(TAG, "Token Label: %s", settings->TokenLabel);
-	return tinfo.flags & CKF_PROTECTED_AUTHENTICATION_PATH;
+	WLog_ERR(TAG, "tinfo.flags=%d\n", tinfo.flags);
+	if((tinfo.flags & CKR_TOKEN_NOT_RECOGNIZED) == CKR_TOKEN_NOT_RECOGNIZED)
+		return CKR_SLOT_ID_INVALID;
+	if((tinfo.flags & CKF_PROTECTED_AUTHENTICATION_PATH) == CKF_PROTECTED_AUTHENTICATION_PATH)
+		return CKR_OK;
+	else
+		return CKR_NO_EVENT;
 }
 
 int crypto_init(cert_policy* policy)
@@ -421,7 +428,7 @@ CK_RV init_authentication_pin(rdpNla* nla)
 	CK_ULONG p11_num_slots = 0;
 	CK_SLOT_ID_PTR p11_slots = NULL;
 	CK_RV rv = CKR_GENERAL_ERROR;
-	CK_ULONG n;
+	CK_ULONG n = 0;
 	CK_SLOT_INFO info;
 	CK_SESSION_INFO sessionInfo;
 	CK_SLOT_ID	opt_slot = 0;
@@ -431,6 +438,7 @@ CK_RV init_authentication_pin(rdpNla* nla)
 	char* label = NULL;
 	unsigned char* id = NULL;
 	CK_ULONG idLen;
+	int ret = 0;
 	module = C_LoadModule(opt_module, &p11);
 
 	if (module == NULL)
@@ -478,7 +486,13 @@ CK_RV init_authentication_pin(rdpNla* nla)
 		goto closing_session;
 	}
 
-	for (n = 0; n < p11_num_slots; n++)
+	if (p11_num_slots == 0)
+	{
+		WLog_ERR(TAG, "No slots.");
+		goto exit_failure;
+	}
+
+	while(n<p11_num_slots)
 	{
 		WLog_DBG(TAG, "Slot #%lu (0x%lx)", n, p11_slots[n]);
 		rv = p11->C_GetSlotInfo(p11_slots[n], &info);
@@ -486,52 +500,59 @@ CK_RV init_authentication_pin(rdpNla* nla)
 		if (rv != CKR_OK)
 		{
 			WLog_ERR(TAG, "(GetSlotInfo failed, %lu)", rv);
+			n++;
 			continue;
 		}
 
 		WLog_DBG(TAG, "Slot #%lu description: %s", n, p11_utf8_to_local(info.slotDescription,
-		         sizeof(info.slotDescription)));
+				sizeof(info.slotDescription)));
 
 		if (!(info.flags & CKF_TOKEN_PRESENT))
 		{
-			WLog_ERR(TAG, "  (empty)");
-			continue;
+			WLog_ERR(TAG, "No valid token on this slot (%d)", p11_slots[n]);
 		}
 
-		if (info.flags & CKF_TOKEN_PRESENT)
-			opt_slot = p11_slots[n];
-	}
+		instance->settings->PinLoginRequired = FALSE;
 
-	if (p11_num_slots == 0)
-	{
-		WLog_ERR(TAG, "No slots.");
-		goto exit_failure;
-	}
-
-	instance->settings->PinLoginRequired = FALSE;
-
-	if (get_slot_protected_authentication_path(instance->settings, opt_slot))
-	{
-		if (get_slot_login_required(opt_slot))
+		if ((ret = get_slot_protected_authentication_path(instance->settings, p11_slots[n])) == CKR_OK)
 		{
-			/* if TRUE user must login */
-			instance->settings->PinLoginRequired = TRUE;
-		}
+			if (get_slot_login_required(p11_slots[n]))
+			{
+				/* if TRUE user must login */
+				instance->settings->PinLoginRequired = TRUE;
+			}
 
-		/* TRUE if token has a "protected authentication path",
-		 * whereby a user can log into the token without passing a PIN through the Cryptoki library,
-		 * means PINPAD is present */
-		instance->settings->PinPadIsPresent = TRUE;
-	}
-	else
-	{
-		if (get_slot_login_required(opt_slot))
+			/* TRUE if token has a "protected authentication path",
+			 * whereby a user can log into the token without passing a PIN through the Cryptoki library,
+			 * means PINPAD is present */
+			instance->settings->PinPadIsPresent = TRUE;
+
+			WLog_ERR(TAG, "l.532: break with p11_slots[%d]=%d\n\n", n, p11_slots[n]);
+			break;
+		}
+		else if (ret==CKR_NO_EVENT)
 		{
-			instance->settings->PinLoginRequired = TRUE;
+			WLog_ERR(TAG, "dans le else de gspauth with p11_slots[%d]=%d\n\n", n, p11_slots[n]);
+
+			if (get_slot_login_required(p11_slots[n]))
+			{
+				instance->settings->PinLoginRequired = TRUE;
+			}
+
+			instance->settings->PinPadIsPresent = FALSE;
+			WLog_ERR(TAG, "l.545: break with p11_slots[%d]=%d\n\n", n, p11_slots[n]);
+			break;
+		}
+		else
+		{
+			WLog_ERR(TAG, "on continue sur le prochain token : ret=%d\n\n", ret);
 		}
 
-		instance->settings->PinPadIsPresent = FALSE;
+		n++;
 	}
+
+	opt_slot = p11_slots[n];
+	WLog_ERR(TAG, "opensession with p11_slots[%d]=%d ; opt_slot=%d\n\n", n, p11_slots[n], opt_slot);
 
 	rv = p11->C_OpenSession(opt_slot, flags, NULL, NULL, &session);
 
@@ -729,7 +750,7 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 
 	while (try_left > 0)
 	{
-		/* get PIN if no already given in command line argument */
+		/* get PIN if not already given in command line argument */
 		if (strncmp(settings->Pin, "NULL", 4) == 0)
 		{
 			pin = getpass(prompt_message);

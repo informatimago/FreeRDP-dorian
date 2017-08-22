@@ -152,7 +152,12 @@ static void extended_com_err_fn(const char* myprog, errcode_t code,
 BOOL set_pkinit_identity(rdpSettings* settings)
 {
 	unsigned int size_PkinitIdentity = strlen(PREFIX_X509_USER_IDENTITY) + strlen(
-	                                       PREFIX_PKINIT_PKCS11) + strlen(settings->Pkcs11Module) + strlen(PREFIX_PKINIT_CERT_ID) +
+	                                       PREFIX_PKINIT_PKCS11) + strlen(settings->Pkcs11Module) +
+	                                   strlen(PREFIX_PKINIT_SLOT_ID) +
+	                                   strlen(settings->SlotID) +
+	                                   strlen(PREFIX_PKINIT_TOKEN_LABEL) +
+	                                   strlen(settings->TokenLabel) +
+	                                   strlen(PREFIX_PKINIT_CERT_ID) +
 	                                   (unsigned int)(settings->IdCertificateLength * 2);
 	settings->PkinitIdentity = calloc(size_PkinitIdentity + 1, sizeof(char));
 
@@ -165,10 +170,15 @@ BOOL set_pkinit_identity(rdpSettings* settings)
 	strncat(settings->PkinitIdentity, PREFIX_X509_USER_IDENTITY, strlen(PREFIX_X509_USER_IDENTITY));
 	strncat(settings->PkinitIdentity, PREFIX_PKINIT_PKCS11, strlen(PREFIX_PKINIT_PKCS11));
 	strncat(settings->PkinitIdentity, settings->Pkcs11Module, strlen(settings->Pkcs11Module));
+	strncat(settings->PkinitIdentity, PREFIX_PKINIT_SLOT_ID, strlen(PREFIX_PKINIT_SLOT_ID));
+	strncat(settings->PkinitIdentity, settings->SlotID, strlen(settings->SlotID));
+	strncat(settings->PkinitIdentity, PREFIX_PKINIT_TOKEN_LABEL, strlen(PREFIX_PKINIT_TOKEN_LABEL));
+	strncat(settings->PkinitIdentity, settings->TokenLabel, strlen(settings->TokenLabel));
 	strncat(settings->PkinitIdentity, PREFIX_PKINIT_CERT_ID, strlen(PREFIX_PKINIT_CERT_ID));
 	strncat(settings->PkinitIdentity, (char*) settings->IdCertificate,
 	        (unsigned int)(settings->IdCertificateLength * 2));
 	settings->PkinitIdentity[size_PkinitIdentity] = '\0';
+	WLog_DBG(TAG, "pkinit_identities = %s", settings->PkinitIdentity);
 	return TRUE;
 }
 
@@ -409,6 +419,7 @@ int init_responder_data(rdpSettings* settings, responder_data response)
 	strncat(response->pkinit_answer, "=", 1);
 	strncat(response->pkinit_answer, settings->Pin, strlen(settings->Pin));
 	response->pkinit_answer[ size_pkinit_answer ] = '\0';
+	WLog_DBG(TAG, "pkinit_identities = %s", response->pkinit_answer);
 	return 0;
 get_error:
 	free(response->challenge);
@@ -1357,7 +1368,7 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 		k5->out_cc = defcache;
 		defcache = NULL;
 		WLog_DBG(TAG, "Using default cache: %s",
-		          krb5_cc_get_name(k5->ctx, k5->out_cc));
+		         krb5_cc_get_name(k5->ctx, k5->out_cc));
 	}
 
 	if (opts->k5_in_cache_name)
@@ -1372,7 +1383,7 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 		}
 
 		WLog_DBG(TAG, "Using specified input cache: %s",
-		          opts->k5_in_cache_name);
+		         opts->k5_in_cache_name);
 	}
 
 	/* free before krb5_unparse_name change its address */
