@@ -347,7 +347,7 @@ int get_slot_login_required(CK_SLOT_ID slot_id)
 		return -1;
 	}
 
-	return tinfo.flags & CKF_LOGIN_REQUIRED;
+	return ((tinfo.flags & CKF_LOGIN_REQUIRED) == CKF_LOGIN_REQUIRED) ? CKR_OK : CKR_NO_EVENT;
 }
 
 CK_RV get_slot_protected_authentication_path(rdpSettings* settings, CK_SLOT_ID slot_id)
@@ -507,7 +507,7 @@ CK_RV init_authentication_pin(rdpNla* nla)
 		WLog_DBG(TAG, "Slot #%lu description: %s", n, p11_utf8_to_local(info.slotDescription,
 				sizeof(info.slotDescription)));
 
-		if (!(info.flags & CKF_TOKEN_PRESENT))
+		if (!((info.flags & CKF_TOKEN_PRESENT) == CKF_TOKEN_PRESENT))
 		{
 			WLog_ERR(TAG, "No valid token on this slot (%d)", p11_slots[n]);
 		}
@@ -516,7 +516,7 @@ CK_RV init_authentication_pin(rdpNla* nla)
 
 		if ((ret = get_slot_protected_authentication_path(instance->settings, p11_slots[n])) == CKR_OK)
 		{
-			if (get_slot_login_required(p11_slots[n]))
+			if (get_slot_login_required(p11_slots[n]) == CKR_OK)
 			{
 				/* if TRUE user must login */
 				instance->settings->PinLoginRequired = TRUE;
@@ -534,8 +534,9 @@ CK_RV init_authentication_pin(rdpNla* nla)
 		{
 			WLog_ERR(TAG, "dans le else de gspauth with p11_slots[%d]=%d\n\n", n, p11_slots[n]);
 
-			if (get_slot_login_required(p11_slots[n]))
+			if (get_slot_login_required(p11_slots[n]) == CKR_OK)
 			{
+				WLog_ERR(TAG, "login required l.539\n\n", n, p11_slots[n]);
 				instance->settings->PinLoginRequired = TRUE;
 			}
 
@@ -821,18 +822,18 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 		CK_FLAGS flags_before_login = tinfo.flags;
 
 		/* check (if these token flags are set) how many PIN tries left before first login try */
-		if (flags_before_login & CKF_USER_PIN_COUNT_LOW)
+		if ((flags_before_login & CKF_USER_PIN_COUNT_LOW) == CKF_USER_PIN_COUNT_LOW)
 		{
 			WLog_ERR(TAG,
 			         "An incorrect user login PIN has been entered at least once since the last successful authentication /!\\ ");
 		}
 
-		if (flags_before_login & CKF_USER_PIN_FINAL_TRY)
+		if ((flags_before_login & CKF_USER_PIN_FINAL_TRY) == CKF_USER_PIN_FINAL_TRY)
 		{
 			WLog_ERR(TAG, "/!\\ Supplying an incorrect user PIN will cause it to become locked /!\\ ");
 		}
 
-		if (flags_before_login & CKF_USER_PIN_LOCKED)
+		if ((flags_before_login & CKF_USER_PIN_LOCKED) == CKF_USER_PIN_LOCKED)
 		{
 			WLog_ERR(TAG,
 			         "/!\\ /!\\ The user PIN has been locked. User login to the token is not possible /!\\ /!\\ ");
@@ -866,16 +867,16 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 			if (ret == CKR_OK && try_left == NB_TRY_MAX_LOGIN_TOKEN)
 				settings->TokenFlags |= FLAGS_TOKEN_USER_PIN_OK; /* means no error while logging to the token */
 
-			if (flags_after_login & CKF_USER_PIN_INITIALIZED)
+			if ((flags_after_login & CKF_USER_PIN_INITIALIZED) == CKF_USER_PIN_INITIALIZED)
 				WLog_DBG(TAG, "CKF_USER_PIN_INITIALIZED set");
 
-			if (flags_after_login & CKF_LOGIN_REQUIRED)
+			if ((flags_after_login & CKF_LOGIN_REQUIRED) == CKF_LOGIN_REQUIRED)
 				WLog_DBG(TAG, "CKF_LOGIN_REQUIRED set");
 
-			if (flags_after_login & CKF_TOKEN_INITIALIZED)
+			if ((flags_after_login & CKF_TOKEN_INITIALIZED) == CKF_TOKEN_INITIALIZED)
 				WLog_DBG(TAG, "CKF_TOKEN_INITIALIZED set");
 
-			if (flags_after_login & CKF_PROTECTED_AUTHENTICATION_PATH)
+			if ((flags_after_login & CKF_PROTECTED_AUTHENTICATION_PATH) == CKF_PROTECTED_AUTHENTICATION_PATH)
 				WLog_DBG(TAG, "CKF_PROTECTED_AUTHENTICATION_PATH set");
 		}
 		else
@@ -883,7 +884,7 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 			/* We set the flags CKF_USER_PIN_COUNT_LOW, CKF_USER_PIN_FINAL_TRY and CKF_USER_PIN_LOCKED
 			 * only when the middleware set them itself.
 			 */
-			if (flags_after_login & CKF_USER_PIN_COUNT_LOW)
+			if ((flags_after_login & CKF_USER_PIN_COUNT_LOW) == CKF_USER_PIN_COUNT_LOW)
 			{
 				settings->TokenFlags |= FLAGS_TOKEN_USER_PIN_COUNT_LOW;
 				WLog_ERR(TAG, "/!\\    WARNING    /!\\ 	  PIN INCORRECT (x1)	 /!\\	2 tries left  /!\\");
@@ -891,7 +892,7 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 				continue;
 			}
 
-			if (flags_after_login & CKF_USER_PIN_FINAL_TRY)
+			if ((flags_after_login & CKF_USER_PIN_FINAL_TRY) == CKF_USER_PIN_FINAL_TRY)
 			{
 				settings->TokenFlags |= FLAGS_TOKEN_USER_PIN_FINAL_TRY;
 				WLog_ERR(TAG, "/!\\ 	DANGER   /!\\   PIN INCORRECT (x2)   /!\\	  Only 1 try left   /!\\");
@@ -899,7 +900,7 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 				continue;
 			}
 
-			if (flags_after_login & CKF_USER_PIN_LOCKED)
+			if ((flags_after_login & CKF_USER_PIN_LOCKED) == CKF_USER_PIN_LOCKED)
 			{
 				settings->TokenFlags |= FLAGS_TOKEN_USER_PIN_LOCKED;
 				WLog_ERR(TAG,
@@ -922,7 +923,7 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 			{
 				if (try_left == 2)
 				{
-					if ((settings->TokenFlags & FLAGS_TOKEN_USER_PIN_COUNT_LOW) == 0)
+					if (((settings->TokenFlags & FLAGS_TOKEN_USER_PIN_COUNT_LOW) == FLAGS_TOKEN_USER_PIN_COUNT_LOW) == 0)
 					{
 						/* It means that middleware does not set CKF_USER_PIN_COUNT_LOW token flag.
 						 *  If so, that would have already been done previously with the corresponding token flag.
@@ -937,7 +938,7 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 
 				if (try_left == 1)
 				{
-					if ((settings->TokenFlags & FLAGS_TOKEN_USER_PIN_FINAL_TRY) == 0)
+					if (((settings->TokenFlags & FLAGS_TOKEN_USER_PIN_FINAL_TRY) == FLAGS_TOKEN_USER_PIN_FINAL_TRY) == 0)
 					{
 						/* means that middleware does not set CKF_USER_PIN_FINAL_TRY token flag */
 						settings->TokenFlags |= FLAGS_TOKEN_USER_PIN_NOT_IMPLEMENTED;
@@ -950,7 +951,7 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 
 			if (ret & CKR_PIN_LOCKED)
 			{
-				if ((settings->TokenFlags & FLAGS_TOKEN_USER_PIN_LOCKED) == 0)
+				if (((settings->TokenFlags & FLAGS_TOKEN_USER_PIN_LOCKED) == FLAGS_TOKEN_USER_PIN_LOCKED) == 0)
 				{
 					/* means that middleware does not set CKF_USER_PIN_LOCKED token flag */
 					settings->TokenFlags |= FLAGS_TOKEN_USER_PIN_NOT_IMPLEMENTED;
