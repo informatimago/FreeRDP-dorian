@@ -394,7 +394,6 @@ CK_RV get_slot_protected_authentication_path(rdpSettings* settings, CK_SLOT_ID s
 
 	settings->TokenLabel[i] = '\0';
 	WLog_DBG(TAG, "Token Label: %s", settings->TokenLabel);
-	WLog_ERR(TAG, "tinfo.flags=%d\n", tinfo.flags);
 	if((tinfo.flags & CKR_TOKEN_NOT_RECOGNIZED) == CKR_TOKEN_NOT_RECOGNIZED)
 		return CKR_SLOT_ID_INVALID;
 	if((tinfo.flags & CKF_PROTECTED_AUTHENTICATION_PATH) == CKF_PROTECTED_AUTHENTICATION_PATH)
@@ -509,7 +508,7 @@ CK_RV init_authentication_pin(rdpNla* nla)
 
 		if (!((info.flags & CKF_TOKEN_PRESENT) == CKF_TOKEN_PRESENT))
 		{
-			WLog_ERR(TAG, "No valid token on this slot (%d)", p11_slots[n]);
+			WLog_ERR(TAG, "No valid token on slot %d", p11_slots[n]);
 		}
 
 		instance->settings->PinLoginRequired = FALSE;
@@ -526,35 +525,27 @@ CK_RV init_authentication_pin(rdpNla* nla)
 			 * whereby a user can log into the token without passing a PIN through the Cryptoki library,
 			 * means PINPAD is present */
 			instance->settings->PinPadIsPresent = TRUE;
-
-			WLog_ERR(TAG, "l.532: break with p11_slots[%d]=%d\n\n", n, p11_slots[n]);
 			break;
 		}
 		else if (ret==CKR_NO_EVENT)
 		{
-			WLog_ERR(TAG, "dans le else de gspauth with p11_slots[%d]=%d\n\n", n, p11_slots[n]);
-
 			if (get_slot_login_required(p11_slots[n]) == CKR_OK)
 			{
-				WLog_ERR(TAG, "login required l.539\n\n", n, p11_slots[n]);
 				instance->settings->PinLoginRequired = TRUE;
 			}
 
 			instance->settings->PinPadIsPresent = FALSE;
-			WLog_ERR(TAG, "l.545: break with p11_slots[%d]=%d\n\n", n, p11_slots[n]);
 			break;
 		}
 		else
 		{
-			WLog_ERR(TAG, "on continue sur le prochain token : ret=%d\n\n", ret);
+			WLog_ERR(TAG, "Token found on slot %d can't be used for smartcardlogon. Try next one...", p11_slots[n]);
 		}
 
 		n++;
 	}
 
 	opt_slot = p11_slots[n];
-	WLog_ERR(TAG, "opensession with p11_slots[%d]=%d ; opt_slot=%d\n\n", n, p11_slots[n], opt_slot);
-
 	rv = p11->C_OpenSession(opt_slot, flags, NULL, NULL, &session);
 
 	if (rv != CKR_OK)
@@ -1586,7 +1577,7 @@ int get_valid_smartcard_cert(rdpNla* nla)
 
 		if (ret_find == -1)
 		{
-			WLog_ERR(TAG, "None certificate found valid and matching requirements");
+			WLog_ERR(TAG, "None valid and matching requirements certificate found");
 			goto get_error;
 		}
 		else if (ret_find == 0)
