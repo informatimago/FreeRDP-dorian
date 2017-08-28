@@ -419,4 +419,18 @@ find_package_handle_standard_args(GSS
         "Could NOT find GSS, try to set the path to GSS root folder in the system variable GSS_ROOT_DIR"
 )
 
+if(GSS_FLAVOUR STREQUAL "MIT")
+  string(STRIP "${GSS_VERSION}" GSS_VERSION)
+  string(SUBSTRING ${GSS_VERSION} 19 -1 GSS_RELEASE_NUMBER)
+  message(STATUS "GSS_VERSION=${GSS_VERSION}; GSS_RELEASE_NUMBER=${GSS_RELEASE_NUMBER}")
+  string(REGEX MATCH "[0-9]" GSS_VERSION_MAJOR ${GSS_RELEASE_NUMBER})
+  string(REGEX MATCH "[0-9][0-9]$" GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
+  if(GSS_VERSION_MAJOR AND GSS_VERSION_MINOR)
+    string(COMPARE GREATER ${GSS_VERSION_MAJOR} 0 GSS_VERSION_1)
+    string(COMPARE GREATER ${GSS_VERSION_MINOR} 12 GSS_VERSION_1_13)
+  else()
+    message(SEND_ERROR "Failed to retrieved Kerberos version number")
+  endif()
+endif()
+
 mark_as_advanced(GSS_INCLUDE_DIR GSS_LIBRARIES)
