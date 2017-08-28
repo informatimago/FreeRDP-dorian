@@ -113,7 +113,8 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
 
   if(NOT _GSS_CONFIGURE_FAILED)
     string(STRIP "${_GSS_VENDOR}" _GSS_VENDOR)
-    if(GSS_FLAVOUR STREQUAL "Heimdal" AND NOT _GSS_VENDOR STREQUAL "Heimdal")
+    if((GSS_FLAVOUR STREQUAL "Heimdal" AND NOT _GSS_VENDOR STREQUAL "Heimdal")
+       OR (GSS_FLAVOUR STREQUAL "MIT" AND NOT _GSS_VENDOR STREQUAL "Massachusetts Institute of Technology"))
       message(SEND_ERROR "GSS vendor and GSS flavour are not matching : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}") 
       message(STATUS "Try to set the path to GSS root folder in the system variable GSS_ROOT_DIR")
     endif()
@@ -202,6 +203,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
                PATH_SUFFIXES
                    include
                    inc
+		   mit-krb5
       )
 
       if(_GSS_INCLUDE_DIR) # we've found something
