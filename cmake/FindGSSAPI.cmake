@@ -268,7 +268,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
           endif()
         endif()
       else()
-        list(APPEND _GSS_LIBDIR_SUFFIXES "lib;lib64") # those suffixes are not checked for HINTS
+        list(APPEND _GSS_LIBDIR_SUFFIXES "lib;lib64;lib/x86_64-linux-gnu") # those suffixes are not checked for HINTS
         if(GSS_FLAVOUR STREQUAL "MIT")
           set(_GSS_LIBNAME "gssapi_krb5")
           set(_KRB5_LIBNAME "krb5")
