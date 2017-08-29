@@ -203,7 +203,6 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
                PATH_SUFFIXES
                    include
                    inc
-		   mit-krb5
       )
 
       if(_GSS_INCLUDE_DIR) # we've found something
@@ -211,6 +210,8 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
         check_include_files( "gssapi/gssapi_generic.h;gssapi/gssapi_ext.h" _GSS_HAVE_MIT_HEADERS)
         if(_GSS_HAVE_MIT_HEADERS)
           set(GSS_FLAVOUR "MIT")
+        else()
+          message(SEND_ERROR "Try to set the Kerberos flavour (GSS_ROOT_FLAVOUR)")
         endif()
       elseif("$ENV{PKG_CONFIG_PATH} " STREQUAL " ")
 	message(WARNING "Try to set PKG_CONFIG_PATH to PREFIX_OF_KERBEROS/lib/pkgconfig")
@@ -270,7 +271,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
           endif()
         endif()
       else()
-        list(APPEND _GSS_LIBDIR_SUFFIXES "lib;lib64;lib/x86_64-linux-gnu") # those suffixes are not checked for HINTS
+        list(APPEND _GSS_LIBDIR_SUFFIXES "lib;lib64;x86_64-linux-gnu") # those suffixes are not checked for HINTS
         if(GSS_FLAVOUR STREQUAL "MIT")
           set(_GSS_LIBNAME "gssapi_krb5")
           set(_KRB5_LIBNAME "krb5")
