@@ -293,7 +293,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
                       ${_GSS_LIBDIR_SUFFIXES}
       )
 
-      if(${GSS_FLAVOUR} STREQUAL "MIT")
+      if(GSS_FLAVOUR STREQUAL "MIT")
         find_library(_KRB5_LIBRARY
                     NAMES
                         ${_KRB5_LIBNAME}
@@ -321,7 +321,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
         list(APPEND _GSS_LIBRARIES ${_KRB5_LIBRARY} ${_KRB5SUPPORT_LIBRARY} ${_COMERR_LIBRARY})
       endif()
 
-      if(${GSS_FLAVOUR} STREQUAL "Heimdal")
+      if(GSS_FLAVOUR STREQUAL "Heimdal")
         find_library(_KRB5_LIBRARY
 	            NAMES
                         ${_KRB5_LIBNAME}
@@ -422,9 +422,13 @@ find_package_handle_standard_args(GSS
 if(GSS_FLAVOUR STREQUAL "MIT")
   string(STRIP "${GSS_VERSION}" GSS_VERSION)
   string(SUBSTRING ${GSS_VERSION} 19 -1 GSS_RELEASE_NUMBER)
-  message(STATUS "GSS_VERSION=${GSS_VERSION}; GSS_RELEASE_NUMBER=${GSS_RELEASE_NUMBER}")
-  string(REGEX MATCH "[0-9]" GSS_VERSION_MAJOR ${GSS_RELEASE_NUMBER})
-  string(REGEX MATCH "[0-9][0-9]$" GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
+  string(REGEX MATCH "([0-9]+)\\." GSS_VERSION_MAJOR ${GSS_RELEASE_NUMBER})
+  string(REGEX REPLACE "\\." "" GSS_VERSION_MAJOR "${GSS_VERSION_MAJOR}")
+  string(REGEX MATCH "\\.([0-9]+)\\." GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
+  string(REGEX REPLACE "\\." "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
+  string(REGEX REPLACE "\\." "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
+  string(REGEX MATCH "([0-9]+)$" GSS_VERSION_PATCH ${GSS_RELEASE_NUMBER})
+  string(REGEX REPLACE "\\." "" GSS_VERSION_PATCH "${GSS_VERSION_PATCH}")
   if(GSS_VERSION_MAJOR AND GSS_VERSION_MINOR)
     string(COMPARE GREATER ${GSS_VERSION_MAJOR} 0 GSS_VERSION_1)
     string(COMPARE GREATER ${GSS_VERSION_MINOR} 12 GSS_VERSION_1_13)
