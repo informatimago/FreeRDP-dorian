@@ -2026,7 +2026,7 @@ LONG smartcard_irp_device_control_call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OP
 	{
 		WLog_WARN(TAG, "IRP failure: %s (0x%08"PRIX32"), status: %s (0x%08"PRIX32")",
 			smartcard_get_ioctl_string(ioControlCode, TRUE), ioControlCode,
-			SCardGetErrorString(result), callResult);
+			SCardGetErrorString(callResult), callResult);
 	}
 
 	irp->IoStatus = 0;
@@ -2048,12 +2048,12 @@ LONG smartcard_irp_device_control_call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OP
 	Stream_Write_UINT32(irp->output, outputBufferLength); /* OutputBufferLength (4 bytes) */
 	if ((packResult = smartcard_pack_common_type_header(smartcard, irp->output))) /* CommonTypeHeader (8 bytes) */
 	{
-		WLog_ERR(TAG, "smartcard_pack_common_type_header failed with error %"PRId32", packResult);
+		WLog_ERR(TAG, "smartcard_pack_common_type_header failed with error %"PRId32"", packResult);
 		return packResult;
 	}
 	if ((packResult = smartcard_pack_private_type_header(smartcard, irp->output, objectBufferLength))) /* PrivateTypeHeader (8 bytes) */
 	{
-		WLog_ERR(TAG, "smartcard_pack_private_type_header failed with error %"PRId32", packResult);
+		WLog_ERR(TAG, "smartcard_pack_private_type_header failed with error %"PRId32"", packResult);
 		return packResult;
 	}
 
