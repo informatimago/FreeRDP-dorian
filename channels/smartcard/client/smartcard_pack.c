@@ -1677,9 +1677,9 @@ void smartcard_trace_get_status_change_return(SMARTCARD_DEVICE* smartcard,
 		szEventState = SCardGetReaderStateString(rgReaderState->dwEventState);
 		rgbAtr = winpr_BinToHexString((BYTE*) & (rgReaderState->rgbAtr), rgReaderState->cbAtr, FALSE);
 		WLog_DBG(TAG, "\t[%"PRIu32"]: dwCurrentState: %s (activity Count: %d) (0x%08"PRIX32")",
-		         index, szCurrentState, readerState->dwEventState >> 16, rgReaderState->dwCurrentState);
+		         index, szCurrentState, rgReaderState->dwEventState >> 16, rgReaderState->dwCurrentState);
 		WLog_DBG(TAG, "\t[%"PRIu32"]: dwEventState: %s (activity Count: %d) (0x%08"PRIX32")",
-		         index, szEventState, readerState->dwEventState >> 16, rgReaderState->dwEventState);
+		         index, szEventState, rgReaderState->dwEventState >> 16, rgReaderState->dwEventState);
 		WLog_DBG(TAG, "\t[%"PRIu32"]: cbAtr: %"PRIu32" rgbAtr: %s",
 		         index, rgReaderState->cbAtr, rgbAtr);
 		free(szCurrentState);
