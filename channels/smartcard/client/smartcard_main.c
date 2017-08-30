@@ -228,7 +228,7 @@ static void smartcard_release_all_contexts(SMARTCARD_DEVICE* smartcard)
 			status = SCardIsValidContext(pContext->hContext);
 			if (status == SCARD_S_SUCCESS)
 			{
-				SCardReleaseContext(hContext);
+				SCardReleaseContext(pContext->hContext);
 
 				if (MessageQueue_PostQuit(pContext->IrpQueue, 0)
 				    && (WaitForSingleObject(pContext->thread, INFINITE) == WAIT_FAILED))
