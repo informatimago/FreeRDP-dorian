@@ -663,6 +663,9 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
 	LPSCARD_READERSTATEW rgReaderState = NULL;
 	IRP* irp = operation->irp;
 	GetStatusChangeW_Call* call = operation->call;
+
+	WLog_ERR(TAG, "\nsmartcard_GetStatusChangeW_Call: l.667\n\n");
+
 	status = ret.ReturnCode = SCardGetStatusChangeW(operation->hContext, call->dwTimeOut,
 	                          call->rgReaderStates, call->cReaders);
 
@@ -1091,7 +1094,7 @@ static LONG smartcard_StatusA_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERAT
 
         if (call->cchReaderLen == SCARD_AUTOALLOCATE)
         {
-            ret.ReturnCode = SCardStatusA( operation->hCard, (LPSTR) &mszReaderName, &cchReaderLen,
+            ret.ReturnCode = SCardStatusA( operation->hCard, mszReaderName, &cchReaderLen,
                 &ret.dwState, &ret.dwProtocol, (BYTE*) &ret.pbAtr, &ret.cbAtrLen );
 
             if (ret.ReturnCode == SCARD_S_SUCCESS)
@@ -1129,11 +1132,18 @@ static LONG smartcard_StatusA_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERAT
 		WLog_ERR(TAG, "smartcard_pack_status_return failed with error %"PRId32"", packStatus);
 	}
 
-	if (mszReaderName)
+	if (mszReaderName){
         if (call->cchReaderLen == SCARD_AUTOALLOCATE)
-            SCardFreeMemory( operation->hContext, mszReaderName );
+        {
+        	WLog_ERR(TAG, "SCardFreeMemory dans smartcard_StatusA_Call\n\n");
+//            SCardFreeMemory( operation->hContext, mszReaderName );
+        }
         else
-            free( mszReaderName );
+        {
+        	WLog_ERR(TAG, "on free dans smartcard_StatusA_Call\n\n");
+//            free( mszReaderName );
+        }
+	}
 
 	return packStatus == 0 ? ret.ReturnCode : packStatus;
 }
@@ -1184,7 +1194,7 @@ static LONG smartcard_StatusW_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERAT
 
         if (call->cchReaderLen == SCARD_AUTOALLOCATE)
         {
-            ret.ReturnCode = SCardStatusW( operation->hCard, (LPWSTR) &mszReaderName, &cchReaderLen,
+            ret.ReturnCode = SCardStatusW( operation->hCard, mszReaderName, &cchReaderLen,
                 &ret.dwState, &ret.dwProtocol, (BYTE*) &ret.pbAtr, &ret.cbAtrLen );
 
             if (ret.ReturnCode == SCARD_S_SUCCESS)
@@ -1222,11 +1232,18 @@ static LONG smartcard_StatusW_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERAT
 		WLog_ERR(TAG, "smartcard_pack_status_return failed with error %"PRId32"", packStatus);
 	}
 
-    if (mszReaderName)
+    if (mszReaderName){
         if (call->cchReaderLen == SCARD_AUTOALLOCATE)
-            SCardFreeMemory( operation->hContext, mszReaderName );
+        {
+        	WLog_ERR(TAG, "SCardFreeMemory dans smartcard_StatusW_Call\n\n");
+//            SCardFreeMemory( operation->hContext, mszReaderName );
+        }
         else
-            free( mszReaderName );
+        {
+        	WLog_ERR(TAG, "on free dans smartcard_StatusW_Call\n\n");
+//            free( mszReaderName );
+        }
+    }
 
 	return packStatus == 0 ? ret.ReturnCode : packStatus;
 }

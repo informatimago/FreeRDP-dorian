@@ -799,13 +799,15 @@ char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 	cchReaders = *pcchReaders;
 	namesWinSCard = (char*) calloc(cchReaders, 2);
 
+	WLog_ERR(TAG, "l.802: names=%s", names);
+
 	if (!namesWinSCard)
 		return NULL;
 
 	q = namesWinSCard;
 	p = (char*) names;
 
-	while ((p - names) < cchReaders)
+	while ( (names!=NULL) && (p - names) < cchReaders)
 	{
 		nameWinSCard = PCSC_GetReaderAliasFromName(p);
 
@@ -1166,6 +1168,8 @@ WINSCARDAPI LONG WINAPI PCSC_SCardListReaders_Internal(SCARDCONTEXT hContext,
 
 	if (status == SCARD_S_SUCCESS)
 	{
+		WLog_ERR(TAG, "l.1171: *pMszReaderNames=%s", *pMszReaders);
+
 		mszReadersWinSCard = PCSC_ConvertReaderNamesToWinSCard(*pMszReaders, pcchReaders);
 
 		if (mszReadersWinSCard)
@@ -1983,7 +1987,7 @@ WINSCARDAPI LONG WINAPI PCSC_SCardStatus_Internal(SCARDHANDLE hCard,
 	BOOL pcbAtrLenAlloc = FALSE;
 	BOOL pcchReaderLenAlloc = FALSE;
 	LPBYTE* pPbAtr = (LPBYTE*) pbAtr;
-	LPSTR* pMszReaderNames = (LPSTR*) mszReaderNames;
+	LPSTR* pMszReaderNames = (LPSTR*) &mszReaderNames;
 	LONG status = SCARD_S_SUCCESS;
 	PCSC_SCARDHANDLE* pCard = NULL;
 	PCSC_DWORD pcsc_cchReaderLen = 0;
@@ -2092,6 +2096,9 @@ WINSCARDAPI LONG WINAPI PCSC_SCardStatus_Internal(SCARDHANDLE hCard,
 
 	status = PCSC_MapErrorCodeToWinSCard(status);
 	*pcchReaderLen = (DWORD) pcsc_cchReaderLen;
+
+	WLog_ERR(TAG, "l.2096: *pMszReaderNames=%s", *pMszReaderNames);
+
 	mszReaderNamesWinSCard = PCSC_ConvertReaderNamesToWinSCard(*pMszReaderNames, pcchReaderLen);
 
 	if (mszReaderNamesWinSCard)
@@ -2134,7 +2141,7 @@ WINSCARDAPI LONG WINAPI PCSC_SCardStatusW(SCARDHANDLE hCard,
 	if (!hContext)
 		return SCARD_E_INVALID_VALUE;
 
-	status = PCSC_SCardStatus_Internal(hCard, (LPSTR) &mszReaderNamesA, pcchReaderLen, pdwState,
+	status = PCSC_SCardStatus_Internal(hCard, mszReaderNamesA, pcchReaderLen, pdwState,
 	                                   pdwProtocol, pbAtr, pcbAtrLen);
 
 	if (mszReaderNamesA)
