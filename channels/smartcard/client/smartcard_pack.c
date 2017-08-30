@@ -1858,12 +1858,13 @@ void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* r
 	size_t index;
 	size_t length;
 	char* pbAtr = NULL;
-	char* mszReaderNamesA = NULL;
+//	char* mszReaderNamesA = NULL;
+	LPSTR* mszReaderNamesA = NULL;
 
 	if (!WLog_IsLevelActive(WLog_Get(TAG), WLOG_DEBUG))
 		return;
 
-#ifndef FROM_MASTER
+#ifdef FROM_MASTER
 	if (unicode)
 	{
 		length = ret->cBytes / 2;
@@ -1890,14 +1891,15 @@ void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* r
 	}
 #endif
 
-#ifdef FROM_COMMIT
+#ifndef FROM_COMMIT
   if (ret->mszReaderNames)
     {
 		if (unicode)
 		{
+			WLog_ERR(TAG, "ConvertFromUnicode UNICODE");
 			length = ret->cBytes / 2;
 			if (ConvertFromUnicode(CP_UTF8, 0, (WCHAR*) ret->mszReaderNames, (int)length,
-				&mszReaderNamesA, 0, NULL, NULL) < 1)
+				mszReaderNamesA, 0, NULL, NULL) < 1)
 			{
 				WLog_ERR(TAG, "ConvertFromUnicode failed");
 				return;
@@ -1905,14 +1907,17 @@ void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* r
 		}
 		else
 		{
+			WLog_ERR(TAG, "ConvertFromUnicode PAS UNICODE");
 			length = (int) ret->cBytes;
-			mszReaderNamesA = (char*) malloc(length);
+			mszReaderNamesA = (LPSTR*) calloc(length + 1, sizeof(LPSTR));
 			if (!mszReaderNamesA)
 			{
-				WLog_ERR(TAG, "malloc failed!");
+				WLog_ERR(TAG, "calloc failed!");
 				return;
 			}
-			CopyMemory(mszReaderNamesA, ret->mszReaderNames, ret->cBytes);
+//			CopyMemory(mszReaderNamesA, ret->mszReaderNames, ret->cBytes);
+			strncpy(mszReaderNamesA, ret->mszReaderNames, ret->cBytes);
+			mszReaderNamesA[length] = '\0';
         }
 	}
 #endif 
