@@ -4,6 +4,23 @@ KRB5CONFIG=$(which krb5-config)
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
 KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 
+set_MIT_flavour(){
+  if [[ $3 = "" ]]; then
+    ANSWER=no
+    while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
+    do
+      read -p "Please specify prefix directory of your MIT installation : " YOURPREFIX
+      echo "You entered : $YOURPREFIX. OK ? [Y/n]"
+      read ANSWER
+    done
+    SHAVED_PREFIX_DIR=`echo -e "$YOURPREFIX" | sed -e 's/\/$//'`
+    export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
+  else
+    SHAVED_PREFIX_DIR=`echo -e "$3" | sed -e 's/\/$//'`
+    export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
+  fi
+}
+
 if [ $1 = "Heimdal" ]; then
   if ! [[ $PATH =~ [H|h]eimdal ]]; then
     # Heimdal not set in path(*). Here we are supposed to be in a \case
@@ -14,7 +31,7 @@ if [ $1 = "Heimdal" ]; then
     # (*) Note in the particular \case where Heimdal is already running,
     # the Heimdal PATH is one of the default existing paths.
     if [[ $2 = "" ]]; then
-      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
+      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] && [ $FORCE_INSTALL == false ]; then
         echo "Heimdal is already being set as Kerberos flavour"
         MESSAGE=true
       else
@@ -22,7 +39,7 @@ if [ $1 = "Heimdal" ]; then
       fi
     else
       SHAVED_PREFIX_DIR=`echo -e "$2" | sed -e 's/\/$//'`
-      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
+      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] && [ $FORCE_INSTALL == false ]; then
         echo "Heimdal is already being set as Kerberos flavour"
         MESSAGE=true
       else
@@ -56,7 +73,7 @@ if [ $1 = "Heimdal" ]; then
       MY_PATH=$SHAVED_PREFIX_DIR/bin:$NEW_PATH
       export PATH=$MY_PATH
     else
-      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
+      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] && [ $FORCE_INSTALL == false ]; then
         echo "Heimdal is already being set as Kerberos flavour"
         MESSAGE=true
         export PATH=$KRB5PREFIX/bin:$NEW_PATH
@@ -104,23 +121,29 @@ else
     fi
   else
      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
-        if [[ $3 = "" ]]; then
-          ANSWER=no
-          while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
-          do
-            read -p "Please specify prefix directory of your MIT installation : " YOURPREFIX
-            echo "You entered : $YOURPREFIX. OK ? [Y/n]"
-            read ANSWER
-          done
-          SHAVED_PREFIX_DIR=`echo -e "$YOURPREFIX" | sed -e 's/\/$//'`
-          export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
-        else
-          SHAVED_PREFIX_DIR=`echo -e "$3" | sed -e 's/\/$//'`
-          export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
-        fi
+        #if [[ $3 = "" ]]; then
+        #  ANSWER=no
+        #  while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
+        #  do
+        #    read -p "Please specify prefix directory of your MIT installation : " YOURPREFIX
+        #    echo "You entered : $YOURPREFIX. OK ? [Y/n]"
+        #    read ANSWER
+        #  done
+        #  SHAVED_PREFIX_DIR=`echo -e "$YOURPREFIX" | sed -e 's/\/$//'`
+        #  export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
+        #else
+        #  SHAVED_PREFIX_DIR=`echo -e "$3" | sed -e 's/\/$//'`
+        #  export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
+        #fi
+	set_MIT_flavour
      else
-       echo "MIT is already being set as Kerberos flavour"
-       MESSAGE=true
+       if [ $FORCE_INSTALL == false ]; then
+         echo "MIT is already being set as Kerberos flavour"
+         MESSAGE=true
+       else
+         echo "install MIT Kerberos with version 1.15 at least: \$1=$1; \$2=$2; \$3=$3"
+         set_MIT_flavour
+       fi
      fi
   fi
 fi

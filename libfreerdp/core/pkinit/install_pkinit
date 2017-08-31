@@ -57,6 +57,95 @@ fi
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 MESSAGE=false
 START_PATH=$PATH
+FORCE_INSTALL=false
+
+reset_path(){	
+  echo "dans reset_path: CURRENT_PATH=$CURRENT_PATH; LAST_ADDED_PATH=$LAST_ADDED_PATH"
+  if ! [ $START_PATH = $PATH ]; then
+    CURRENT_PATH=$PATH
+    LAST_ADDED_PATH=`echo ${CURRENT_PATH%%:*}`
+    echo "Incorrect Kerberos path given : $LAST_ADDED_PATH. PATH not changed."
+    export PATH=$START_PATH
+  fi
+}
+
+check_version(){
+  if [ $FLAVOUR = "MIT" ]; then
+    # Need at least Kerberos V5 1.15.0 due to bugs in older versions of PKINIT
+    VERSION=$(($KRB5CONFIG --version) 2>&1)
+    NUM_VERSION=$(echo $VERSION | cut -d ' ' -f4)
+    MAJOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f1)
+    MINOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f2)
+
+    if [ "$MAJOR_VERSION" -lt 1 ]; then
+      echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
+      return 1
+    fi
+
+    if [ "$MINOR_VERSION" -lt 15 ]; then
+      echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
+      return 1
+    fi
+  else
+    # Need at least Heimdal Kerberos 7.3.0 (not tested below)
+    VERSION=$(($KRB5CONFIG --version) 2>&1)
+    NUM_VERSION=$(echo $VERSION | cut -d ' ' -f2)
+    MAJOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f1)
+    MINOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f2)
+    PATCH_VERSION=$(echo $NUM_VERSION | cut -d '.' -f3)
+
+    if [ "$MAJOR_VERSION" -lt 7 ]; then
+      echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
+      return 1
+    fi
+
+    if [ "$MINOR_VERSION" -lt 3 ]; then
+      echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
+      return 1
+    fi
+
+    if [ "$PATCH_VERSION" -lt 0 ]; then
+      echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
+      return 1
+    fi
+  fi
+  return 0
+}
+
+retval=0
+KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
+if [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "MIT" ]]; then
+	echo "on est la"
+  if [ $KRB5VENDOR = "Massachusetts Institute of Technology" ] && [ $FLAVOUR = "Heimdal" ]; then
+    echo "pas besoin de checker la version: KRB5VENDOR=$KRB5VENDOR; FLAVOUR=$FLAVOUR"
+  else
+    if [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "MIT" ]]; then
+      echo "coucou"
+    else
+      echo "on check par la"
+      check_version
+      retval=$?
+    fi
+  fi
+else
+  if [[ $KRB5VENDOR = "Massachusetts Institute of Technology" && $FLAVOUR = "Heimdal" ]]; then
+   echo  "on passe par ci et la"
+  else
+    echo "on check par ici"
+    check_version
+    retval=$?
+  fi
+fi
+
+if [ $retval == 1 ]; then
+  echo "check version nok: force install"
+  FORCE_INSTALL=true
+else
+  echo "check version ok: not force install"
+  FORCE_INSTALL=false
+fi 
+
+echo "apres premier check version : FORCE_INSTALL=$FORCE_INSTALL"
 
 # set PATH according to Kerberos flavour we choose to use,
 # i.e MIT or Heimdal.
@@ -66,68 +155,25 @@ else
   source $DIR/setkerberospath $FLAVOUR $KRB_INSTALLED_PREFIX
 fi
 
-reset_path(){
-  if ! [ $START_PATH = $PATH ]; then
-    CURRENT_PATH=$PATH
-    LAST_ADDED_PATH=`echo ${CURRENT_PATH%%:*}`
-    echo "Incorrect Kerberos path given : $LAST_ADDED_PATH. PATH not changed."
-    export PATH=$START_PATH
-  fi
-}
-
 KRB5CONFIG=$(which krb5-config)
 KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 if ! [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "Heimdal" ]]; then
   if ! [[ $KRB5VENDOR = "Massachusetts Institute of Technology" && $FLAVOUR = "MIT" ]]; then
+    echo "on passe la: KRB5VENDOR=$KRB5VENDOR; FLAVOUR=$FLAVOUR"
     reset_path
     return 1
   fi
 fi
 
-if [ $FLAVOUR = "MIT" ]; then
-  # Need at least Kerberos V5 1.15.0 due to bugs in older versions of PKINIT
-  VERSION=$(($KRB5CONFIG --version) 2>&1)
-  NUM_VERSION=$(echo $VERSION | cut -d ' ' -f4)
-  MAJOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f1)
-  MINOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f2)
-
-  if [ "$MAJOR_VERSION" -lt 1 ]; then
-    echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
-    reset_path
-    return 1
-  fi
-
-  if [ "$MINOR_VERSION" -lt 15 ]; then
-    echo "Your version of kerberos($VERSION) is too old, need at least 1.15"
-    reset_path
-    return 1
-  fi
+check_version
+retval=$?
+if [ $retval == 1 ]; then
+  echo "retval egal un: reset_path"
+  reset_path
+  return 1
 else
-  # Need at least Heimdal Kerberos 7.3.0 (not tested below)
-  VERSION=$(($KRB5CONFIG --version) 2>&1)
-  NUM_VERSION=$(echo $VERSION | cut -d ' ' -f2)
-  MAJOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f1)
-  MINOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f2)
-  PATCH_VERSION=$(echo $NUM_VERSION | cut -d '.' -f3)
-
-  if [ "$MAJOR_VERSION" -lt 7 ]; then
-    echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
-    reset_path
-    return 1
-  fi
-
-  if [ "$MINOR_VERSION" -lt 3 ]; then
-    echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
-    reset_path
-    return 1
-  fi
-
-  if [ "$PATCH_VERSION" -lt 0 ]; then
-    echo "Your version of kerberos($VERSION) is too old, need at least 7.3.0"
-    reset_path
-    return 1
-  fi
-fi
+  echo "retval egal zero: reset_path"
+fi 
 
 if [ $MESSAGE = false ]; then
   if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
