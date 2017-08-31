@@ -46,6 +46,8 @@ while true; do
   esac
 done
 
+echo "KRB_INSTALLED_PREFIX=$KRB_INSTALLED_PREFIX; KRB_SOURCES_DIR=$KRB_SOURCES_DIR"
+
 if [ $MIT = true ]; then
   FLAVOUR=MIT
 elif [ $HEIMDAL = true ]; then
@@ -116,7 +118,7 @@ retval=0
 KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 if [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "MIT" ]]; then
 	echo "on est la"
-  if [ $KRB5VENDOR = "Massachusetts Institute of Technology" ] && [ $FLAVOUR = "Heimdal" ]; then
+  if [[ $KRB5VENDOR = "Massachusetts Institute of Technology" && $FLAVOUR = "Heimdal" ]]; then
     echo "pas besoin de checker la version: KRB5VENDOR=$KRB5VENDOR; FLAVOUR=$FLAVOUR"
   else
     if [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "MIT" ]]; then
@@ -137,13 +139,19 @@ else
   fi
 fi
 
-if [ $retval == 1 ]; then
-  echo "check version nok: force install"
+if [ $retval = 1 ]; then
+  echo "check version nok: force install: retval=$retval"
   FORCE_INSTALL=true
 else
-  echo "check version ok: not force install"
+  echo "check version ok: not force install: retval=$retval"
   FORCE_INSTALL=false
 fi 
+
+if [ $FORCE_INSTALL = true ]; then
+  echo "force est true"
+else
+  echo "force est false"
+fi
 
 echo "apres premier check version : FORCE_INSTALL=$FORCE_INSTALL"
 
