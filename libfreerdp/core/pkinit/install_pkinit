@@ -57,9 +57,11 @@ else
 fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-MESSAGE=false
+MESSAGE="false"
 START_PATH=$PATH
-FORCE_INSTALL=false
+FORCE_INSTALL="false"
+SUPPLY_HEIMDAL_PATH="false"
+RETVAL=0
 
 reset_path(){	
   echo "dans reset_path: CURRENT_PATH=$CURRENT_PATH; LAST_ADDED_PATH=$LAST_ADDED_PATH"
@@ -114,7 +116,18 @@ check_version(){
   return 0
 }
 
-retval=0
+test_config(){
+  KRB5CONFIG=$(which krb5-config)
+  KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
+  if ! [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "Heimdal" ]]; then
+    if ! [[ $KRB5VENDOR = "Massachusetts Institute of Technology" && $FLAVOUR = "MIT" ]]; then
+      echo "on passe la: KRB5VENDOR=$KRB5VENDOR; FLAVOUR=$FLAVOUR"
+      return 1
+    fi
+  fi
+  return 0
+}
+
 KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 if [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "MIT" ]]; then
 	echo "on est la"
@@ -126,7 +139,7 @@ if [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "MIT" ]]; then
     else
       echo "on check par la"
       check_version
-      retval=$?
+      RETVAL=$?
     fi
   fi
 else
@@ -135,25 +148,19 @@ else
   else
     echo "on check par ici"
     check_version
-    retval=$?
+    RETVAL=$?
   fi
 fi
 
-if [ $retval = 1 ]; then
-  echo "check version nok: force install: retval=$retval"
-  FORCE_INSTALL=true
+if [ "$RETVAL" -eq 1 ]; then
+  echo "check version nok: force install: RETVAL=$RETVAL"
+  FORCE_INSTALL="true"
 else
-  echo "check version ok: not force install: retval=$retval"
-  FORCE_INSTALL=false
+  echo "check version ok: not force install: RETVAL=$RETVAL"
+  FORCE_INSTALL="false"
 fi 
 
-if [ $FORCE_INSTALL = true ]; then
-  echo "force est true"
-else
-  echo "force est false"
-fi
-
-echo "apres premier check version : FORCE_INSTALL=$FORCE_INSTALL"
+echo "apres premier check version : FORCE_INSTALL=$FORCE_INSTALL; SUPPLY_HEIMDAL_PATH=$SUPPLY_HEIMDAL_PATH"
 
 # set PATH according to Kerberos flavour we choose to use,
 # i.e MIT or Heimdal.
@@ -163,27 +170,46 @@ else
   source $DIR/setkerberospath $FLAVOUR $KRB_INSTALLED_PREFIX
 fi
 
-KRB5CONFIG=$(which krb5-config)
-KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
-if ! [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "Heimdal" ]]; then
-  if ! [[ $KRB5VENDOR = "Massachusetts Institute of Technology" && $FLAVOUR = "MIT" ]]; then
-    echo "on passe la: KRB5VENDOR=$KRB5VENDOR; FLAVOUR=$FLAVOUR"
-    reset_path
-    return 1
+echo "premier test config"
+test_config
+RETVAL=$?
+if [ "$RETVAL" -eq 1 ]; then 
+  reset_path
+fi
+
+# try to set prefix for Kerberos installation if not given previously
+if [[ $KRB_INSTALLED_PREFIX = "" ]]; then
+  if [ $FLAVOUR = "MIT" ]; then
+	echo  "source set krb path 2eme fois pour MIT"
+    source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR
+  else
+	echo  "source set krb path 2eme fois pour Heimdal"
+    source $DIR/setkerberospath $FLAVOUR $KRB_INSTALLED_PREFIX
   fi
+else
+  echo "KRB_INSTALLED_PREFIX n est pas null"
+fi
+
+echo "deuxieme test config"
+test_config
+RETVAL=$?
+if [ "$RETVAL" -eq 1 ]; then 
+  reset_path
+  echo "Configuration test failed. Abort..."
+  return 1
 fi
 
 check_version
-retval=$?
-if [ $retval == 1 ]; then
-  echo "retval egal un: reset_path"
+RETVAL=$?
+if [ "$RETVAL" -eq 1 ]; then
+  echo "RETVAL egal un: reset_path"
   reset_path
   return 1
 else
-  echo "retval egal zero: reset_path"
+  echo "RETVAL egal zero: reset_path"
 fi 
 
-if [ $MESSAGE = false ]; then
+if [ "$MESSAGE" = "false" ]; then
   if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
     echo "Heimdal has been set as Kerberos flavour"
   elif [[ $KRB5VENDOR = "Massachusetts Institute of Technology" ]]; then
