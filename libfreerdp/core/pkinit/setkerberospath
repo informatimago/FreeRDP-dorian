@@ -6,14 +6,15 @@ KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 echo "debut: \$1=$1; \$2=$2; \$3=$3"
   
 set_krb_flavour(){
+  echo "debut set_krb_flavour: PATH=$PATH"
   if [[ $2 = "" ]]; then
     ANSWER=no
     while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
     do
       if [ $1 = "MIT" ]; then 
-        read -p "Please specify prefix directory of your MIT installation : " YOURPREFIX
+        read -p "l.14: Please specify prefix directory of your MIT installation : " YOURPREFIX
       else
-        read -p "Please specify prefix directory of your Heimdal installation : " YOURPREFIX
+        read -p "l.16: Please specify prefix directory of your Heimdal installation : " YOURPREFIX
       fi
       echo "You entered : $YOURPREFIX. OK ? [Y/n]"
       read ANSWER
@@ -38,7 +39,7 @@ if [ "$1" = "Heimdal" ]; then
     if [[ $2 = "" ]]; then
       echo "l.39: SUPPLY_HEIMDAL_PATH=$SUPPLY_HEIMDAL_PATH"
       if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] && [ "$FORCE_INSTALL" = "false" ]; then
-        echo "Heimdal is already being set as Kerberos flavour"
+        echo "l.41: Heimdal is already being set as Kerberos flavour"
         MESSAGE="true"
       elif [ "$SUPPLY_HEIMDAL_PATH" = "false" ]; then
         echo "on set /usr/heimdal/bin"
@@ -51,7 +52,7 @@ if [ "$1" = "Heimdal" ]; then
     else
       SHAVED_PREFIX_DIR=`echo -e "$2" | sed -e 's/\/$//'`
       if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] && [ "$FORCE_INSTALL" = "false" ]; then
-        echo "Heimdal is already being set as Kerberos flavour"
+        echo "l.54: Heimdal is already being set as Kerberos flavour"
         MESSAGE="true"
       else
 	echo "on set $2 pour heimdal"
@@ -59,7 +60,7 @@ if [ "$1" = "Heimdal" ]; then
       fi
     fi
   else
-	echo  "delete heimdal in path"
+	echo  "l.62: delete heimdal in path"
     # delete Heimdal in PATH and export PATH with Heimdal
     # to ensure Heimdal is first Kerberos in PATH
     ORIGIN_PATH=$PATH
@@ -90,14 +91,14 @@ if [ "$1" = "Heimdal" ]; then
       export PATH=$MY_PATH
     else
       if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] && [ "$FORCE_INSTALL" = "false" ]; then
-        echo "Heimdal is already being set as Kerberos flavour"
+        echo "l.93: Heimdal is already being set as Kerberos flavour"
         MESSAGE="true"
         export PATH=$KRB5PREFIX/bin:$NEW_PATH
       else
         ANSWER=no
         while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
         do
-          read -p "Please specify prefix directory of your Heimdal installation : " YOURPREFIX
+          read -p "l.100: Please specify prefix directory of your Heimdal installation : " YOURPREFIX
           echo "You entered : $YOURPREFIX. OK ? [Y/n]"
           read ANSWER
         done
@@ -131,23 +132,42 @@ else
     done
 
     NEW_PATH=`echo ${ORIGIN_PATH/$PATH_DELETED:/}`
-	
+    PATH=$NEW_PATH	
     echo "MIT wish : NEW_PATH=$NEW_PATH; \$3=$3" 
-
-    if [[ $3 = "" ]]; then
-	echo "set MIT flavour 128"
-      set_krb_flavour MIT
-    else
-      SHAVED_PREFIX_DIR=`echo -e "$3" | sed -e 's/\/$//'`
-      export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
-    fi
+    echo "l.136: PATH=$PATH"
+    #set_krb_flavour MIT $3
+    DELETE_HEIMDAL_PATH="true"
   else
      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
 	echo "MIT wanted; Heimdal vendor; on set \$2=$2 ; \$3=$3"
 	set_krb_flavour MIT $3
      else
        if [ "$FORCE_INSTALL" = "false" ]; then
-         echo "MIT is already being set as Kerberos flavour"
+         echo "l.100: MIT is already being set as Kerberos flavour"
+	 if [[ $PATH =~ [H|h]eimdal ]]; then
+           #delete Heimdal in PATH if present
+           ORIGIN_PATH=$PATH
+           echo "l.153: ORIGIN_PATH=$ORIGIN_PATH"
+           CURRENT_PATH=$PATH
+
+           echo "l.156: on veut MIT: delete heimdal in PATH"
+
+           while true
+           do
+             HEIMDAL_PATH=`echo ${CURRENT_PATH%%:*}`
+             CURRENT_PATH=`echo ${CURRENT_PATH#*:}`
+             if [[ $HEIMDAL_PATH =~ [H|h]eimdal ]] && ! [[ $CURRENT_PATH =~ [H|h]eimdal ]]; then
+               echo "break: HEIMDAL_PATH=$HEIMDAL_PATH"
+               break
+             fi
+           done
+ 
+           echo "ORIGIN_PATH=$ORIGIN_PATH"
+           NEW_PATH=`echo ${ORIGIN_PATH/$HEIMDAL_PATH:/}`
+         
+           echo "l.174: NEW_PATH=$NEW_PATH"
+           export PATH=$NEW_PATH
+         fi
          MESSAGE="true"
        else
          echo "MIT Kerberos required at least version 1.15"
