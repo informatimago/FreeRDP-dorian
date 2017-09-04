@@ -122,7 +122,8 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
     message(SEND_ERROR "GSS configure script failed to get vendor")
   endif()
 
-  # FIXME : fail to find Heimdal libraries using configure script, we do it "manually"
+  # NOTE: fail to link Heimdal libraries using configure script due to limitations
+  # during Heimdal linking process. Then, we do it "manually".
   if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR AND NOT _GSS_VENDOR STREQUAL "Heimdal")
     execute_process(
           COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi"
