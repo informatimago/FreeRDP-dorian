@@ -170,8 +170,12 @@ else
          fi
          MESSAGE="true"
        else
-         echo "MIT Kerberos required at least version 1.15"
-         set_krb_flavour MIT $3
+         echo "MIT Kerberos already installed: \$3=$3"
+         MESSAGE="true"
+         #if ! [[ $3 = "" ]]; then
+         #  echo "MIT Kerberos already installed but force new install"
+         #  set_krb_flavour MIT $3
+         #fi
        fi
      fi
   fi
