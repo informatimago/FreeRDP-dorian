@@ -64,7 +64,6 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 MESSAGE="false"
 START_PATH=$PATH
 FORCE_INSTALL="false"
-SUPPLY_HEIMDAL_PATH="false"
 TEST_CONFIG=0
 CONFIG_FAILED="false"
 NEW_KRB_PREFIX=""
@@ -82,8 +81,12 @@ reset_path(){
 
 check_version(){
   if [ $FLAVOUR = "MIT" ]; then
-    # Need at least Kerberos V5 1.15.0 due to bugs in older versions of PKINIT
+    # Need at least 'Kerberos 5 release 1.15' due to bugs in older versions of PKINIT
     VERSION=$(($KRB5CONFIG --version) 2>&1)
+    if [[ $VERSION =~ [H|h]eimdal ]]; then
+      echo "Bad MIT Kerberos prefix given"
+      return 1
+    fi
     NUM_VERSION=$(echo $VERSION | cut -d ' ' -f4)
     MAJOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f1)
     MINOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f2)
@@ -98,8 +101,12 @@ check_version(){
       return 1
     fi
   else
-    # Need at least Heimdal Kerberos 7.3.0 (not tested below)
+    # Need at least 'heimdal 7.3.0' (not tested below)
     VERSION=$(($KRB5CONFIG --version) 2>&1)
+    if [[ $VERSION =~ Kerberos ]]; then
+      echo "Bad Heimdal Kerberos prefix given"
+      return 1
+    fi
     NUM_VERSION=$(echo $VERSION | cut -d ' ' -f2)
     MAJOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f1)
     MINOR_VERSION=$(echo $NUM_VERSION | cut -d '.' -f2)
@@ -148,16 +155,15 @@ do
     RETVAL=$?
     if [ "$RETVAL" -eq 0 ]; then
       if [[ $KRB_INSTALLED_PREFIX = "" ]]; then
-        if [[ $NEW_KRB_PREFIX = "" ]]; then
-          echo "break car all prefix vide"
-          break;
-        fi
+        echo "break car all prefix vide"
+        break;
       else
         echo "check version ok but force install: RETVAL=$RETVAL; KRB_INSTALLED_PREFIX=$KRB_INSTALLED_PREFIX"
         FORCE_INSTALL="true"
       fi
     else
       echo "check version failed, need to install new version: NEW_KRB_PREFIX=$NEW_KRB_PREFIX"
+      FORCE_INSTALL="true"
       KRB_INSTALLED_PREFIX=$NEW_KRB_PREFIX
     fi
   fi
@@ -166,7 +172,7 @@ do
     KRB_INSTALLED_PREFIX=$NEW_KRB_PREFIX
   fi
 
-  echo "apres premier check version : FORCE_INSTALL=$FORCE_INSTALL; SUPPLY_HEIMDAL_PATH=$SUPPLY_HEIMDAL_PATH"
+  echo "apres premier check version : FORCE_INSTALL=$FORCE_INSTALL"
 
   # set PATH according to Kerberos flavour we choose to use,
   # i.e MIT or Heimdal.
@@ -202,6 +208,8 @@ do
     fi
   fi
 
+  let "TEST_CONFIG++"
+
   echo "test config"
   test_config
   RETVAL_TEST=$?
@@ -211,26 +219,12 @@ do
     RETVAL_CHECK=$?
   fi
   if [ $RETVAL_TEST = 1 ] || [ $RETVAL_CHECK = 1 ]; then
-    let "TEST_CONFIG++"
     ANSWER=y
     echo "Configuration test fail $TEST_CONFIG times. Abort ? [Y/n]"
     read ANSWER
     if [[ $ANSWER =~ [Y|y] ]] || [[ $ANSWER =~ [Y|y]es ]] || [[ $ANSWER = "" ]]; then
       CONFIG_FAILED="true"
       reset_path
-      echo  "on reset path et on break: ANSWER=$ANSWER"
-      if [[ $ANSWER =~ [N|n] ]]; then
-        echo  "on passe la dans le no"
-      fi
-      if [[ $ANSWER =~ [Y|y] ]]; then
-        echo  "on passe la dans le y"
-      fi
-      if [[ $ANSWER =~ [Y|y]es ]]; then
-        echo  "on passe la dans le yes"
-      fi
-      if [[ $ANSWER = "" ]]; then
-        echo  "on passe la dans le vide"
-      fi
       break;
     else
       echo "on continue"
@@ -241,6 +235,10 @@ do
       while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
       do
         read -p "l.207: Please specify prefix directory of your $FLAVOUR installation : " NEW_KRB_PREFIX
+        if ! [ -d "$NEW_KRB_PREFIX" ]; then
+          echo "The directory $NEW_KRB_PREFIX does not exist. Try another one."
+          continue
+        fi
         echo "You entered : $NEW_KRB_PREFIX. OK ? [Y/n]"
         read ANSWER
       done
@@ -256,7 +254,7 @@ do
     fi
     echo "on break apres succes !!!"
     break; 
- fi
+  fi
 done
 echo "apres le while"
 

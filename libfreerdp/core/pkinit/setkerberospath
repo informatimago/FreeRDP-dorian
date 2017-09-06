@@ -11,10 +11,10 @@ set_krb_flavour(){
     ANSWER=no
     while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
     do
-      if [ $1 = "MIT" ]; then 
-        read -p "l.14: Please specify prefix directory of your MIT installation : " YOURPREFIX
-      else
-        read -p "l.16: Please specify prefix directory of your Heimdal installation : " YOURPREFIX
+      read -p "l.15: Please specify prefix directory of your $1 installation : " YOURPREFIX
+      if ! [ -d "$YOURPREFIX" ]; then
+        echo "The directory $YOURPREFIX does not exist. Try another one."
+        continue
       fi
       echo "You entered : $YOURPREFIX. OK ? [Y/n]"
       read ANSWER
@@ -22,6 +22,7 @@ set_krb_flavour(){
     SHAVED_PREFIX_DIR=`echo -e "$YOURPREFIX" | sed -e 's/\/$//'`
     export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
   else
+    echo "export PATH directement \$2=$2"
     SHAVED_PREFIX_DIR=`echo -e "$2" | sed -e 's/\/$//'`
     export PATH=$SHAVED_PREFIX_DIR/bin:$PATH
   fi
@@ -99,6 +100,10 @@ if [ "$1" = "Heimdal" ]; then
         while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
         do
           read -p "l.100: Please specify prefix directory of your Heimdal installation : " YOURPREFIX
+          if ! [ -d "$YOURPREFIX" ]; then
+            echo "The directory $YOURPREFIX does not exist. Try another one."
+            continue
+          fi
           echo "You entered : $YOURPREFIX. OK ? [Y/n]"
           read ANSWER
         done
@@ -170,12 +175,13 @@ else
          fi
          MESSAGE="true"
        else
-         echo "MIT Kerberos already installed: \$3=$3"
-         MESSAGE="true"
-         #if ! [[ $3 = "" ]]; then
-         #  echo "MIT Kerberos already installed but force new install"
-         #  set_krb_flavour MIT $3
-         #fi
+         if ! [[ $3 = "" ]]; then
+           echo "MIT Kerberos already installed but force new install: \$3=$3"
+           set_krb_flavour MIT $3
+	 else
+           echo "MIT Kerberos already installed"
+           MESSAGE="true"
+         fi
        fi
      fi
   fi
