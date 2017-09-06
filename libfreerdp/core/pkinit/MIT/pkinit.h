@@ -105,6 +105,7 @@ struct k_opts
 	char* k5_out_cache_name;
 	char* armor_ccache;
 	pkinit_anchors** pkinit_anchors;
+	int nb_anchors;
 
 	action_type action;
 	int use_client_keytab;
@@ -143,7 +144,7 @@ typedef ty_responder_data* responder_data;
 BOOL pkinit_acquire_krb5_TGT(rdpSettings* settings);
 BOOL get_TGT_kerberos(rdpSettings* settings);
 BOOL set_pkinit_identity(rdpSettings* settings);
-pkinit_anchors** parse_pkinit_anchors(char* list_pkinit_anchors);
+BOOL parse_pkinit_anchors(struct k_opts* opts, char* list_pkinit_anchors);
 int add_preauth_opt(struct k_opts* opts, char* av);
 int init_responder_data(rdpSettings* settings, responder_data data);
 int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* rdpSettings);

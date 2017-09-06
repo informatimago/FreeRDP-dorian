@@ -37,7 +37,6 @@
 #include <assert.h>
 
 #define TAG FREERDP_TAG("core.pkinit")
-#define PKINIT_ANCHORS_MAX 10
 
 static const char* PREFIX_X509_ANCHORS = "X509_anchors=";
 static const char* PREFIX_PKINIT_FILE = "FILE:";
@@ -183,127 +182,101 @@ BOOL set_pkinit_identity(rdpSettings* settings)
 }
 
 
-pkinit_anchors** parse_pkinit_anchors(char* list_pkinit_anchors)
+BOOL parse_pkinit_anchors(struct k_opts* opts, char* list_pkinit_anchors)
 {
-	pkinit_anchors** array_pkinit_anchors = NULL;
-	array_pkinit_anchors = (pkinit_anchors**) calloc(PKINIT_ANCHORS_MAX, sizeof(pkinit_anchors*));
-
-	if (array_pkinit_anchors == NULL)
-		return NULL;
-
-	int i = 0, j = 0;
-
-	for (i = 0; i < PKINIT_ANCHORS_MAX; i++)
-	{
-		array_pkinit_anchors[i] = (pkinit_anchors*) calloc(1, sizeof(pkinit_anchors));
-
-		if (array_pkinit_anchors[i] == NULL)
-		{
-			while (i)
-			{
-				free(array_pkinit_anchors[i - 1]);
-				i--;
-			}
-
-			free(array_pkinit_anchors);
-			return NULL;
-		}
-	}
-
 	WLog_DBG(TAG, "pkinit anchors : %s", list_pkinit_anchors);
+	int i = 0, j = 0, k = 0, nb_anchors = 0;
+	opts->pkinit_anchors = (pkinit_anchors**) calloc(1, sizeof(pkinit_anchors*));
+
+	if (opts->pkinit_anchors == NULL)
+		return FALSE;
+
 	char* pch;
 	pch = strtok(list_pkinit_anchors, ",");
 
 	if (pch == NULL)
 	{
-		for (i = 0; i < PKINIT_ANCHORS_MAX; i++)
-			free(array_pkinit_anchors[i]);
-
-		free(array_pkinit_anchors);
-		return NULL;
+		free(opts->pkinit_anchors);
+		return FALSE;
 	}
-
-	i = 0;
 
 	while (pch != NULL)
 	{
-		array_pkinit_anchors[i]->anchor = _strdup(pch);
+		nb_anchors++;
+		opts->pkinit_anchors[i] = (pkinit_anchors*) calloc(1, sizeof(pkinit_anchors));
 
-		if (array_pkinit_anchors[i]->anchor == NULL)
+		if (opts->pkinit_anchors[i] == NULL)
+		{
+			WLog_ERR(TAG, "Error memory allocation");
+			goto get_error;
+		}
+
+		opts->pkinit_anchors[i]->anchor = _strdup(pch);
+
+		if (opts->pkinit_anchors[i]->anchor == NULL)
 		{
 			WLog_ERR(TAG, "Error _strdup");
-			j = i + 1;
-
-			while (j > 0)
-			{
-				free(array_pkinit_anchors[j - 1]->anchor);
-				j--;
-			}
-
-			while (j < PKINIT_ANCHORS_MAX)
-			{
-				free(array_pkinit_anchors[j]);
-				j++;
-			}
-
-			free(array_pkinit_anchors);
-			return NULL;
+			goto get_error;
 		}
 
-		array_pkinit_anchors[i]->length = strlen(array_pkinit_anchors[i]->anchor);
-		size_t new_size_array_anchors = strlen(array_pkinit_anchors[i]->anchor) + strlen(
+		opts->pkinit_anchors[i]->length = strlen(opts->pkinit_anchors[i]->anchor);
+		size_t new_size_array_anchors = strlen(opts->pkinit_anchors[i]->anchor) + strlen(
 		                                    PREFIX_X509_ANCHORS) + strlen(PREFIX_PKINIT_FILE);
-		array_pkinit_anchors[i]->anchor = realloc(array_pkinit_anchors[i]->anchor,
+		opts->pkinit_anchors[i]->anchor = realloc(opts->pkinit_anchors[i]->anchor,
 		                                  new_size_array_anchors + 1);
 
-		if (array_pkinit_anchors[i]->anchor == NULL)
+		if (opts->pkinit_anchors[i]->anchor == NULL)
 		{
-			j = i + 1;
-
-			while (j > 0)
-			{
-				free(array_pkinit_anchors[j - 1]->anchor);
-				j--;
-			}
-
-			while (j < PKINIT_ANCHORS_MAX)
-			{
-				free(array_pkinit_anchors[j]);
-				j++;
-			}
-
-			free(array_pkinit_anchors);
-			return NULL;
+			WLog_ERR(TAG, "Error memory allocation");
+			goto get_error;
 		}
 
-		memmove(array_pkinit_anchors[i]->anchor + strlen(PREFIX_X509_ANCHORS) + strlen(PREFIX_PKINIT_FILE),
-		        array_pkinit_anchors[i]->anchor, array_pkinit_anchors[i]->length + 1);
-		memcpy(array_pkinit_anchors[i]->anchor + 0, PREFIX_X509_ANCHORS, strlen(PREFIX_X509_ANCHORS));
-		memcpy(array_pkinit_anchors[i]->anchor + strlen(PREFIX_X509_ANCHORS), PREFIX_PKINIT_FILE,
+		memmove(opts->pkinit_anchors[i]->anchor + strlen(PREFIX_X509_ANCHORS) + strlen(PREFIX_PKINIT_FILE),
+		        opts->pkinit_anchors[i]->anchor, opts->pkinit_anchors[i]->length + 1);
+		memcpy(opts->pkinit_anchors[i]->anchor + 0, PREFIX_X509_ANCHORS, strlen(PREFIX_X509_ANCHORS));
+		memcpy(opts->pkinit_anchors[i]->anchor + strlen(PREFIX_X509_ANCHORS), PREFIX_PKINIT_FILE,
 		       strlen(PREFIX_PKINIT_FILE));
-		*(array_pkinit_anchors[i]->anchor + new_size_array_anchors) = '\0';
+		*(opts->pkinit_anchors[i]->anchor + new_size_array_anchors) = '\0';
 		pch = strtok(NULL, ",");
-		i++;
 
-		if (pch != NULL && i == PKINIT_ANCHORS_MAX)
+		if (pch != NULL)
 		{
-			WLog_ERR(TAG, "Error : too much anchors given");
+			opts->pkinit_anchors = (pkinit_anchors**) realloc(opts->pkinit_anchors,
+			                       (nb_anchors + 1) * sizeof(pkinit_anchors*));
 
-			for (i = PKINIT_ANCHORS_MAX; i > 0 ; i--)
-				free(array_pkinit_anchors[i - 1]->anchor);
-
-			free(array_pkinit_anchors);
-			return NULL;
+			if (opts->pkinit_anchors == NULL)
+			{
+				WLog_ERR(TAG, "Error memory allocation");
+				goto get_error;
+			}
 		}
+
+		i++;
 	}
 
+	/* if one or more pkinit anchors have been found return TRUE, otherwise FALSE */
 	if (i)
-		return array_pkinit_anchors;
-	else
 	{
-		free(array_pkinit_anchors);
-		return NULL;
+		opts->nb_anchors = nb_anchors;
+		return TRUE;
 	}
+
+get_error:
+	j = i + 1;
+
+	while (j > 0)
+	{
+		free(opts->pkinit_anchors[j - 1]->anchor);
+		j--;
+	}
+
+	while (j < nb_anchors)
+	{
+		free(opts->pkinit_anchors[j]);
+		j++;
+	}
+
+	return FALSE;
 }
 
 
@@ -318,42 +291,54 @@ char** integer_to_string_token_flags_responder(INT32 tokenFlags)
 		token_flags_pkinit_formatted = "0";
 	}
 
-	if ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) == KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW)
+	if ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) ==
+	    KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW)
 	{
 		token_flags_pkinit_formatted = "1"; /* (1 << 0) = 1 */
 	}
 
-	if ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) == KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY)
+	if ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) ==
+	    KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY)
 	{
 		token_flags_pkinit_formatted = "2"; /* (1 << 1) = 2 */
 	}
 
-	if (((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) == KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) &&
-	    ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) == KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY))
+	if (((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) ==
+	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) &&
+	    ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) ==
+	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY))
 	{
 		token_flags_pkinit_formatted = "3"; /* (1 << 0) & (1 << 1) = 3 */
 	}
 
-	if ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED) == KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED)
+	if ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED) ==
+	    KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED)
 	{
 		token_flags_pkinit_formatted = "4"; /* (1 << 2) = 4 */
 	}
 
-	if (((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) == KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) &&
-	    ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED) == KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED))
+	if (((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) ==
+	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) &&
+	    ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED) ==
+	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED))
 	{
 		token_flags_pkinit_formatted = "5"; /* (1 << 0) & (1 << 2) = 5 */
 	}
 
-	if (((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) == KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) &&
-	    ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED) == KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED))
+	if (((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) ==
+	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) &&
+	    ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED) ==
+	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED))
 	{
 		token_flags_pkinit_formatted = "6"; /* (1 << 1) & (1 << 2) = 6 */
 	}
 
-	if (((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) == KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) &&
-	    ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) == KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY)
-	    && ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED) == KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED))
+	if (((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) ==
+	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) &&
+	    ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) ==
+	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY)
+	    && ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED) ==
+	        KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED))
 	{
 		token_flags_pkinit_formatted = "7"; /* (1 << 0) & (1 << 1) & (1 << 2) = 7 */
 	}
@@ -1120,7 +1105,7 @@ cleanup:
 
 	if (opts->pkinit_anchors)
 	{
-		for (i = PKINIT_ANCHORS_MAX; i > 0 ; i--)
+		for (i = opts->nb_anchors; i > 0 ; i--)
 		{
 			free(opts->pkinit_anchors[i - 1]->anchor);
 			opts->pkinit_anchors[i - 1]->anchor = NULL;
@@ -1175,15 +1160,13 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 	}
 	else
 	{
-		opts->pkinit_anchors = parse_pkinit_anchors(list_pkinit_anchors);
-
-		if (opts->pkinit_anchors == NULL)
+		if (parse_pkinit_anchors(opts, list_pkinit_anchors) == false)
 		{
 			WLog_ERR(TAG, "%s : Fail to get pkinit anchors", progname);
 			goto cleanup;
 		}
 
-		while (opts->pkinit_anchors && opts->pkinit_anchors[i]->anchor)
+		while (i < opts->nb_anchors && opts->pkinit_anchors && opts->pkinit_anchors[i]->anchor)
 		{
 			anchors_init = add_preauth_opt(opts, opts->pkinit_anchors[i]->anchor);
 
@@ -1439,7 +1422,7 @@ cleanup:
 
 	if (opts->pkinit_anchors != NULL)
 	{
-		for (i = PKINIT_ANCHORS_MAX; i > 0 ; i--)
+		for (i = opts->nb_anchors; i > 0 ; i--)
 		{
 			free(opts->pkinit_anchors[i - 1]->anchor);
 			opts->pkinit_anchors[i - 1]->anchor = NULL;
