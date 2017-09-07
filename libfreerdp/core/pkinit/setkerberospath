@@ -36,7 +36,6 @@ set_krb_flavour(){
 delete_heimdal_path(){
   ORIGIN_PATH=$PATH
   CURRENT_PATH=$PATH
-  #PATH_DELETED=
 
   echo "on veut MIT: delete heimdal in PATH"
 
@@ -44,13 +43,6 @@ delete_heimdal_path(){
   do
     HEIMDAL_PATH=`echo ${CURRENT_PATH%%:*}`
     echo "l.138:HEIMDAL_PATH=$HEIMDAL_PATH"
-    #if [[ $PATH_DELETED = "" ]]; then
-    #  PATH_DELETED=$HEIMDAL_PATH
-    #  echo "l.141:PATH_DELETED=$PATH_DELETED"
-    #else
-    #  PATH_DELETED=$PATH_DELETED:$HEIMDAL_PATH
-    #  echo "l.144:PATH_DELETED=$PATH_DELETED"
-    #fi
     CURRENT_PATH=`echo ${CURRENT_PATH#*:}`
     if [[ $HEIMDAL_PATH =~ [H|h]eimdal ]] && ! [[ $CURRENT_PATH =~ [H|h]eimdal ]]; then
       break
@@ -65,11 +57,8 @@ check_path(){
   ORIGIN_PATH=$1
   CURRENT_PATH=$1
   NEXT_CURRENT_PATH=
-  ORIGIN_PATH_LENGTH=${#ORIGIN_PATH}
-  PATH_CHECKED_CUT=
-  CUT="false"
-  echo "on supprime tous les doublons consecutifs; ORIGIN_PATH_LENGTH=$ORIGIN_PATH_LENGTH"
-
+  # delete two same paths in a row in env var PATH
+  # to avoid to add already existing path while configuring Kerberos flavour
   while true
   do
     if [[ $NEXT_CURRENT_PATH = "" ]]; then
@@ -82,40 +71,26 @@ check_path(){
       PATH_CHECKED=$PATH_CHECKED:$PATH_TO_CHECK
       echo "l.81:PATH_CHECKED=$PATH_CHECKED"
     fi
-    PATH_TO_CHECK_LENGTH=${#PATH_TO_CHECK}
-    PATH_CHECKED_LENGTH=${#PATH_CHECKED}
-    echo "PATH_TO_CHECK_LENGTH=$PATH_TO_CHECK_LENGTH; PATH_CHECKED_LENGTH=$PATH_CHECKED_LENGTH"
     NEXT_CURRENT_PATH=`echo ${CURRENT_PATH#*:}`
     echo "NEXT_CURRENT_PATH=$NEXT_CURRENT_PATH"
     NEXT_PATH_TO_CHECK=`echo ${NEXT_CURRENT_PATH%%:*}`
     echo "NEXT_PATH_TO_CHECK=$NEXT_PATH_TO_CHECK"
-    if [[ $PATH_TO_CHECK =~ $NEXT_PATH_TO_CHECK ]]; then
+    if [ "$PATH_TO_CHECK" = "$NEXT_PATH_TO_CHECK" ]; then
       echo "avant delete: CURRENT_PATH=$CURRENT_PATH"
       CURRENT_PATH=`echo ${CURRENT_PATH//$PATH_TO_CHECK:/}`
-      #PATH_CHECKED_CUT=$PATH_CHECKED:$CURRENT_PATH
-      #CUT="true"
-      echo "apres delete: CURRENT_PATH=$CURRENT_PATH; PATH_CHECKED_CUT=$PATH_CHECKED_CUT"
-      echo "eq: CURRENT_PATH=$CURRENT_PATH"
-      echo "PATH_TO_CHECK=$PATH_TO_CHECK; PATH_TO_CHECK_LENGTH=$PATH_TO_CHECK_LENGTH"
-      echo "l.96: PATH_CHECKED_LENGTH=$PATH_CHECKED_LENGTH"
-      if [ $PATH_CHECKED_LENGTH = $ORIGIN_PATH_LENGTH ]; then
-        echo "break end of line"
-        #PATH_CHECKED=`echo ${PATH_CHECKED/:$PATH_TO_CHECK/}`
-        #PATH_CHECKED_LENGTH=${#PATH_CHECKED}
-        echo "dans le break : CURRENT_PATH=$CURRENT_PATH; KEEP_PATH=$KEEP_PATH"
+      NEXT_CURRENT_PATH=`echo ${NEXT_CURRENT_PATH//$PATH_TO_CHECK:/}`
+      echo "apres delete: CURRENT_PATH=$CURRENT_PATH"
+      echo "PATH_TO_CHECK=$PATH_TO_CHECK"
+      if [ "$NEXT_CURRENT_PATH" = "$NEXT_PATH_TO_CHECK" ]; then
+        echo "dans le break : NEXT_CURRENT_PATH=$NEXT_CURRENT_PATH"
         break
       fi
-    elif [[ $NEXT_CURRENT_PATH = "" ]]; then
-      echo "end of PATH : NEXT_CURRENT_PATH=$NEXT_CURRENT_PATH"
-      #KEEP_PATH=$PATH_CHECKED:$CURRENT_PATH
-      echo "break: KEEP_PATH=$KEEP_PATH; PATH_CHECKED=$PATH_CHECKED; CURRENT_PATH=$CURRENT_PATH"
-      #break
     else
       CURRENT_PATH=$NEXT_CURRENT_PATH
+      echo "l.104: dans le else CURRENT_PATH=$CURRENT_PATH"
     fi
-    KEEP_PATH=$PATH_CHECKED:$CURRENT_PATH
-    echo "avant le done : CURRENT_PATH=$CURRENT_PATH; KEEP_PATH=$KEEP_PATH; PATH_CHECKED_CUT=$PATH_CHECKED_CUT"
-    echo "apres le done : CURRENT_PATH=$CURRENT_PATH; KEEP_PATH=$KEEP_PATH; PATH_CHECKED_CUT=$PATH_CHECKED_CUT"
+    KEEP_PATH=$PATH_CHECKED:$NEXT_CURRENT_PATH
+    echo "avant le done : CURRENT_PATH=$CURRENT_PATH; KEEP_PATH=$KEEP_PATH"
   done
 
   NEW_PATH=$KEEP_PATH
