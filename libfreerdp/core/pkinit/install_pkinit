@@ -67,6 +67,7 @@ FORCE_INSTALL="false"
 TEST_CONFIG=0
 CONFIG_FAILED="false"
 NEW_KRB_PREFIX=""
+CHECK_VERSION="true"
 RETVAL=0
 
 reset_path(){	
@@ -163,8 +164,10 @@ do
       fi
     else
       echo "check version failed, need to install new version: NEW_KRB_PREFIX=$NEW_KRB_PREFIX"
-      FORCE_INSTALL="true"
-      KRB_INSTALLED_PREFIX=$NEW_KRB_PREFIX
+      CHECK_VERSION="false"
+      if ! [[ $NEW_KRB_PREFIX = "" ]]; then
+        KRB_INSTALLED_PREFIX=$NEW_KRB_PREFIX
+      fi
     fi
   fi
 

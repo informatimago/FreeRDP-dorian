@@ -4,6 +4,7 @@ KRB5CONFIG=$(which krb5-config)
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
 KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 echo "debut: \$1=$1; \$2=$2; \$3=$3"
+SUPPLY_USR_HEIMDAL_PATH="false"
   
 set_krb_flavour(){
   echo "debut set_krb_flavour: PATH=$PATH"
@@ -28,6 +29,10 @@ set_krb_flavour(){
   fi
 }
 
+check_path(){
+ return 0  
+}
+
 if [ "$1" = "Heimdal" ]; then
   if ! [[ $PATH =~ [H|h]eimdal ]]; then
     # Heimdal not set in path(*). Here we are supposed to be in a \case
@@ -42,10 +47,15 @@ if [ "$1" = "Heimdal" ]; then
       if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] && [ "$FORCE_INSTALL" = "false" ]; then
         echo "l.41: Heimdal is already being set as Kerberos flavour"
         MESSAGE="true"
-      elif [ "$SUPPLY_HEIMDAL_PATH" = "false" ]; then
-        echo "on set /usr/heimdal/bin"
-        export PATH=/usr/heimdal/bin:$PATH
-        SUPPLY_HEIMDAL_PATH="true"
+      elif [ "$SUPPLY_USR_HEIMDAL_PATH" = "false" ]; then
+        if ! [ -d "$YOURPREFIX" ]; then
+          echo "The directory /usr/heimdal/bin does not exist. Try another one."
+          set_krb_flavour Heimdal
+        else
+          echo "on set /usr/heimdal/bin"
+          export PATH=/usr/heimdal/bin:$PATH
+          SUPPLY_USR_HEIMDAL_PATH="true"
+        fi
       else
         echo "call set flavour function"
         set_krb_flavour Heimdal
@@ -125,10 +135,13 @@ else
     while true
     do
       HEIMDAL_PATH=`echo ${CURRENT_PATH%%:*}`
+      echo "HEIMDAL_PATH=$HEIMDAL_PATH"
       if [[ $PATH_DELETED = "" ]]; then
         PATH_DELETED=$HEIMDAL_PATH
+        echo "PATH_DELETED=$PATH_DELETED"
       else
         PATH_DELETED=$PATH_DELETED:$HEIMDAL_PATH
+        echo "PATH_DELETED=$PATH_DELETED"
       fi
       CURRENT_PATH=`echo ${CURRENT_PATH#*:}`
       if [[ $HEIMDAL_PATH =~ [H|h]eimdal ]] && ! [[ $CURRENT_PATH =~ [H|h]eimdal ]]; then
@@ -137,11 +150,14 @@ else
     done
 
     NEW_PATH=`echo ${ORIGIN_PATH/$PATH_DELETED:/}`
+    echo "NEW_PATH=$NEW_PATH ; PATH_DELETED=$PATH_DELETED"
     PATH=$NEW_PATH	
     echo "MIT wish : NEW_PATH=$NEW_PATH; \$3=$3" 
-    echo "l.136: PATH=$PATH"
-    #set_krb_flavour MIT $3
-    DELETE_HEIMDAL_PATH="true"
+    echo "l.136: PATH=$PATH; FORCE_INSTALL=$FORCE_INSTALL"
+    if [[ $FORCE_INSTALL = "true" ]]; then
+      echo "MIT Kerberos : force new install: \$3=$3"
+      set_krb_flavour MIT $3
+    fi
   else
      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
 	echo "MIT wanted; Heimdal vendor; on set \$2=$2 ; \$3=$3"
@@ -175,8 +191,8 @@ else
          fi
          MESSAGE="true"
        else
-         if ! [[ $3 = "" ]]; then
-           echo "MIT Kerberos already installed but force new install: \$3=$3"
+	 if [ "CHECK_VERSION" = "false" ]; then
+           echo "Force new install MIT Kerberos : \$3=$3"
            set_krb_flavour MIT $3
 	 else
            echo "MIT Kerberos already installed"
