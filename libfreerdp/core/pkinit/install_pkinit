@@ -76,6 +76,7 @@ reset_path(){
     CURRENT_PATH=$PATH
     LAST_ADDED_PATH=`echo ${CURRENT_PATH%%:*}`
     echo "Incorrect Kerberos path given : $LAST_ADDED_PATH. PATH not changed."
+    FORCE_INSTALL="true"
     export PATH=$START_PATH
   fi
 }
@@ -220,6 +221,9 @@ do
   if [ $RETVAL_TEST = 0 ]; then
     check_version
     RETVAL_CHECK=$?
+    if [ $RETVAL_CHECK = 1 ]; then
+      CHECK_VERSION="false"
+    fi
   fi
   if [ $RETVAL_TEST = 1 ] || [ $RETVAL_CHECK = 1 ]; then
     ANSWER=y
