@@ -149,6 +149,11 @@ do
     RETVAL=$?
     if [ "$RETVAL" -eq 0 ]; then
       if [[ $KRB_INSTALLED_PREFIX = "" ]]; then
+        if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
+          echo "Heimdal is already being set as Kerberos flavour"
+        elif [[ $KRB5VENDOR = "Massachusetts Institute of Technology" ]]; then
+          echo "MIT is already being set as Kerberos flavour"
+        fi
         break;
       else
         FORCE_INSTALL="true"
@@ -206,7 +211,7 @@ do
   fi
   if [ $RETVAL_TEST = 1 ] || [ $RETVAL_CHECK = 1 ]; then
     ANSWER=y
-    echo "Configuration test fail $TEST_CONFIG times. Abort ? [Y/n]"
+    echo "Configuration test failed $TEST_CONFIG time(s). Abort ? [Y/n]"
     read ANSWER
     if [[ $ANSWER =~ [Y|y] ]] || [[ $ANSWER =~ [Y|y]es ]] || [[ $ANSWER = "" ]]; then
       CONFIG_FAILED="true"

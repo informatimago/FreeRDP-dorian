@@ -10,7 +10,7 @@ set_krb_flavour(){
     ANSWER=no
     while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
     do
-      read -p "l.15: Please specify prefix directory of your $1 installation : " YOURPREFIX
+      read -p "Please specify prefix directory of your $1 installation : " YOURPREFIX
       if ! [ -d "$YOURPREFIX" ]; then
         echo "The directory $YOURPREFIX does not exist. Try another one."
         continue
@@ -50,7 +50,7 @@ check_path(){
   CURRENT_PATH=$1
   NEXT_CURRENT_PATH=
 
-  # delete one path when two same paths are found in a row in env var PATH
+  # delete one path when two same paths are found in env var PATH
   # to avoid to add already existing path while configuring Kerberos flavour
   while true
   do
@@ -149,7 +149,7 @@ if [ "$1" = "Heimdal" ]; then
         ANSWER=no
         while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
         do
-          read -p "l.100: Please specify prefix directory of your Heimdal installation : " YOURPREFIX
+          read -p "Please specify prefix directory of your Heimdal installation : " YOURPREFIX
           if ! [ -d "$YOURPREFIX" ]; then
             echo "The directory $YOURPREFIX does not exist. Try another one."
             continue
