@@ -3,11 +3,9 @@
 KRB5CONFIG=$(which krb5-config)
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
 KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
-echo "debut: \$1=$1; \$2=$2; \$3=$3"
 SUPPLY_USR_HEIMDAL_PATH="false"
   
 set_krb_flavour(){
-  echo "debut set_krb_flavour: PATH=$PATH"
   if [[ $2 = "" ]]; then
     ANSWER=no
     while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
@@ -25,7 +23,6 @@ set_krb_flavour(){
     check_path $NEW_PATH
     export PATH=$NEW_PATH
   else
-    echo "export PATH directement \$2=$2"
     SHAVED_PREFIX_DIR=`echo -e "$2" | sed -e 's/\/$//'`
     NEW_PATH=$SHAVED_PREFIX_DIR/bin:$PATH
     check_path $NEW_PATH
@@ -37,12 +34,9 @@ delete_heimdal_path(){
   ORIGIN_PATH=$PATH
   CURRENT_PATH=$PATH
 
-  echo "on veut MIT: delete heimdal in PATH"
-
   while true
   do
     HEIMDAL_PATH=`echo ${CURRENT_PATH%%:*}`
-    echo "l.138:HEIMDAL_PATH=$HEIMDAL_PATH"
     CURRENT_PATH=`echo ${CURRENT_PATH#*:}`
     if [[ $HEIMDAL_PATH =~ [H|h]eimdal ]] && ! [[ $CURRENT_PATH =~ [H|h]eimdal ]]; then
       break
@@ -50,83 +44,68 @@ delete_heimdal_path(){
   done
 
   NEW_PATH=`echo ${ORIGIN_PATH/$HEIMDAL_PATH:/}`
-  echo "NEW_PATH=$NEW_PATH ; HEIMDAL_PATH=$HEIMDAL_PATH"
 }
 
 check_path(){
-  ORIGIN_PATH=$1
   CURRENT_PATH=$1
   NEXT_CURRENT_PATH=
-  # delete two same paths in a row in env var PATH
+
+  # delete one path when two same paths are found in a row in env var PATH
   # to avoid to add already existing path while configuring Kerberos flavour
   while true
   do
     if [[ $NEXT_CURRENT_PATH = "" ]]; then
       PATH_TO_CHECK=`echo ${CURRENT_PATH%%:*}`
-      echo "l.75:PATH_TO_CHECK=$PATH_TO_CHECK"
       PATH_CHECKED=$PATH_TO_CHECK
     else
       PATH_TO_CHECK=`echo ${NEXT_CURRENT_PATH%%:*}`
-      echo "l.78:PATH_TO_CHECK=$PATH_TO_CHECK"
       PATH_CHECKED=$PATH_CHECKED:$PATH_TO_CHECK
-      echo "l.81:PATH_CHECKED=$PATH_CHECKED"
     fi
     NEXT_CURRENT_PATH=`echo ${CURRENT_PATH#*:}`
-    echo "NEXT_CURRENT_PATH=$NEXT_CURRENT_PATH"
     NEXT_PATH_TO_CHECK=`echo ${NEXT_CURRENT_PATH%%:*}`
-    echo "NEXT_PATH_TO_CHECK=$NEXT_PATH_TO_CHECK"
     if [ "$PATH_TO_CHECK" = "$NEXT_PATH_TO_CHECK" ]; then
-      echo "avant delete: CURRENT_PATH=$CURRENT_PATH"
       CURRENT_PATH=`echo ${CURRENT_PATH//$PATH_TO_CHECK:/}`
       NEXT_CURRENT_PATH=`echo ${NEXT_CURRENT_PATH//$PATH_TO_CHECK:/}`
-      echo "apres delete: CURRENT_PATH=$CURRENT_PATH"
-      echo "PATH_TO_CHECK=$PATH_TO_CHECK"
       if [ "$NEXT_CURRENT_PATH" = "$NEXT_PATH_TO_CHECK" ]; then
-        echo "dans le break : NEXT_CURRENT_PATH=$NEXT_CURRENT_PATH"
         break
       fi
     else
       CURRENT_PATH=$NEXT_CURRENT_PATH
-      echo "l.104: dans le else CURRENT_PATH=$CURRENT_PATH"
     fi
     KEEP_PATH=$PATH_CHECKED:$NEXT_CURRENT_PATH
-    echo "avant le done : CURRENT_PATH=$CURRENT_PATH; KEEP_PATH=$KEEP_PATH"
   done
 
   NEW_PATH=$KEEP_PATH
-  echo "keep : NEW_PATH=$NEW_PATH"
 }
 
 if [ "$1" = "Heimdal" ]; then
   if ! [[ $PATH =~ [H|h]eimdal ]]; then
-    # Heimdal not set in path(*). Here we are supposed to be in a \case
+    # Heimdal is not set in path(*). Here we are supposed to be in a \case
     # where MIT is installed and running over Heimdal (unless Heimdal is being
-    # installed in a non-default directory, so no "heimdal" string presents in PATH).
+    # installed in a non-default directory, so no "heimdal" string presents
+    # in env var PATH).
     # We set it by default to the default installation of Heimdal (/usr/heimdal).
-    # If you want an other PATH please specify KRB_INSTALLED_PREFIX.
-    # (*) Note in the particular \case where Heimdal is already running,
-    # the Heimdal PATH is one of the default existing paths.
+    # If you want an other path please specify KRB_INSTALLED_PREFIX.
+    # (*) Note in the particular \case where Heimdal is already set,
+    # the Heimdal path is one of the default existing paths.
     if [[ $2 = "" ]]; then
-      echo "l.39: SUPPLY_HEIMDAL_PATH=$SUPPLY_HEIMDAL_PATH"
       if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] && [ "$FORCE_INSTALL" = "false" ]; then
-        echo "l.41: Heimdal is already being set as Kerberos flavour"
+        echo "Heimdal is already being set as Kerberos flavour"
         MESSAGE="true"
       elif [ "$SUPPLY_USR_HEIMDAL_PATH" = "false" ]; then
         if ! [ -d "$YOURPREFIX" ]; then
           echo "The directory /usr/heimdal does not exist. Try another one."
           set_krb_flavour Heimdal
         else
-          echo "on set /usr/heimdal/bin"
           export PATH=/usr/heimdal/bin:$PATH
           SUPPLY_USR_HEIMDAL_PATH="true"
         fi
       else
-        echo "call set flavour function"
         set_krb_flavour Heimdal
       fi
     else
       if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] && [ "$FORCE_INSTALL" = "false" ]; then
-        echo "l.54: Heimdal is already being set as Kerberos flavour"
+        echo "Heimdal is already being set as Kerberos flavour"
         MESSAGE="true"
       else
         if ! [ -d "$2" ]; then
@@ -134,7 +113,6 @@ if [ "$1" = "Heimdal" ]; then
           set_krb_flavour Heimdal
         else
           SHAVED_PREFIX_DIR=`echo -e "$2" | sed -e 's/\/$//'`
-	  echo "on set $2 pour heimdal"
           NEW_PATH=$SHAVED_PREFIX_DIR/bin:$PATH
           check_path $NEW_PATH
           export PATH=$NEW_PATH
@@ -142,26 +120,27 @@ if [ "$1" = "Heimdal" ]; then
       fi
     fi
   else
-	echo  "l.62: delete heimdal in path"
     # delete Heimdal in PATH and export PATH with Heimdal
     # to ensure Heimdal is first Kerberos in PATH
     delete_heimdal_path    
-    echo "NEW_PATH=$NEW_PATH; \$2=$2"  
-
     if ! [[ $2 = "" ]]; then
-      echo "le deuxieme argument nest pas nul"
-      if ! [ -d "$2" ]; then
-        echo "The directory $2 does not exist. Try another one."
-        set_krb_flavour Heimdal
+      if [ "$CHECK_VERSION" = "true" ]; then
+        echo "Heimdal is already being set as Kerberos flavour"
+        MESSAGE="true"
       else
-        SHAVED_PREFIX_DIR=`echo -e "$2" | sed -e 's/\/$//'`
-        NEW_PATH=$SHAVED_PREFIX_DIR/bin:$NEW_PATH
-        check_path $NEW_PATH
-        export PATH=$NEW_PATH
+        if ! [ -d "$2" ]; then
+          echo "The directory $2 does not exist. Try another one."
+          set_krb_flavour Heimdal
+        else
+          SHAVED_PREFIX_DIR=`echo -e "$2" | sed -e 's/\/$//'`
+          NEW_PATH=$SHAVED_PREFIX_DIR/bin:$NEW_PATH
+          check_path $NEW_PATH
+          export PATH=$NEW_PATH
+        fi
       fi
     else
       if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]] && [ "$FORCE_INSTALL" = "false" ]; then
-        echo "l.93: Heimdal is already being set as Kerberos flavour"
+        echo "Heimdal is already being set as Kerberos flavour"
         MESSAGE="true"
         NEW_PATH=$KRB5PREFIX/bin:$NEW_PATH
         check_path $NEW_PATH
@@ -186,14 +165,9 @@ if [ "$1" = "Heimdal" ]; then
     fi
   fi
 else
-  echo "on veut du MIT: \$1=$1; \$2=$2; \$3=$3"
   if [[ $KRB5CONFIG =~ [H|h]eimdal ]]; then
-    # delete Heimdal in PATH
     delete_heimdal_path    
-    echo "MIT wish : NEW_PATH=$NEW_PATH; \$3=$3" 
-    echo "l.136: PATH=$PATH; FORCE_INSTALL=$FORCE_INSTALL"
     if [[ $FORCE_INSTALL = "true" ]]; then
-      echo "MIT Kerberos : force new install: \$3=$3"
       set_krb_flavour MIT $3
     else
       check_path $NEW_PATH
@@ -201,23 +175,20 @@ else
     fi
   else
      if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
-	echo "MIT wanted; Heimdal vendor; on set \$2=$2 ; \$3=$3"
 	set_krb_flavour MIT $3
      else
        if [ "$FORCE_INSTALL" = "false" ]; then
-         echo "l.100: MIT is already being set as Kerberos flavour"
 	 if [[ $PATH =~ [H|h]eimdal ]]; then
-           #delete Heimdal in PATH if present
            delete_heimdal_path
            export PATH=$NEW_PATH
          fi
+         echo "MIT is already being set as Kerberos flavour"
          MESSAGE="true"
        else
 	 if [ "$CHECK_VERSION" = "false" ]; then
-           echo "Force new install MIT Kerberos : \$3=$3"
            set_krb_flavour MIT $3
          else
-           echo "MIT Kerberos already installed"
+           echo "MIT is already being set as Kerberos flavour"
            MESSAGE="true"
          fi
        fi

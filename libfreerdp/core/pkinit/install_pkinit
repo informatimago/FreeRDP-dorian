@@ -46,8 +46,6 @@ while true; do
   esac
 done
 
-echo "KRB_INSTALLED_PREFIX=$KRB_INSTALLED_PREFIX; KRB_SOURCES_DIR=$KRB_SOURCES_DIR"
-
 if [ $MIT = true ]; then
   FLAVOUR=MIT
   if [[ $KRB_SOURCES_DIR = "" ]]; then
@@ -71,7 +69,6 @@ CHECK_VERSION="true"
 RETVAL=0
 
 reset_path(){	
-  echo "dans reset_path: CURRENT_PATH=$CURRENT_PATH; LAST_ADDED_PATH=$LAST_ADDED_PATH"
   if ! [ $START_PATH = $PATH ]; then
     CURRENT_PATH=$PATH
     LAST_ADDED_PATH=`echo ${CURRENT_PATH%%:*}`
@@ -135,36 +132,28 @@ check_version(){
 test_config(){
   KRB5CONFIG=$(which krb5-config)
   KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
-  if ! [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "Heimdal" ]]; then
-    if ! [[ $KRB5VENDOR = "Massachusetts Institute of Technology" && $FLAVOUR = "MIT" ]]; then
-      echo "on passe la: KRB5VENDOR=$KRB5VENDOR; FLAVOUR=$FLAVOUR"
-      return 1
-    fi
+  if [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "Heimdal" ]] ||
+     [[ $KRB5VENDOR = "Massachusetts Institute of Technology" && $FLAVOUR = "MIT" ]]; then
+      return 0
   fi
-  return 0
+  return 1
 }
 
-echo "avant le while"
 while true
 do
-  echo "debut while: KRB_INSTALLED_PREFIX=$KRB_INSTALLED_PREFIX"
   KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
   if [[ $NEW_KRB_PREFIX = "" ]] &&
      ! [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "MIT" ]] &&
      ! [[ $KRB5VENDOR = "Massachusetts Institute of Technology" && $FLAVOUR = "Heimdal" ]]; then
-    echo "on check par la"
     check_version
     RETVAL=$?
     if [ "$RETVAL" -eq 0 ]; then
       if [[ $KRB_INSTALLED_PREFIX = "" ]]; then
-        echo "break car all prefix vide"
         break;
       else
-        echo "check version ok but force install: RETVAL=$RETVAL; KRB_INSTALLED_PREFIX=$KRB_INSTALLED_PREFIX"
         FORCE_INSTALL="true"
       fi
     else
-      echo "check version failed, need to install new version: NEW_KRB_PREFIX=$NEW_KRB_PREFIX"
       CHECK_VERSION="false"
       if ! [[ $NEW_KRB_PREFIX = "" ]]; then
         KRB_INSTALLED_PREFIX=$NEW_KRB_PREFIX
@@ -176,17 +165,12 @@ do
     KRB_INSTALLED_PREFIX=$NEW_KRB_PREFIX
   fi
 
-  echo "apres premier check version : FORCE_INSTALL=$FORCE_INSTALL"
-
   # set PATH according to Kerberos flavour we choose to use,
   # i.e MIT or Heimdal.
   if [[ $KRB_INSTALLED_PREFIX = "" ]]; then
-    echo "dorian"
     if [ $FLAVOUR = "MIT" ]; then
-      echo  "source set krb path 2eme fois pour MIT"
       source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $KRB_INSTALLED_PREFIX
     else
-      echo  "source set krb path 2eme fois pour Heimdal"
       if [[ $NEW_KRB_PREFIX = "" ]]; then
         source $DIR/setkerberospath $FLAVOUR $KRB_INSTALLED_PREFIX
       else
@@ -194,13 +178,10 @@ do
       fi
     fi
   else
-    echo "ducournau"
     if [ $FLAVOUR = "MIT" ]; then
       if [[ $NEW_KRB_PREFIX = "" ]]; then
-        echo "charlotte"
         source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $KRB_INSTALLED_PREFIX
       else
-        echo "bardou"
         source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $NEW_KRB_PREFIX
       fi
     else
@@ -214,10 +195,8 @@ do
 
   let "TEST_CONFIG++"
 
-  echo "test config"
   test_config
   RETVAL_TEST=$?
-  echo "test version"
   if [ $RETVAL_TEST = 0 ]; then
     check_version
     RETVAL_CHECK=$?
@@ -234,14 +213,13 @@ do
       reset_path
       break;
     else
-      echo "on continue"
       reset_path
       FORCE_INSTALL="true"
       NEW_KRB_PREFIX=
       ANSWER=no
       while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
       do
-        read -p "l.207: Please specify prefix directory of your $FLAVOUR installation : " NEW_KRB_PREFIX
+        read -p "Please specify prefix directory of your $FLAVOUR installation : " NEW_KRB_PREFIX
         if ! [ -d "$NEW_KRB_PREFIX" ]; then
           echo "The directory $NEW_KRB_PREFIX does not exist. Try another one."
           continue
@@ -259,11 +237,9 @@ do
         echo "MIT has been set as Kerberos flavour"
       fi
     fi
-    echo "on break apres succes !!!"
     break; 
   fi
 done
-echo "apres le while"
 
 if [ "$CONFIG_FAILED" = "true" ]; then
  echo "Kerberos configuration aborted. Path reset."
