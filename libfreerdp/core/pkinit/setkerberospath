@@ -116,7 +116,7 @@ if [ "$1" = "Heimdal" ]; then
         echo "Heimdal is already being set as Kerberos flavour"
         MESSAGE="true"
       elif [ "$SUPPLY_USR_HEIMDAL_PATH" = "false" ]; then
-        if ! [ -d "$YOURPREFIX" ]; then
+        if ! [ -d "/usr/heimdal" ]; then
           echo "The directory /usr/heimdal does not exist. Try another one."
           set_krb_flavour Heimdal
         else
@@ -211,14 +211,14 @@ else
            fi
            set_krb_flavour MIT $3
          else
-           echo "l.189: MIT is already being set as Kerberos flavour"
+           echo "MIT is already being set as Kerberos flavour"
            MESSAGE="true"
          fi
        else
 	 if [ "$CHECK_VERSION" = "false" ]; then
            set_krb_flavour MIT $3
          else
-           echo "l.191: MIT is already being set as Kerberos flavour"
+           echo "MIT is already being set as Kerberos flavour"
            MESSAGE="true"
          fi
        fi
