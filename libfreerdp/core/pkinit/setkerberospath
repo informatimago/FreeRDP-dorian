@@ -47,35 +47,98 @@ delete_heimdal_path(){
 }
 
 check_path(){
-  CURRENT_PATH=$1
-  NEXT_CURRENT_PATH=
+  ORIGIN_GLOBAL_PATH=$1
+  ORIGIN_GLOBAL_PATH_LENGTH=${#ORIGIN_PATH_LENGTH}
+  CURRENT_GLOBAL_PATH=$1
+  NEXT_PATH_TO_CHECK=
+  PATH_CHECKED=
+  LAST_ROUND="false"
 
-  # delete one path when two same paths are found in env var PATH
+  echo "ORIGIN_GLOBAL_PATH=$ORIGIN_GLOBAL_PATH"
+  echo
+
+  # delete one path when same paths are found in env var PATH
   # to avoid to add already existing path while configuring Kerberos flavour
   while true
   do
-    if [[ $NEXT_CURRENT_PATH = "" ]]; then
-      PATH_TO_CHECK=`echo ${CURRENT_PATH%%:*}`
-      PATH_CHECKED=$PATH_TO_CHECK
+    if [[ $PATH_CHECKED = "" ]]; then
+      PATH_TO_CHECK=`echo ${ORIGIN_GLOBAL_PATH%%:*}`
+      #PATH_CHECKED=$PATH_TO_CHECK
+      PATH_TO_CHECK_LENGTH=${#PATH_TO_CHECK}
+      PATH_CHECKED_LENGTH=${#PATH_CHECKED}
+      CURRENT_GLOBAL_PATH_TO_TEST=`echo ${ORIGIN_GLOBAL_PATH#*:}`
     else
-      PATH_TO_CHECK=`echo ${NEXT_CURRENT_PATH%%:*}`
+      PATH_TO_CHECK=`echo ${CURRENT_GLOBAL_PATH_TO_TEST%%:*}`
       PATH_CHECKED=$PATH_CHECKED:$PATH_TO_CHECK
+      PATH_TO_CHECK_LENGTH=${#PATH_TO_CHECK}
+      PATH_CHECKED_LENGTH=${#PATH_CHECKED}
     fi
-    NEXT_CURRENT_PATH=`echo ${CURRENT_PATH#*:}`
-    NEXT_PATH_TO_CHECK=`echo ${NEXT_CURRENT_PATH%%:*}`
-    if [ "$PATH_TO_CHECK" = "$NEXT_PATH_TO_CHECK" ]; then
-      CURRENT_PATH=`echo ${CURRENT_PATH//$PATH_TO_CHECK:/}`
-      NEXT_CURRENT_PATH=`echo ${NEXT_CURRENT_PATH//$PATH_TO_CHECK:/}`
-      if [ "$NEXT_CURRENT_PATH" = "$NEXT_PATH_TO_CHECK" ]; then
-        break
+    
+    NEXT_CURRENT_GLOBAL_PATH_TO_TEST=`echo ${CURRENT_GLOBAL_PATH_TO_TEST#*:}`
+    echo "PATH_TO_CHECK=$PATH_TO_CHECK"
+    echo
+    echo "CURRENT_GLOBAL_PATH_TO_TEST=$CURRENT_GLOBAL_PATH_TO_TEST"
+    echo "NEXT_CURRENT_GLOBAL_PATH_TO_TEST=$NEXT_CURRENT_GLOBAL_PATH_TO_TEST"
+    echo
+    if [[ $NEXT_CURRENT_GLOBAL_PATH_TO_TEST == *"$PATH_TO_CHECK"* ]]; then
+      echo  "on cut le path"
+      #CURRENT_GLOBAL_PATH=`echo ${CURRENT_GLOBAL_PATH//$PATH_TO_CHECK:/}`
+      #if [ $LAST_ROUND = "true" ] && [ "$CURRENT_GLOBAL_PATH_TO_TEST" = "$NEXT_CURRENT_GLOBAL_PATH_TO_TEST" ]; then
+      #   echo "on cut dans last round : LAST_ROUND=$LAST_ROUND"
+       #  echo "last round: CURRENT_GLOBAL_PATH_TO_TEST=$CURRENT_GLOBAL_PATH_TO_TEST; PATH_TO_CHECK=$PATH_TO_CHECK"
+      #   CURRENT_GLOBAL_PATH_TO_TEST=""
+      #   echo "last round apres cut: CURRENT_GLOBAL_PATH_TO_TEST=$CURRENT_GLOBAL_PATH_TO_TEST"
+      #else
+        CURRENT_GLOBAL_PATH_TO_TEST=`echo ${CURRENT_GLOBAL_PATH_TO_TEST//$PATH_TO_CHECK:/}`
+      #fi
+      #NEXT_CURRENT_GLOBAL_PATH_TO_TEST=`echo ${NEXT_CURRENT_GLOBAL_PATH_TO_TEST//$PATH_TO_CHECK:/}`
+      #PATH_CHECKED_LENGTH=$((PATH_CHECKED_LENGTH+PATH_TO_CHECK_LENGTH))
+      #if [ "$NEXT_CURRENT_PATH" = "$NEXT_PATH_TO_CHECK" ]; then
+      #  break
+      if [[ $PATH_CHECKED = "" ]]; then 
+        PATH_CHECKED=$PATH_TO_CHECK
       fi
     else
-      CURRENT_PATH=$NEXT_CURRENT_PATH
+      if [[ $PATH_CHECKED = "" ]]; then 
+        PATH_CHECKED=$PATH_TO_CHECK
+        CURRENT_GLOBAL_PATH_TO_TEST=$CURRENT_GLOBAL_PATH_TO_TEST
+      elif [ $LAST_ROUND = "false" ]; then
+        CURRENT_GLOBAL_PATH_TO_TEST=$NEXT_CURRENT_GLOBAL_PATH_TO_TEST
+      fi
     fi
-    KEEP_PATH=$PATH_CHECKED:$NEXT_CURRENT_PATH
+    echo "CURRENT_GLOBAL_PATH=$CURRENT_GLOBAL_PATH; CURRENT_GLOBAL_PATH_TO_TEST=$CURRENT_GLOBAL_PATH_TO_TEST"
+    echo 
+    
+    if [ $LAST_ROUND = "true" ]; then
+      echo "break general: KEEP_PATH=$KEEP_PATH"
+      break
+    fi
+
+    PATH_LEFT="${CURRENT_GLOBAL_PATH_TO_TEST//[^:]}"
+    PATH_LEFT_COUNT=${#PATH_LEFT}
+    echo "PATH_LEFT=$PATH_LEFT; PATH_LEFT_COUNT=$PATH_LEFT_COUNT"
+
+    if [ "$PATH_LEFT_COUNT" = 0 ]; then
+      echo "on break general au prochain tour"
+      echo "CURRENT_GLOBAL_PATH_TO_TEST=$CURRENT_GLOBAL_PATH_TO_TEST; NEXT_CURRENT_GLOBAL_PATH_TO_TEST=$NEXT_CURRENT_GLOBAL_PATH_TO_TEST"
+      echo "KEEP_PATH dans general =$KEEP_PATH"
+      KEEP_PATH=`echo ${KEEP_PATH//:$CURRENT_GLOBAL_PATH_TO_TEST/}`
+      KEEP_PATH=$KEEP_PATH:$CURRENT_GLOBAL_PATH_TO_TEST
+      echo "KEEP_PATH dans general apres cut=$KEEP_PATH"
+      LAST_ROUND="true"
+      break
+    fi
+    
+    if [ $LAST_ROUND = "false" ]; then
+      KEEP_PATH=$PATH_CHECKED:$CURRENT_GLOBAL_PATH_TO_TEST
+      echo "KEEP_PATH=$KEEP_PATH"
+      echo "----------------------"
+      echo
+    fi
   done
 
   NEW_PATH=$KEEP_PATH
+  #NEW_PATH=$CURRENT_GLOBAL_PATH
 }
 
 if [ "$1" = "Heimdal" ]; then
@@ -182,13 +245,20 @@ else
            delete_heimdal_path
            export PATH=$NEW_PATH
          fi
-         echo "MIT is already being set as Kerberos flavour"
-         MESSAGE="true"
+	 if [ "$CHECK_VERSION" = "false" ]; then
+           if ! [[ $3 = "" ]]; then 
+             echo "Trying again with prefix $3 ..."
+           fi
+           set_krb_flavour MIT $3
+         else
+           echo "l.189: MIT is already being set as Kerberos flavour"
+           MESSAGE="true"
+         fi
        else
 	 if [ "$CHECK_VERSION" = "false" ]; then
            set_krb_flavour MIT $3
          else
-           echo "MIT is already being set as Kerberos flavour"
+           echo "l.191: MIT is already being set as Kerberos flavour"
            MESSAGE="true"
          fi
        fi
