@@ -441,7 +441,7 @@ SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextA(PCredHandle phCred
 
 		if (SSPI_GSS_ERROR(context->major_status))
 		{
-#if !defined(WITH_PKCS11H)
+//#if !defined(WITH_PKCS11H)
 			/* GSSAPI failed because we do not have credentials */
 			if (context->major_status & SSPI_GSS_S_NO_CRED)
 			{
@@ -472,11 +472,11 @@ SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextA(PCredHandle phCred
 					return SEC_E_INTERNAL_ERROR;
 				}
 			}
-#else
+//#else
 		/* We can't use Kerberos with smartcard */
-		WLog_ERR(TAG, "Init GSS security context failed : can't use Kerberos");
-		return SEC_E_INTERNAL_ERROR;
-#endif
+//		WLog_ERR(TAG, "Init GSS security context failed : can't use Kerberos");
+//		return SEC_E_INTERNAL_ERROR;
+//#endif
 		}
 
 #endif
