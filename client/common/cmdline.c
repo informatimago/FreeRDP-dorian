@@ -334,6 +334,7 @@ BOOL freerdp_client_print_command_line_help(int argc, char** argv)
 #endif
 	printf("    xfreerdp /g:rdp.contoso.com ...\n");
 	printf("\n");
+
 	printf("More documentation is coming, in the meantime consult source files\n");
 	printf("\n");
 	return TRUE;
@@ -882,24 +883,13 @@ static int freerdp_client_command_line_post_filter(void* context,
 	}
 	CommandLineSwitchCase(arg, "smartcard")
 	{
-		if (arg->Flags & COMMAND_LINE_VALUE_PRESENT)
-		{
-			char** p;
-			int count;
-			p = freerdp_command_line_parse_comma_separated_values_offset(arg->Value, &count);
-			p[0] = "smartcard";
-			status = freerdp_client_add_device_channel(settings, count, p);
-			free(p);
-		}
-		else
-		{
-			char* p[2];
-			int count;
-			count = 2;
-			p[0] = "smartcard";
-			p[1] = "";
-			status = freerdp_client_add_device_channel(settings, count, p);
-		}
+		char** p;
+		int count;
+		p = freerdp_command_line_parse_comma_separated_values_offset(arg->Value,
+		        &count);
+		p[0] = "smartcard";
+		status = freerdp_client_add_device_channel(settings, count, p);
+		free(p);
 	}
 	CommandLineSwitchCase(arg, "printer")
 	{
@@ -1858,17 +1848,11 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 			if (arg->Flags & COMMAND_LINE_VALUE_PRESENT)
 			{
 				p = strstr(arg->Value, "://");
-
-				if (p)
-				{
+				if (p) {
 					*p = '\0';
-
-					if (!strcmp("http", arg->Value))
-					{
+					if (!strcmp("http", arg->Value)) {
 						settings->ProxyType = PROXY_TYPE_HTTP;
-					}
-					else
-					{
+					} else {
 						WLog_ERR(TAG, "Only HTTP proxys supported by now");
 						return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
 					}
