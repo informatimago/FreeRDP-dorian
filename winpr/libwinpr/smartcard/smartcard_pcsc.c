@@ -768,33 +768,27 @@ int PCSC_RedirectReader(char* readerName)
 		{
 			if (strcmp(name, "") == 0)
 			{
-				return 1;
+				return 0;
 			}
 
 			if (strncmp(readerName, name, strlen(readerName)) == 0)
 			{
-				return 1;
+				return 0;
 			}
-		}
-		else
-		{
-			return 2;
 		}
 	}
 
-	return 0;
+	return -1;
 }
 
 char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 {
-	int ret=0;
 	int length;
 	char* p, *q;
 	DWORD cchReaders;
 	char* nameWinSCard;
 	char* namesWinSCard;
 	BOOL endReaderName = FALSE;
-	BOOL allReaders=FALSE;
 	p = (char*) names;
 	cchReaders = *pcchReaders;
 	namesWinSCard = (char*) calloc(cchReaders, 2);
@@ -813,16 +807,10 @@ char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 		{
 			length = strlen(nameWinSCard);
 
-			ret = PCSC_RedirectReader(nameWinSCard);
-			if ( ret == 1 )
+			if (PCSC_RedirectReader(nameWinSCard) == 0)
 			{
 				CopyMemory(q, nameWinSCard, length);
 				endReaderName = TRUE;
-			}
-			else if( ret == 2 )
-			{
-				CopyMemory(q, nameWinSCard, length);
-				allReaders = TRUE;
 			}
 
 			free(nameWinSCard);
@@ -839,12 +827,6 @@ char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 			*q = '\0';
 			q++;
 			endReaderName = FALSE;
-		}
-		else if (allReaders)
-		{
-			q += length;
-			*q = '\0';
-			q++;
 		}
 
 		p += strlen(p) + 1;
