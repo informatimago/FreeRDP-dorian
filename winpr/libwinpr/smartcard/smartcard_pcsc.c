@@ -127,6 +127,7 @@ struct _PCSC_SCARDHANDLE
 {
 	BOOL shared;
 	SCARDCONTEXT hSharedContext;
+//	SCARDCONTEXT hPrivateContext;
 };
 
 struct _PCSC_READER
@@ -571,6 +572,7 @@ void PCSC_DisconnectCardHandle(SCARDHANDLE hCard)
 		return;
 
 	pContext = PCSC_GetCardContextData(pCard->hSharedContext);
+	PCSC_SCardReleaseContext_Internal(pCard->hSharedContext); // TODO
 	free(pCard);
 
 	if (!g_CardHandles)
@@ -1746,6 +1748,7 @@ WINSCARDAPI LONG WINAPI PCSC_SCardConnect_Internal(SCARDCONTEXT hContext,
 	char* szReaderPCSC;
 	LONG status = SCARD_S_SUCCESS;
 	PCSC_SCARDHANDLE* pCard = NULL;
+	SCARDCONTEXT hSharedContext = 0; // TODO
 	PCSC_DWORD pcsc_dwShareMode = (PCSC_DWORD) dwShareMode;
 	PCSC_DWORD pcsc_dwPreferredProtocols = 0;
 	PCSC_DWORD pcsc_dwActiveProtocol = 0;
@@ -1755,6 +1758,12 @@ WINSCARDAPI LONG WINAPI PCSC_SCardConnect_Internal(SCARDCONTEXT hContext,
 
 	shared = (dwShareMode == SCARD_SHARE_DIRECT) ? TRUE : FALSE;
 	access = PCSC_WaitForCardAccess(hContext, 0, shared);
+
+	status = PCSC_SCardEstablishContext_Internal(SCARD_SCOPE_SYSTEM, NULL, NULL, &hSharedContext); // TODO
+
+	if (status != SCARD_S_SUCCESS)
+		return status;
+
 	szReaderPCSC = PCSC_GetReaderNameFromAlias((char*) szReader);
 
 	if (!szReaderPCSC)
@@ -1772,6 +1781,7 @@ WINSCARDAPI LONG WINAPI PCSC_SCardConnect_Internal(SCARDCONTEXT hContext,
 
 	status = (LONG) g_PCSC.pfnSCardConnect(hContext, szReaderPCSC,
 	                                       pcsc_dwShareMode, pcsc_dwPreferredProtocols, phCard, &pcsc_dwActiveProtocol);
+
 	status = PCSC_MapErrorCodeToWinSCard(status);
 
 	if (status == SCARD_S_SUCCESS)
@@ -1780,6 +1790,10 @@ WINSCARDAPI LONG WINAPI PCSC_SCardConnect_Internal(SCARDCONTEXT hContext,
 		*pdwActiveProtocol = PCSC_ConvertProtocolsToWinSCard((DWORD) pcsc_dwActiveProtocol);
 		pCard->shared = shared;
 		PCSC_WaitForCardAccess(hContext, pCard->hSharedContext, shared);
+	}
+	else
+	{
+		PCSC_SCardReleaseContext(hSharedContext);
 	}
 
 	return status;
