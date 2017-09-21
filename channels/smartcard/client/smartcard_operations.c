@@ -1497,7 +1497,7 @@ static LONG smartcard_LocateCardsByATRA_Call(SMARTCARD_DEVICE* smartcard,
 		states[i].dwCurrentState = call->rgReaderStates[i].Common.dwCurrentState;
 		states[i].dwEventState = call->rgReaderStates[i].Common.dwEventState;
 		states[i].cbAtr = call->rgReaderStates[i].Common.cbAtr;
-		CopyMemory(&(states[i].rgbAtr), &(call->rgReaderStates[i].Common.rgbAtr), 36);
+		CopyMemory(&(states[i].rgbAtr), &(call->rgReaderStates[i].Common.rgbAtr), 35);
 	}
 
 	status = ret.ReturnCode = SCardGetStatusChangeA(operation->hContext, 0x000001F4, states,
