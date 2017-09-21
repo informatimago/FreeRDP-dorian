@@ -1397,7 +1397,7 @@ static LONG smartcard_LocateCardsByATRA_Call(SMARTCARD_DEVICE* smartcard,
 		states[i].dwCurrentState = call->rgReaderStates[i].Common.dwCurrentState;
 		states[i].dwEventState = call->rgReaderStates[i].Common.dwEventState;
 		states[i].cbAtr = call->rgReaderStates[i].Common.cbAtr;
-		CopyMemory(&(states[i].rgbAtr), &(call->rgReaderStates[i].Common.rgbAtr), 36);
+		CopyMemory(&(states[i].rgbAtr), &(call->rgReaderStates[i].Common.rgbAtr), 35);
 	}
 
 	status = ret.ReturnCode = SCardGetStatusChangeA(operation->hContext, 0x000001F4, states,
@@ -1782,6 +1782,7 @@ LONG smartcard_irp_device_control_call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OP
 	UINT32 objectBufferLength;
 	irp = operation->irp;
 	ioControlCode = operation->ioControlCode;
+
 	/**
 	 * [MS-RDPESC] 3.2.5.1: Sending Outgoing Messages:
 	 * the output buffer length SHOULD be set to 2048
@@ -1798,202 +1799,352 @@ LONG smartcard_irp_device_control_call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OP
 
 	/* Call */
 
+	static int counter_ec=0;
+	static int counter_rc=0;
+	static int counter_ivc=0;
+	static int counter_lrga=0;
+	static int counter_lrgw=0;
+	static int counter_lra=0;
+	static int counter_lrw=0;
+	static int counter_irga=0;
+	static int counter_irgw=0;
+	static int counter_frga=0;
+	static int counter_frgw=0;
+	static int counter_ira=0;
+	static int counter_irw=0;
+	static int counter_fra=0;
+	static int counter_frw=0;
+	static int counter_ara=0;
+	static int counter_agw=0;
+	static int counter_rrfga=0;
+	static int counter_rrfgw=0;
+	static int counter_lca=0;
+	static int counter_lcw=0;
+	static int counter_gsca=0;
+	static int counter_gscw=0;
+	static int counter_c=0;
+	static int counter_ca=0;
+	static int counter_cw=0;
+	static int counter_r=0;
+	static int counter_d=0;
+	static int counter_bt=0;
+	static int counter_et=0;
+	static int counter_s=0;
+	static int counter_sa=0;
+	static int counter_sw=0;
+	static int counter_t=0;
+	static int counter_ctrl=0;
+	static int counter_gab=0;
+	static int counter_sab=0;
+	static int counter_ase=0;
+	static int counter_lcbaa=0;
+	static int counter_lcbaw=0;
+	static int counter_rca=0;
+	static int counter_rcw=0;
+	static int counter_wca=0;
+	static int counter_wcw=0;
+	static int counter_gtc=0;
+	static int counter_rse=0;
+	static int counter_gri=0;
+	static int counter_gdti=0;
+	static int counter_def=0;
+
+
+
 	switch (ioControlCode)
 	{
 		case SCARD_IOCTL_ESTABLISHCONTEXT:
+                        WLog_ERR(TAG, "SCARD_IOCTL_ESTABLISHCONTEXT is called : counter_ec=%d\n\n", counter_ec);
 			result = smartcard_EstablishContext_Call(smartcard, operation);
+			counter_ec++;
 			break;
 
 		case SCARD_IOCTL_RELEASECONTEXT:
+                        WLog_ERR(TAG, "SCARD_IOCTL_RELEASECONTEXT is called : counter_rc=%d\n\n", counter_rc);
 			result = smartcard_ReleaseContext_Call(smartcard, operation);
+			counter_rc++;
 			break;
 
 		case SCARD_IOCTL_ISVALIDCONTEXT:
+                        WLog_ERR(TAG, "SCARD_IOCTL_ISVALIDCONTEXT is called : counter_ivc=%d\n\n", counter_ivc);
 			result = smartcard_IsValidContext_Call(smartcard, operation);
+			counter_ivc++;
 			break;
 
 		case SCARD_IOCTL_LISTREADERGROUPSA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_LISTREADERGROUPSA is called : counter_lrga=%d\n\n", counter_lrga);
 			result = smartcard_ListReaderGroupsA_Call(smartcard, operation);
+			counter_lrga++;
 			break;
 
 		case SCARD_IOCTL_LISTREADERGROUPSW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_LISTREADERGROUPSW is called : counter_lrgw=%d\n\n", counter_lrgw);
 			result = smartcard_ListReaderGroupsW_Call(smartcard, operation);
+			counter_lrgw++;
 			break;
 
 		case SCARD_IOCTL_LISTREADERSA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_LISTREADERSA is called : counter_lra=%d\n\n", counter_lra);
 			result = smartcard_ListReadersA_Call(smartcard, operation);
+			counter_lra++;
 			break;
 
 		case SCARD_IOCTL_LISTREADERSW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_LISTREADERSW is called : counter_lrw=%d\n\n", counter_lrw);
 			result = smartcard_ListReadersW_Call(smartcard, operation);
+			counter_lrw++;
 			break;
 
 		case SCARD_IOCTL_INTRODUCEREADERGROUPA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_INTRODUCEREADERGROUPA is called : counter_irga=%d\n\n", counter_irga);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_irga++;
 			break;
 
 		case SCARD_IOCTL_INTRODUCEREADERGROUPW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_INTRODUCEREADERGROUPW is called : counter_irgw=%d\n\n", counter_irgw);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_irgw++;
 			break;
 
 		case SCARD_IOCTL_FORGETREADERGROUPA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_FORGETREADERGROUPA is called : counter_frga=%d\n\n", counter_frga);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_frga++;
 			break;
 
 		case SCARD_IOCTL_FORGETREADERGROUPW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_FORGETREADERGROUPW is called : counter_frgw=%d\n\n", counter_frgw);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_frgw++;
 			break;
 
 		case SCARD_IOCTL_INTRODUCEREADERA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_INTRODUCEREADERA is called : counter_ira=%d\n\n", counter_ira);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_ira++;
 			break;
 
 		case SCARD_IOCTL_INTRODUCEREADERW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_INTRODUCEREADERW is called : counter_irw=%d\n\n", counter_irw);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_irw++;
 			break;
 
 		case SCARD_IOCTL_FORGETREADERA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_FORGETREADERA is called : counter_fra=%d\n\n", counter_fra);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_fra++;
 			break;
 
 		case SCARD_IOCTL_FORGETREADERW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_FORGETREADERW is called : counter_frw=%d\n\n", counter_frw);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_frw++;
 			break;
 
 		case SCARD_IOCTL_ADDREADERTOGROUPA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_ADDREADERTOGROUPA is called : counter_ara=%d\n\n", counter_ara);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_ara++;
 			break;
 
 		case SCARD_IOCTL_ADDREADERTOGROUPW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_ADDREADERTOGROUPW is called : counter_agw=%d\n\n", counter_agw);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_agw++;
 			break;
 
 		case SCARD_IOCTL_REMOVEREADERFROMGROUPA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_REMOVEREADERFROMGROUPA is called : counter_rrfga=%d\n\n", counter_rrfga);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_rrfga++;
 			break;
 
 		case SCARD_IOCTL_REMOVEREADERFROMGROUPW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_REMOVEREADERFROMGROUPW is called : counter_rrfgw=%d\n\n", counter_rrfgw);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_rrfgw++;
 			break;
 
 		case SCARD_IOCTL_LOCATECARDSA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_LOCATECARDSA is called : counter_lca=%d\n\n", counter_lca);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_lca++;
 			break;
 
 		case SCARD_IOCTL_LOCATECARDSW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_LOCATECARDSW is called : counter_lcw=%d\n\n", counter_lcw);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_lcw++;
 			break;
 
 		case SCARD_IOCTL_GETSTATUSCHANGEA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_GETSTATUSCHANGEA is called : counter_gsca=%d\n\n", counter_gsca);
 			result = smartcard_GetStatusChangeA_Call(smartcard, operation);
+			counter_gsca++;
 			break;
 
 		case SCARD_IOCTL_GETSTATUSCHANGEW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_GETSTATUSCHANGEW is called : counter_gscw=%d\n\n", counter_gscw);
 			result = smartcard_GetStatusChangeW_Call(smartcard, operation);
+			counter_gscw++;
 			break;
 
 		case SCARD_IOCTL_CANCEL:
+                        WLog_ERR(TAG, "SCARD_IOCTL_CANCEL is called : counter_c=%d\n\n", counter_c);
 			result = smartcard_Cancel_Call(smartcard, operation);
+			counter_c++;
 			break;
 
 		case SCARD_IOCTL_CONNECTA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_CONNECTA is called : counter_ca=%d\n\n", counter_ca);
 			result = smartcard_ConnectA_Call(smartcard, operation);
+			counter_ca++;
 			break;
 
 		case SCARD_IOCTL_CONNECTW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_CONNECTW is called : counter_cw=%d\n\n", counter_cw);
 			result = smartcard_ConnectW_Call(smartcard, operation);
+			counter_cw++;
 			break;
 
 		case SCARD_IOCTL_RECONNECT:
+                        WLog_ERR(TAG, "SCARD_IOCTL_RECONNECT is called : counter_r=%d\n\n", counter_r);
 			result = smartcard_Reconnect_Call(smartcard, operation);
+			counter_r++;
 			break;
 
 		case SCARD_IOCTL_DISCONNECT:
+                        WLog_ERR(TAG, "SCARD_IOCTL_DISCONNECT is called : counter_d=%d\n\n", counter_d);
 			result = smartcard_Disconnect_Call(smartcard, operation);
+			counter_d++;
 			break;
 
 		case SCARD_IOCTL_BEGINTRANSACTION:
+                        WLog_ERR(TAG, "SCARD_IOCTL_BEGINTRANSACTION is called : counter_bt=%d\n\n", counter_bt);
 			result = smartcard_BeginTransaction_Call(smartcard, operation);
+			counter_bt++;
 			break;
 
 		case SCARD_IOCTL_ENDTRANSACTION:
+                        WLog_ERR(TAG, "SCARD_IOCTL_ENDTRANSACTION is called : counter_et=%d\n\n", counter_et);
 			result = smartcard_EndTransaction_Call(smartcard, operation);
+			counter_et++;
 			break;
 
 		case SCARD_IOCTL_STATE:
+                        WLog_ERR(TAG, "SCARD_IOCTL_STATE is called : counter_s=%d\n\n", counter_s);
 			result = smartcard_State_Call(smartcard, operation);
+			counter_s++;
 			break;
 
 		case SCARD_IOCTL_STATUSA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_STATUSA is called : counter_sa=%d\n\n", counter_sa);
 			result = smartcard_StatusA_Call(smartcard, operation);
+			counter_sa++;
 			break;
 
 		case SCARD_IOCTL_STATUSW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_STATUSW is called : counter_sw=%d\n\n", counter_sw);
 			result = smartcard_StatusW_Call(smartcard, operation);
+			counter_sw++;
 			break;
 
 		case SCARD_IOCTL_TRANSMIT:
+                        WLog_ERR(TAG, "SCARD_IOCTL_TRANSMIT is called : counter_t=%d\n\n", counter_t);
 			result = smartcard_Transmit_Call(smartcard, operation);
+			counter_t++;
 			break;
 
 		case SCARD_IOCTL_CONTROL:
+                        WLog_ERR(TAG, "SCARD_IOCTL_CONTROL is called : counter_ctrl=%d\n\n", counter_ctrl);
 			result = smartcard_Control_Call(smartcard, operation);
+			counter_ctrl++;
 			break;
 
 		case SCARD_IOCTL_GETATTRIB:
+                        WLog_ERR(TAG, "SCARD_IOCTL_GETATTRIB is called : counter_gab=%d\n\n", counter_gab);
 			result = smartcard_GetAttrib_Call(smartcard, operation);
+			counter_gab++;
 			break;
 
 		case SCARD_IOCTL_SETATTRIB:
+                        WLog_ERR(TAG, "SCARD_IOCTL_SETATTRIB is called : counter_sab=%d\n\n", counter_sab);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_sab++;
 			break;
 
 		case SCARD_IOCTL_ACCESSSTARTEDEVENT:
+                        WLog_ERR(TAG, "SCARD_IOCTL_ACCESSSTARTEDEVENT is called : counter_ase=%d\n\n", counter_ase);
 			result = smartcard_AccessStartedEvent_Call(smartcard, operation);
+			counter_ase++;
 			break;
 
 		case SCARD_IOCTL_LOCATECARDSBYATRA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_LOCATECARDSBYATRA is called : counter_lcbaa=%d\n\n", counter_lcbaa);
 			result = smartcard_LocateCardsByATRA_Call(smartcard, operation);
+			counter_lcbaa++;
 			break;
 
 		case SCARD_IOCTL_LOCATECARDSBYATRW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_LOCATECARDSBYATRW is called : counter_lcbaw=%d\n\n", counter_lcbaw);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_lcbaw++;
 			break;
 
 		case SCARD_IOCTL_READCACHEA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_READCACHEA is called : counter_rca=%d\n\n", counter_rca);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_rca++;
 			break;
 
 		case SCARD_IOCTL_READCACHEW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_READCACHEW is called : counter_rcw=%d\n\n", counter_rcw);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_rcw++;
 			break;
 
 		case SCARD_IOCTL_WRITECACHEA:
+                        WLog_ERR(TAG, "SCARD_IOCTL_WRITECACHEA is called : counter_wca=%d\n\n", counter_wca);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_wca++;
 			break;
 
 		case SCARD_IOCTL_WRITECACHEW:
+                        WLog_ERR(TAG, "SCARD_IOCTL_WRITECACHEW is called : counter_wcw=%d\n\n", counter_wcw);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_wcw++;
 			break;
 
 		case SCARD_IOCTL_GETTRANSMITCOUNT:
+                        WLog_ERR(TAG, "SCARD_IOCTL_GETTRANSMITCOUNT is called : counter_gtc=%d\n\n", counter_gtc);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_gtc++;
 			break;
 
 		case SCARD_IOCTL_RELEASESTARTEDEVENT:
+                        WLog_ERR(TAG, "SCARD_IOCTL_RELEASESTARTEDEVENT is called : counter_rse=%d\n\n", counter_rse);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_rse++;
 			break;
 
 		case SCARD_IOCTL_GETREADERICON:
+                        WLog_ERR(TAG, "SCARD_IOCTL_GETREADERICON is called : counter_gri=%d\n\n", counter_gri);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_gri++;
 			break;
 
 		case SCARD_IOCTL_GETDEVICETYPEID:
+                        WLog_ERR(TAG, "SCARD_IOCTL_GETDEVICETYPEID is called : counter_gdti=%d\n\n", counter_gdti);
 			result = SCARD_F_INTERNAL_ERROR;
+			counter_gdti++;
 			break;
 
 		default:
+                        WLog_ERR(TAG, "STATUS_UNSUCCESSFUL is called : counter_def=%d\n\n", counter_def);
 			result = STATUS_UNSUCCESSFUL;
+			counter_def++;
 			break;
 	}
 
