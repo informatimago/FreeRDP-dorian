@@ -1900,6 +1900,58 @@ LONG smartcard_irp_device_control_call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OP
 
 	/* Call */
 
+	static int counter_ec=0;
+	static int counter_rc=0;
+	static int counter_ivc=0;
+	static int counter_lrga=0;
+	static int counter_lrgw=0;
+	static int counter_lra=0;
+	static int counter_lrw=0;
+	static int counter_irga=0;
+	static int counter_irgw=0;
+	static int counter_frga=0;
+	static int counter_frgw=0;
+	static int counter_ira=0;
+	static int counter_irw=0;
+	static int counter_fra=0;
+	static int counter_frw=0;
+	static int counter_ara=0;
+	static int counter_agw=0;
+	static int counter_rrfga=0;
+	static int counter_rrfgw=0;
+	static int counter_lca=0;
+	static int counter_lcw=0;
+	static int counter_gsca=0;
+	static int counter_gscw=0;
+	static int counter_c=0;
+	static int counter_ca=0;
+	static int counter_cw=0;
+	static int counter_r=0;
+	static int counter_d=0;
+	static int counter_bt=0;
+	static int counter_et=0;
+	static int counter_s=0;
+	static int counter_sa=0;
+	static int counter_sw=0;
+	static int counter_t=0;
+	static int counter_ctrl=0;
+	static int counter_gab=0;
+	static int counter_sab=0;
+	static int counter_ase=0;
+	static int counter_lcbaa=0;
+	static int counter_lcbaw=0;
+	static int counter_rca=0;
+	static int counter_rcw=0;
+	static int counter_wca=0;
+	static int counter_wcw=0;
+	static int counter_gtc=0;
+	static int counter_rse=0;
+	static int counter_gri=0;
+	static int counter_gdti=0;
+	static int counter_def=0;
+
+
+
 	switch (ioControlCode)
 	{
 		case SCARD_IOCTL_ESTABLISHCONTEXT:
