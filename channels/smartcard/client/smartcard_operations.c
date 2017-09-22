@@ -1593,7 +1593,8 @@ LONG smartcard_irp_device_control_decode(SMARTCARD_DEVICE* smartcard,
 
 	if (Stream_GetRemainingLength(irp->input) < 32)
 	{
-		WLog_WARN(TAG, "Device Control Request is too short: %"PRIuz"",
+//		WLog_WARN(TAG, "Device Control Request is too short: %"PRIuz"",
+		WLog_ERR(TAG, "Device Control Request is too short: %"PRIuz"",
 		          Stream_GetRemainingLength(irp->input));
 		return SCARD_F_INTERNAL_ERROR;
 	}
@@ -1607,13 +1608,15 @@ LONG smartcard_irp_device_control_decode(SMARTCARD_DEVICE* smartcard,
 
 	if (Stream_Length(irp->input) != (Stream_GetPosition(irp->input) + inputBufferLength))
 	{
-		WLog_WARN(TAG, "InputBufferLength mismatch: Actual: %"PRIuz" Expected: %"PRIuz"",
+//		WLog_WARN(TAG, "InputBufferLength mismatch: Actual: %"PRIuz" Expected: %"PRIuz"",
+		WLog_ERR(TAG, "InputBufferLength mismatch: Actual: %"PRIuz" Expected: %"PRIuz"",
 		          Stream_Length(irp->input),
 		          Stream_GetPosition(irp->input) + inputBufferLength);
 		return SCARD_F_INTERNAL_ERROR;
 	}
 
-	WLog_DBG(TAG, "%s (0x%08"PRIX32") FileId: %"PRIu32" CompletionId: %"PRIu32"",
+//	WLog_DBG(TAG, "%s (0x%08"PRIX32") FileId: %"PRIu32" CompletionId: %"PRIu32"",
+	WLog_ERR(TAG, "%s (0x%08"PRIX32") FileId: %"PRIu32" CompletionId: %"PRIu32"",
 	         smartcard_get_ioctl_string(ioControlCode, TRUE),
 	         ioControlCode, irp->FileId, irp->CompletionId);
 
