@@ -674,6 +674,7 @@ BOOL CommDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuffe
 	{
 		/* This might be a hint for a bug, especially when result==TRUE */
 		CommLog_Print(WLOG_WARN, "lpBytesReturned=%"PRIu32" and nOutBufferSize=%"PRIu32" are different!", *lpBytesReturned, nOutBufferSize);
+		printf("comm_ioctl.c:l678: pBytesReturned=%"PRIu32" and nOutBufferSize=%"PRIu32" are different!\n", *lpBytesReturned, nOutBufferSize);
 	}
 
 	if (pComm->permissive)
@@ -682,6 +683,8 @@ BOOL CommDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuffe
 		{
 			CommLog_Print(WLOG_WARN, "[permissive]: whereas it failed, made to succeed IoControlCode=[0x%08"PRIX32"] %s, last-error: 0x%08"PRIX32"",
 				dwIoControlCode, _comm_serial_ioctl_name(dwIoControlCode), GetLastError());
+			printf("[permissive]: whereas it failed, made to succeed IoControlCode=[0x%08"PRIX32"] %s, last-error: 0x%08"PRIX32"\n",
+							dwIoControlCode, _comm_serial_ioctl_name(dwIoControlCode), GetLastError());
 		}
 
 		return TRUE; /* always! */

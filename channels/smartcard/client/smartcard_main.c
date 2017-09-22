@@ -588,7 +588,7 @@ static void* smartcard_thread_func(void* arg)
 
 						if ((error = smartcard_complete_irp(smartcard, irp)))
 						{
-							WLog_ERR(TAG, "smartcard_complete_irp failed with error %"PRIu32"!", error);
+							WLog_ERR(TAG, "l.591: smartcard_complete_irp failed with error %"PRIu32"!", error);
 							goto out;
 						}
 					}
@@ -647,7 +647,7 @@ static void* smartcard_thread_func(void* arg)
 						goto out;
 					}
 
-					WLog_ERR(TAG, "smartcard_complete_irp failed with error %"PRIu32"!", error);
+					WLog_ERR(TAG, "l.650: smartcard_complete_irp failed with error %"PRIu32"!", error);
 					goto out;
 				}
 			}
