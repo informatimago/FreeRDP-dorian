@@ -357,21 +357,26 @@ static UINT serial_process_irp_device_control(SERIAL_DEVICE* serial, IRP* irp)
 	}
 
 	Stream_Read(irp->input, InputBuffer, InputBufferLength);
-	WLog_Print(serial->log, WLOG_DEBUG,
-	           "CommDeviceIoControl: CompletionId=%"PRIu32", IoControlCode=[0x%"PRIX32"] %s",
+	WLog_ERR(TAG, "CommDeviceIoControl: CompletionId=%"PRIu32", IoControlCode=[0x%"PRIX32"] %s",
 	           irp->CompletionId, IoControlCode, _comm_serial_ioctl_name(IoControlCode));
+	//WLog_Print(serial->log, WLOG_DEBUG,
+	       //    "CommDeviceIoControl: CompletionId=%"PRIu32", IoControlCode=[0x%"PRIX32"] %s",
+	        //   irp->CompletionId, IoControlCode, _comm_serial_ioctl_name(IoControlCode));
 
 	/* FIXME: CommDeviceIoControl to be replaced by DeviceIoControl() */
 	if (CommDeviceIoControl(serial->hComm, IoControlCode, InputBuffer,
 	                        InputBufferLength, OutputBuffer, OutputBufferLength, &BytesReturned, NULL))
 	{
 		/* WLog_Print(serial->log, WLOG_DEBUG, "CommDeviceIoControl: CompletionId=%"PRIu32", IoControlCode=[0x%"PRIX32"] %s done", irp->CompletionId, IoControlCode, _comm_serial_ioctl_name(IoControlCode)); */
+		WLog_ERR(TAG, "CommDeviceIoControl: CompletionId=%"PRIu32", IoControlCode=[0x%"PRIX32"] %s done", irp->CompletionId, IoControlCode, _comm_serial_ioctl_name(IoControlCode));
 		irp->IoStatus = STATUS_SUCCESS;
 	}
 	else
 	{
-		WLog_Print(serial->log, WLOG_DEBUG,
-		           "CommDeviceIoControl failure: IoControlCode=[0x%"PRIX32"] %s, last-error: 0x%08"PRIX32"",
+//		WLog_Print(serial->log, WLOG_DEBUG,
+//		           "CommDeviceIoControl failure: IoControlCode=[0x%"PRIX32"] %s, last-error: 0x%08"PRIX32"",
+//		           IoControlCode, _comm_serial_ioctl_name(IoControlCode), GetLastError());
+		WLog_ERR(TAG, "CommDeviceIoControl failure: IoControlCode=[0x%"PRIX32"] %s, last-error: 0x%08"PRIX32"",
 		           IoControlCode, _comm_serial_ioctl_name(IoControlCode), GetLastError());
 		irp->IoStatus = _GetLastErrorToIoStatus(serial);
 	}
@@ -529,6 +534,7 @@ static void create_irp_thread(SERIAL_DEVICE* serial, IRP* irp)
 			{
 				/* terminating thread */
 				/* WLog_Print(serial->log, WLOG_DEBUG, "IRP thread with CompletionId=%"PRIuz" naturally died", id); */
+				WLog_ERR(TAG, "IRP thread with CompletionId=%"PRIuz" naturally died", id);
 				CloseHandle(irpThread);
 				ListDictionary_Remove(serial->IrpThreads, (void*)id);
 				serial->IrpThreadToBeTerminatedCount--;
@@ -538,6 +544,7 @@ static void create_irp_thread(SERIAL_DEVICE* serial, IRP* irp)
 				/* unexpected thread state */
 				WLog_Print(serial->log, WLOG_WARN,
 				           "WaitForSingleObject, got an unexpected result=0x%"PRIX32"\n", waitResult);
+				WLog_ERR(TAG, "WaitForSingleObject, got an unexpected result=0x%"PRIX32"\n", waitResult);
 				assert(FALSE);
 			}
 
@@ -565,12 +572,15 @@ static void create_irp_thread(SERIAL_DEVICE* serial, IRP* irp)
 	 */
 	key = irp->CompletionId;
 	previousIrpThread = ListDictionary_GetItemValue(serial->IrpThreads, (void*)key);
+        WLog_ERR(TAG, "key=%d; previousIrpThread=%d\n", key, previousIrpThread);
 
 	if (previousIrpThread)
 	{
 		/* Thread still alived <=> Request still pending */
 		WLog_Print(serial->log, WLOG_DEBUG,
 		           "IRP recall: IRP with the CompletionId=%"PRIu32" not yet completed!",
+		           irp->CompletionId);
+		WLog_ERR(TAG, "IRP recall: IRP with the CompletionId=%"PRIu32" not yet completed!",
 		           irp->CompletionId);
 		assert(FALSE); /* unimplemented */
 		/* TODO: asserts that previousIrpThread handles well
@@ -594,6 +604,8 @@ static void create_irp_thread(SERIAL_DEVICE* serial, IRP* irp)
 	{
 		WLog_Print(serial->log, WLOG_WARN,
 		           "Number of IRP threads threshold reached: %d, keep on anyway",
+		           ListDictionary_Count(serial->IrpThreads));
+		WLog_ERR(TAG, "Number of IRP threads threshold reached: %d, keep on anyway",
 		           ListDictionary_Count(serial->IrpThreads));
 		assert(FALSE); /* unimplemented */
 		/* TODO: MAX_IRP_THREADS has been thought to avoid a
@@ -666,6 +678,7 @@ static void terminate_pending_irp_threads(SERIAL_DEVICE* serial)
 
 		CloseHandle(irpThread);
 		WLog_Print(serial->log, WLOG_DEBUG, "IRP thread terminated, CompletionId %p", (void*) id);
+		WLog_ERR(TAG, "IRP thread terminated, CompletionId %p", (void*) id);
 	}
 
 	ListDictionary_Clear(serial->IrpThreads);
