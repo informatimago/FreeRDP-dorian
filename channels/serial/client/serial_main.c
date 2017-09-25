@@ -126,6 +126,8 @@ static UINT32 _GetLastErrorToIoStatus(SERIAL_DEVICE* serial)
 
 static void serial_process_irp_create(SERIAL_DEVICE* serial, IRP* irp)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
+
 	DWORD DesiredAccess;
 	DWORD SharedAccess;
 	DWORD CreateDisposition;
@@ -203,6 +205,7 @@ error_handle:
 
 static void serial_process_irp_close(SERIAL_DEVICE* serial, IRP* irp)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
 	Stream_Seek(irp->input, 32); /* Padding (32 bytes) */
 
 	if (!CloseHandle(serial->hComm))
@@ -228,6 +231,7 @@ error_handle:
  */
 static UINT serial_process_irp_read(SERIAL_DEVICE* serial, IRP* irp)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
 	UINT32 Length;
 	UINT64 Offset;
 	BYTE* buffer = NULL;
@@ -285,6 +289,7 @@ error_handle:
 
 static void serial_process_irp_write(SERIAL_DEVICE* serial, IRP* irp)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
 	UINT32 Length;
 	UINT64 Offset;
 	DWORD nbWritten = 0;
@@ -328,6 +333,7 @@ static void serial_process_irp_write(SERIAL_DEVICE* serial, IRP* irp)
  */
 static UINT serial_process_irp_device_control(SERIAL_DEVICE* serial, IRP* irp)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
 	UINT32 IoControlCode;
 	UINT32 InputBufferLength;
 	BYTE*  InputBuffer = NULL;
@@ -422,6 +428,7 @@ error_handle:
  */
 static UINT serial_process_irp(SERIAL_DEVICE* serial, IRP* irp)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
 	UINT error = CHANNEL_RC_OK;
 	WLog_Print(serial->log, WLOG_DEBUG,
 	           "IRP MajorFunction: 0x%08"PRIX32" MinorFunction: 0x%08"PRIX32"\n",
@@ -465,6 +472,7 @@ static UINT serial_process_irp(SERIAL_DEVICE* serial, IRP* irp)
 
 static void* irp_thread_func(void* arg)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
 	IRP_THREAD_DATA* data = (IRP_THREAD_DATA*)arg;
 	UINT error;
 
@@ -496,6 +504,7 @@ error_out:
 
 static void create_irp_thread(SERIAL_DEVICE* serial, IRP* irp)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
 	IRP_THREAD_DATA* data = NULL;
 	HANDLE irpThread;
 	HANDLE previousIrpThread;
@@ -658,6 +667,7 @@ error_handle:
 
 static void terminate_pending_irp_threads(SERIAL_DEVICE* serial)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
 	ULONG_PTR* ids;
 	int i, nbIds;
 	nbIds = ListDictionary_GetKeys(serial->IrpThreads, &ids);
@@ -687,6 +697,7 @@ static void terminate_pending_irp_threads(SERIAL_DEVICE* serial)
 
 static void* serial_thread_func(void* arg)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
 	IRP* irp;
 	wMessage message;
 	SERIAL_DEVICE* serial = (SERIAL_DEVICE*) arg;
@@ -736,6 +747,7 @@ static void* serial_thread_func(void* arg)
  */
 static UINT serial_irp_request(DEVICE* device, IRP* irp)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
 	SERIAL_DEVICE* serial = (SERIAL_DEVICE*) device;
 	assert(irp != NULL);
 
@@ -764,6 +776,7 @@ static UINT serial_irp_request(DEVICE* device, IRP* irp)
  */
 static UINT serial_free(DEVICE* device)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
 	UINT error;
 	SERIAL_DEVICE* serial = (SERIAL_DEVICE*) device;
 	WLog_Print(serial->log, WLOG_DEBUG, "freeing");
@@ -805,6 +818,7 @@ static UINT serial_free(DEVICE* device)
  */
 UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 {
+	WLog_ERR(TAG, "\n\non passe dans serial_process_irp_create\n\n\n\n\n\n");
 	char* name;
 	char* path;
 	char* driver;
