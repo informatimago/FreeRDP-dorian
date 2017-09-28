@@ -2,23 +2,18 @@
 
 ALL_VERSIONS= 
 INDEX=1
+KRB_PREFIX=
 
 ALL_VERSIONS=$(echo `curl -s https://api.github.com/repos/krb5/krb5/tags | grep name | cut -d '"' -f 4 | cut -d "-" -f 2`)
-
-echo ALL_VERSIONS=$ALL_VERSIONS
 
 VERSION=$(echo $ALL_VERSIONS |  cut -d " " -f $INDEX)
 let "INDEX++"
 
-echo VERSION=$VERSION
-
 while ! [[ $VERSION =~ [0-9] ]]
 do
   VERSION=$(echo $ALL_VERSIONS |  cut -d " " -f $INDEX)
-  echo VERSION=$VERSION
   let "INDEX++"
 done
-
 
 MAJOR_VERSION=$(echo $VERSION | cut -d '.' -f1)
 MINOR_VERSION=$(echo $VERSION | cut -d '.' -f2)
@@ -51,7 +46,6 @@ if [ $? -ne 0 ]; then
 fi
 
 if ! [[ $PATCH_VERSION = "" ]]; then
-  echo "patch version non nulle"
   sudo tar xzf /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION.tar.gz -C /opt
   if [ $? -ne 0 ]; then
     echo "Failed to extract Kerberos $MAJOR_VERSION.$MINOR_VERSION files. Please extract them by yourself"
@@ -59,17 +53,22 @@ if ! [[ $PATCH_VERSION = "" ]]; then
   cd /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION
   sudo chown -R 1000:1000 /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION
   PWD=$(echo `pwd`)
-  echo "ici PWD=$PWD"
   sudo apt-get install bison
   ANSWER=no
   while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
   do
     read -p "Please specify prefix directory of your Kerberos installation [/usr/local] : " KRB_PREFIX
+    echo KRB_PREFIX=$KRB_PREFIX
+    if [[ $KRB_PREFIX = "" ]]; then
+      echo "on passe la"
+      KRB_PREFIX="/usr/local"
+    fi
+    echo KRB_PREFIX=$KRB_PREFIX
     if ! [ -d "$KRB_PREFIX" ]; then
       echo "The directory $KRB_PREFIX does not exist. Try another one."
       continue
     fi
-    echo "You entered : $KRB_PREFIX. OK ? [Y/n]"
+    echo "You chose : $KRB_PREFIX. OK ? [Y/n]"
     read ANSWER
   done
   if ! [[ $KRB_PREFIX = "" ]]; then
@@ -79,24 +78,26 @@ if ! [[ $PATCH_VERSION = "" ]]; then
     $PWD/src/configure && make && sudo make install
   fi
 else
-  echo "patch version nulle"
   sudo tar xzf /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.tar.gz -C /opt
   if [ $? -ne 0 ]; then
     echo "Failed to extract Kerberos $MAJOR_VERSION.$MINOR_VERSION files. Please extract them by yourself"
   fi
   cd /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION 
   PWD=$(echo `pwd`)
-  echo "ici PWD=$PWD"
   sudo apt-get install bison
   ANSWER=no
   while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
   do
     read -p "Please specify prefix directory of your Kerberos installation [/usr/local] : " KRB_PREFIX
+    if [[ $KRB_PREFIX = "" ]]; then
+      KRB_PREFIX="/usr/local"
+    fi
+    echo KRB_PREFIX=$KRB_PREFIX
     if ! [ -d "$KRB_PREFIX" ]; then
       echo "The directory $KRB_PREFIX does not exist. Try another one."
       continue
     fi
-    echo "You entered : $KRB_PREFIX. OK ? [Y/n]"
+    echo "You chose : $KRB_PREFIX. OK ? [Y/n]"
     read ANSWER
   done
   if ! [[ $KRB_PREFIX = "" ]]; then
@@ -111,7 +112,3 @@ if [ $? -ne 0 ]; then
   echo "Failed to install Kerberos V5 $MAJOR_VERSION.$MINOR_VERSION. Please fix compilation or installation errors before retrying to execute this script."
   return 1
 fi
-
-return 0
-
-
