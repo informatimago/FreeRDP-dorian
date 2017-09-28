@@ -799,7 +799,8 @@ char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 	cchReaders = *pcchReaders;
 	namesWinSCard = (char*) calloc(cchReaders, 2);
 
-	WLog_ERR(TAG, "l.802: names=%s", names);
+	if(names)
+		WLog_ERR(TAG, "l.802: names=%s", names);
 
 	if (!namesWinSCard)
 		return NULL;
@@ -1168,12 +1169,13 @@ WINSCARDAPI LONG WINAPI PCSC_SCardListReaders_Internal(SCARDCONTEXT hContext,
 
 	if (status == SCARD_S_SUCCESS)
 	{
-		WLog_ERR(TAG, "l.1171: *pMszReaderNames=%s", *pMszReaders);
+		WLog_ERR(TAG, "l.1171: *pMszReaderNames=%s; *pcchReaders=%d", *pMszReaders, *pcchReaders);
 
 		mszReadersWinSCard = PCSC_ConvertReaderNamesToWinSCard(*pMszReaders, pcchReaders);
 
 		if (mszReadersWinSCard)
 		{
+			WLog_ERR(TAG, "l.1177: mszReadersWinSCard=%s", mszReadersWinSCard);
 			PCSC_SCardFreeMemory_Internal(hContext, *pMszReaders);
 			*pMszReaders = mszReadersWinSCard;
 			PCSC_AddMemoryBlock(hContext, *pMszReaders);
@@ -1600,7 +1602,9 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChange_Internal(SCARDCONTEXT hContext
 		states[j].pvUserData = rgReaderStates[i].pvUserData;
 		states[j].dwEventState = rgReaderStates[i].dwEventState;
 		states[j].cbAtr = rgReaderStates[i].cbAtr;
-		CopyMemory(&(states[j].rgbAtr), &(rgReaderStates[i].rgbAtr), PCSC_MAX_ATR_SIZE);
+//		CopyMemory(&(states[j].rgbAtr), &(rgReaderStates[i].rgbAtr), PCSC_MAX_ATR_SIZE);
+		CopyMemory(&(states[j].rgbAtr), &(rgReaderStates[i].rgbAtr), rgReaderStates[i].cbAtr);
+		ZeroMemory(&(states[j].rgbAtr[rgReaderStates[i].cbAtr]), PCSC_MAX_ATR_SIZE - rgReaderStates[i].cbAtr);
 		j++;
 	}
 
@@ -1706,7 +1710,9 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChangeW(SCARDCONTEXT hContext,
 		states[index].dwCurrentState = rgReaderStates[index].dwCurrentState;
 		states[index].dwEventState = rgReaderStates[index].dwEventState;
 		states[index].cbAtr = rgReaderStates[index].cbAtr;
-		CopyMemory(&(states[index].rgbAtr), &(rgReaderStates[index].rgbAtr), 35);
+//		CopyMemory(&(states[index].rgbAtr), &(rgReaderStates[index].rgbAtr), 35);
+		CopyMemory(&(states[index].rgbAtr), &(rgReaderStates[index].rgbAtr), rgReaderStates[index].cbAtr);
+		ZeroMemory(&(states[index].rgbAtr[rgReaderStates[index].cbAtr]), 36 - rgReaderStates[index].cbAtr);
 	}
 
 	status = PCSC_SCardGetStatusChange_Internal(hContext, dwTimeout, states, cReaders);
@@ -1718,7 +1724,9 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChangeW(SCARDCONTEXT hContext,
 		rgReaderStates[index].dwCurrentState = states[index].dwCurrentState;
 		rgReaderStates[index].dwEventState = states[index].dwEventState;
 		rgReaderStates[index].cbAtr = states[index].cbAtr;
-		CopyMemory(&(rgReaderStates[index].rgbAtr), &(states[index].rgbAtr), 35);
+//		CopyMemory(&(rgReaderStates[index].rgbAtr), &(states[index].rgbAtr), 35);
+		CopyMemory(&(rgReaderStates[index].rgbAtr), &(states[index].rgbAtr), states[index].cbAtr);
+		ZeroMemory(&(rgReaderStates[index].rgbAtr[states[index].cbAtr]), 36 - states[index].cbAtr);
 	}
 
 	free(states);
@@ -2097,7 +2105,7 @@ WINSCARDAPI LONG WINAPI PCSC_SCardStatus_Internal(SCARDHANDLE hCard,
 	status = PCSC_MapErrorCodeToWinSCard(status);
 	*pcchReaderLen = (DWORD) pcsc_cchReaderLen;
 
-	WLog_ERR(TAG, "l.2096: *pMszReaderNames=%s", *pMszReaderNames);
+//	WLog_ERR(TAG, "l.2096: *pMszReaderNames=%s", *pMszReaderNames);
 
 	mszReaderNamesWinSCard = PCSC_ConvertReaderNamesToWinSCard(*pMszReaderNames, pcchReaderLen);
 
@@ -3077,10 +3085,13 @@ int PCSC_InitializeSCardApi(void)
 		return -1;
 
 #else
-	g_PCSCModule = LoadLibraryA("libpcsclite.so.1");
+//	g_PCSCModule = LoadLibraryA("libpcsclite.so.1");
+	g_PCSCModule = LoadLibraryA("libpcscspy.so");
 
-	if (!g_PCSCModule)
-		g_PCSCModule = LoadLibraryA("libpcsclite.so");
+	if (!g_PCSCModule){
+//		g_PCSCModule = LoadLibraryA("libpcsclite.so");
+  	        g_PCSCModule = LoadLibraryA("libpcscspy.so");
+       }
 
 #endif
 

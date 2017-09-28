@@ -637,8 +637,9 @@ void smartcard_trace_list_reader_groups_return(SMARTCARD_DEVICE* smartcard,
 	else
 	{
 		length = ret->cBytes;
-		mszA = (char*) malloc(length);
+		mszA = (char*) malloc(length+1);
 		CopyMemory(mszA, ret->msz, ret->cBytes);
+		mszA[length] = '\0';
 	}
 
 	for (index = 0; index < length - 2; index++)
@@ -1364,8 +1365,10 @@ LONG smartcard_unpack_get_status_change_a_call(SMARTCARD_DEVICE* smartcard, wStr
 			Stream_Read_UINT32(s, readerState->dwCurrentState); /* dwCurrentState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->dwEventState); /* dwEventState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->cbAtr); /* cbAtr (4 bytes) */
-			Stream_Read(s, readerState->rgbAtr, 32); /* rgbAtr [0..32] (32 bytes) */
-			Stream_Seek(s, 4); /* rgbAtr [32..36] (4 bytes) */
+//			Stream_Read(s, readerState->rgbAtr, 32); /* rgbAtr [0..32] (32 bytes) */
+//			Stream_Seek(s, 4); /* rgbAtr [32..36] (4 bytes) */
+			Stream_Read(s, readerState->rgbAtr, readerState->cbAtr); /* rgbAtr [0..32] (32 bytes) */
+			Stream_Seek(s, 36 - readerState->cbAtr); /* rgbAtr [32..36] (4 bytes) */
 		}
 
 		for (index = 0; index < call->cReaders; index++)
@@ -1531,8 +1534,10 @@ LONG smartcard_unpack_get_status_change_w_call(SMARTCARD_DEVICE* smartcard, wStr
 			Stream_Read_UINT32(s, readerState->dwCurrentState); /* dwCurrentState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->dwEventState); /* dwEventState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->cbAtr); /* cbAtr (4 bytes) */
-			Stream_Read(s, readerState->rgbAtr, 32); /* rgbAtr [0..32] (32 bytes) */
-			Stream_Seek(s, 4); /* rgbAtr [32..36] (4 bytes) */
+//			Stream_Read(s, readerState->rgbAtr, 32); /* rgbAtr [0..32] (32 bytes) */
+//			Stream_Seek(s, 4); /* rgbAtr [32..36] (4 bytes) */
+			Stream_Read(s, readerState->rgbAtr, readerState->cbAtr); /* rgbAtr [0..32] (32 bytes) */
+			Stream_Seek(s, 36 - readerState->cbAtr); /* rgbAtr [32..36] (4 bytes) */
 		}
 
 		for (index = 0; index < call->cReaders; index++)
@@ -1646,8 +1651,10 @@ LONG smartcard_pack_get_status_change_return(SMARTCARD_DEVICE* smartcard, wStrea
 		Stream_Write_UINT32(s, rgReaderState->dwCurrentState); /* dwCurrentState (4 bytes) */
 		Stream_Write_UINT32(s, rgReaderState->dwEventState); /* dwEventState (4 bytes) */
 		Stream_Write_UINT32(s, rgReaderState->cbAtr); /* cbAtr (4 bytes) */
-		Stream_Write(s, rgReaderState->rgbAtr, 32); /* rgbAtr [0..32] (32 bytes) */
-		Stream_Zero(s, 4); /* rgbAtr [32..36] (32 bytes) */
+//		Stream_Write(s, rgReaderState->rgbAtr, 32); /* rgbAtr [0..32] (32 bytes) */
+//		Stream_Zero(s, 4); /* rgbAtr [32..36] (32 bytes) */
+		Stream_Write(s, rgReaderState->rgbAtr, rgReaderState->cbAtr); /* rgbAtr [0..32] (32 bytes) */
+		Stream_Zero(s, 36 - rgReaderState->cbAtr); /* rgbAtr [32..36] (32 bytes) */
 	}
 
 	return SCARD_S_SUCCESS;
@@ -1665,10 +1672,10 @@ void smartcard_trace_get_status_change_return(SMARTCARD_DEVICE* smartcard,
 	if (!WLog_IsLevelActive(WLog_Get(TAG), WLOG_DEBUG))
 		return;
 
-	WLog_DBG(TAG, "GetStatusChange%s_Return {", unicode ? "W" : "A");
-	WLog_DBG(TAG, "ReturnCode: %s (0x%08"PRIX32")",
+	WLog_ERR(TAG, "GetStatusChange%s_Return {", unicode ? "W" : "A");
+	WLog_ERR(TAG, "ReturnCode: %s (0x%08"PRIX32")",
 	         SCardGetErrorString(ret->ReturnCode), ret->ReturnCode);
-	WLog_DBG(TAG, "cReaders: %"PRIu32"", ret->cReaders);
+	WLog_ERR(TAG, "cReaders: %"PRIu32"", ret->cReaders);
 
 	for (index = 0; index < ret->cReaders; index++)
 	{
@@ -1680,14 +1687,14 @@ void smartcard_trace_get_status_change_return(SMARTCARD_DEVICE* smartcard,
 		         index, szCurrentState, rgReaderState->dwEventState >> 16, rgReaderState->dwCurrentState);
 		WLog_DBG(TAG, "\t[%"PRIu32"]: dwEventState: %s (activity Count: %d) (0x%08"PRIX32")",
 		         index, szEventState, rgReaderState->dwEventState >> 16, rgReaderState->dwEventState);
-		WLog_DBG(TAG, "\t[%"PRIu32"]: cbAtr: %"PRIu32" rgbAtr: %s",
+		WLog_ERR(TAG, "\t[%"PRIu32"]: cbAtr: %"PRIu32" rgbAtr: %s",
 		         index, rgReaderState->cbAtr, rgbAtr);
 		free(szCurrentState);
 		free(szEventState);
 		free(rgbAtr);
 	}
 
-	WLog_DBG(TAG, "}");
+	WLog_ERR(TAG, "}");
 }
 
 LONG smartcard_unpack_state_call(SMARTCARD_DEVICE* smartcard, wStream* s, State_Call* call)
@@ -1795,13 +1802,13 @@ void smartcard_trace_status_call(SMARTCARD_DEVICE* smartcard, Status_Call* call,
 
 	if (call->hContext.cbContext > 4)
 	{
-		WLog_DBG(TAG,
+		WLog_ERR(TAG,
 		         "hContext: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
 		         pb[0], pb[1], pb[2], pb[3], pb[4], pb[5], pb[6], pb[7], call->hContext.cbContext);
 	}
 	else
 	{
-		WLog_DBG(TAG, "hContext: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
+		WLog_ERR(TAG, "hContext: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
 		         pb[0], pb[1], pb[2], pb[3], call->hContext.cbContext);
 	}
 
@@ -1809,19 +1816,19 @@ void smartcard_trace_status_call(SMARTCARD_DEVICE* smartcard, Status_Call* call,
 
 	if (call->hCard.cbHandle > 4)
 	{
-		WLog_DBG(TAG,
+		WLog_ERR(TAG,
 		         "hCard: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
 		         pb[0], pb[1], pb[2], pb[3], pb[4], pb[5], pb[6], pb[7], call->hCard.cbHandle);
 	}
 	else
 	{
-		WLog_DBG(TAG, "hCard: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
+		WLog_ERR(TAG, "hCard: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
 		         pb[0], pb[1], pb[2], pb[3], call->hCard.cbHandle);
 	}
 
-	WLog_DBG(TAG, "fmszReaderNamesIsNULL: %"PRId32" cchReaderLen: %"PRIu32" cbAtrLen: %"PRIu32"",
+	WLog_ERR(TAG, "fmszReaderNamesIsNULL: %"PRId32" cchReaderLen: %"PRIu32" cbAtrLen: %"PRIu32"",
 	         call->fmszReaderNamesIsNULL, call->cchReaderLen, call->cbAtrLen);
-	WLog_DBG(TAG, "}");
+	WLog_ERR(TAG, "}");
 }
 
 LONG smartcard_pack_status_return(SMARTCARD_DEVICE* smartcard, wStream* s, Status_Return* ret)
@@ -2005,13 +2012,13 @@ void smartcard_trace_get_attrib_call(SMARTCARD_DEVICE* smartcard, GetAttrib_Call
 
 	if (call->hContext.cbContext > 4)
 	{
-		WLog_DBG(TAG,
+		WLog_ERR(TAG,
 		         "hContext: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
 		         pb[0], pb[1], pb[2], pb[3], pb[4], pb[5], pb[6], pb[7], call->hContext.cbContext);
 	}
 	else
 	{
-		WLog_DBG(TAG, "hContext: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
+		WLog_ERR(TAG, "hContext: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
 		         pb[0], pb[1], pb[2], pb[3], call->hContext.cbContext);
 	}
 
@@ -2019,19 +2026,19 @@ void smartcard_trace_get_attrib_call(SMARTCARD_DEVICE* smartcard, GetAttrib_Call
 
 	if (call->hCard.cbHandle > 4)
 	{
-		WLog_DBG(TAG,
+		WLog_ERR(TAG,
 		         "hCard: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
 		         pb[0], pb[1], pb[2], pb[3], pb[4], pb[5], pb[6], pb[7], call->hCard.cbHandle);
 	}
 	else
 	{
-		WLog_DBG(TAG, "hCard: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
+		WLog_ERR(TAG, "hCard: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
 		         pb[0], pb[1], pb[2], pb[3], call->hCard.cbHandle);
 	}
 
-	WLog_DBG(TAG, "dwAttrId: %s (0x%08"PRIX32") fpbAttrIsNULL: %"PRId32" cbAttrLen: 0x%08"PRIX32"",
+	WLog_ERR(TAG, "dwAttrId: %s (0x%08"PRIX32") fpbAttrIsNULL: %"PRId32" cbAttrLen: 0x%08"PRIX32"",
 	         SCardGetAttributeString(call->dwAttrId), call->dwAttrId, call->fpbAttrIsNULL, call->cbAttrLen);
-	WLog_DBG(TAG, "}");
+	WLog_ERR(TAG, "}");
 }
 
 LONG smartcard_pack_get_attrib_return(SMARTCARD_DEVICE* smartcard, wStream* s,
@@ -2174,13 +2181,13 @@ void smartcard_trace_control_call(SMARTCARD_DEVICE* smartcard, Control_Call* cal
 
 	if (call->hContext.cbContext > 4)
 	{
-		WLog_DBG(TAG,
+		WLog_ERR(TAG,
 		         "hContext: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
 		         pb[0], pb[1], pb[2], pb[3], pb[4], pb[5], pb[6], pb[7], call->hContext.cbContext);
 	}
 	else
 	{
-		WLog_DBG(TAG, "hContext: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
+		WLog_ERR(TAG, "hContext: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
 		         pb[0], pb[1], pb[2], pb[3], call->hContext.cbContext);
 	}
 
@@ -2188,17 +2195,17 @@ void smartcard_trace_control_call(SMARTCARD_DEVICE* smartcard, Control_Call* cal
 
 	if (call->hCard.cbHandle > 4)
 	{
-		WLog_DBG(TAG,
+		WLog_ERR(TAG,
 		         "hCard: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
 		         pb[0], pb[1], pb[2], pb[3], pb[4], pb[5], pb[6], pb[7], call->hCard.cbHandle);
 	}
 	else
 	{
-		WLog_DBG(TAG, "hCard: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
+		WLog_ERR(TAG, "hCard: 0x%02"PRIX8"%02"PRIX8"%02"PRIX8"%02"PRIX8" (%"PRIu32")",
 		         pb[0], pb[1], pb[2], pb[3], call->hCard.cbHandle);
 	}
 
-	WLog_DBG(TAG,
+	WLog_ERR(TAG,
 	         "dwControlCode: 0x%08"PRIX32" cbInBufferSize: %"PRIu32" fpvOutBufferIsNULL: %"PRId32" cbOutBufferSize: %"PRIu32"",
 	         call->dwControlCode, call->cbInBufferSize, call->fpvOutBufferIsNULL, call->cbOutBufferSize);
 
@@ -2210,10 +2217,10 @@ void smartcard_trace_control_call(SMARTCARD_DEVICE* smartcard, Control_Call* cal
 	}
 	else
 	{
-		WLog_DBG(TAG, "pvInBuffer: null");
+		WLog_ERR(TAG, "pvInBuffer: null");
 	}
 
-	WLog_DBG(TAG, "}");
+	WLog_ERR(TAG, "}");
 }
 
 LONG smartcard_pack_control_return(SMARTCARD_DEVICE* smartcard, wStream* s, Control_Return* ret)
@@ -2249,23 +2256,23 @@ void smartcard_trace_control_return(SMARTCARD_DEVICE* smartcard, Control_Return*
 	if (!WLog_IsLevelActive(WLog_Get(TAG), WLOG_DEBUG))
 		return;
 
-	WLog_DBG(TAG, "Control_Return {");
-	WLog_DBG(TAG, "ReturnCode: %s (0x%08"PRIX32")",
+	WLog_ERR(TAG, "Control_Return {");
+	WLog_ERR(TAG, "ReturnCode: %s (0x%08"PRIX32")",
 	         SCardGetErrorString(ret->ReturnCode), ret->ReturnCode);
-	WLog_DBG(TAG, "cbOutBufferSize: %"PRIu32"", ret->cbOutBufferSize);
+	WLog_ERR(TAG, "cbOutBufferSize: %"PRIu32"", ret->cbOutBufferSize);
 
 	if (ret->pvOutBuffer)
 	{
 		char* szOutBuffer = winpr_BinToHexString(ret->pvOutBuffer, ret->cbOutBufferSize, TRUE);
-		WLog_DBG(TAG, "pvOutBuffer: %s", szOutBuffer);
+		WLog_ERR(TAG, "pvOutBuffer: %s", szOutBuffer);
 		free(szOutBuffer);
 	}
 	else
 	{
-		WLog_DBG(TAG, "pvOutBuffer: null");
+		WLog_ERR(TAG, "pvOutBuffer: null");
 	}
 
-	WLog_DBG(TAG, "}");
+	WLog_ERR(TAG, "}");
 }
 
 LONG smartcard_unpack_transmit_call(SMARTCARD_DEVICE* smartcard, wStream* s, Transmit_Call* call)
@@ -2846,8 +2853,10 @@ LONG smartcard_unpack_locate_cards_by_atr_a_call(SMARTCARD_DEVICE* smartcard, wS
 			Stream_Read_UINT32(s, readerState->dwCurrentState); /* dwCurrentState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->dwEventState); /* dwEventState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->cbAtr); /* cbAtr (4 bytes) */
-			Stream_Read(s, readerState->rgbAtr, 32); /* rgbAtr [0..32] (32 bytes) */
-			Stream_Seek(s, 4); /* rgbAtr [32..36] (4 bytes) */
+//			Stream_Read(s, readerState->rgbAtr, 32); /* rgbAtr [0..32] (32 bytes) */
+//			Stream_Seek(s, 4); /* rgbAtr [32..36] (4 bytes) */
+			Stream_Read(s, readerState->rgbAtr, readerState->cbAtr); /* rgbAtr [0..32] (32 bytes) */
+			Stream_Seek(s, 36 - readerState->cbAtr); /* rgbAtr [32..36] (4 bytes) */
 		}
 
 		for (index = 0; index < call->cReaders; index++)

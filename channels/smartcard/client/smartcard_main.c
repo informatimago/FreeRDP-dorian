@@ -55,7 +55,7 @@ void* smartcard_context_thread(SMARTCARD_CONTEXT* pContext)
 		if (waitStatus == WAIT_FAILED)
 		{
 			error = GetLastError();
-			WLog_ERR(TAG, "WaitForMultipleObjects failed with error %"PRIu32"!", error);
+			//WLog_ERR(TAG, "WaitForMultipleObjects failed with error %"PRIu32"!", error);
 			break;
 		}
 
@@ -64,7 +64,7 @@ void* smartcard_context_thread(SMARTCARD_CONTEXT* pContext)
 		if (waitStatus == WAIT_FAILED)
 		{
 			error = GetLastError();
-			WLog_ERR(TAG, "WaitForSingleObject failed with error %"PRIu32"!", error);
+			//WLog_ERR(TAG, "WaitForSingleObject failed with error %"PRIu32"!", error);
 			break;
 		}
 
@@ -176,6 +176,9 @@ static void smartcard_release_all_contexts(SMARTCARD_DEVICE* smartcard)
 	ULONG_PTR* pKeys;
 	SMARTCARD_CONTEXT* pContext;
     LONG status;
+
+     WLog_ERR(TAG, "l.180: smartcard_release_all_contexts");
+
 
 	/**
 	 * On protocol termination, the following actions are performed:
@@ -354,6 +357,8 @@ UINT smartcard_process_irp(SMARTCARD_DEVICE* smartcard, IRP* irp)
 	SMARTCARD_OPERATION* operation = NULL;
 	key = (void*)(size_t) irp->CompletionId;
 
+       //WLog_ERR(TAG, "irp->MajorFunction=%d\n");
+
 	if (!ListDictionary_Add(smartcard->rgOutstandingMessages, key, irp))
 	{
 		WLog_ERR(TAG, "ListDictionary_Add failed!");
@@ -518,13 +523,14 @@ static void* smartcard_thread_func(void* arg)
 	wMessage message;
 	SMARTCARD_DEVICE* smartcard = (SMARTCARD_DEVICE*) arg;
 	UINT error = CHANNEL_RC_OK;
-	nCount = 0;
+        nCount = 0;
 	hEvents[nCount++] = MessageQueue_Event(smartcard->IrpQueue);
 	hEvents[nCount++] = Queue_Event(smartcard->CompletedIrpQueue);
 
 	while (1)
 	{
 		status = WaitForMultipleObjects(nCount, hEvents, FALSE, INFINITE);
+		//WLog_ERR(TAG, "WaitForMultipleObjects failed with error %"PRIu32"!", error);
 
 		if (status == WAIT_FAILED)
 		{
@@ -718,8 +724,8 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	smartcard->device.Free = smartcard_free;
 	smartcard->rdpcontext = pEntryPoints->rdpcontext;
 
-#if 0
-	length = strlen(smartcard->device.name);
+#if 1
+	int length = strlen(smartcard->device.name);
 	smartcard->device.data = Stream_New(NULL, length + 1);
 
 	if (!smartcard->device.data)
