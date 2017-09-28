@@ -3,6 +3,8 @@
 ALL_VERSIONS= 
 INDEX=1
 KRB_PREFIX=
+START_DIR=$(echo `pwd`)
+echo START_DIR=$START_DIR
 
 ALL_VERSIONS=$(echo `curl -s https://api.github.com/repos/krb5/krb5/tags | grep name | cut -d '"' -f 4 | cut -d "-" -f 2`)
 
@@ -57,13 +59,10 @@ if ! [[ $PATCH_VERSION = "" ]]; then
   ANSWER=no
   while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
   do
-    read -p "Please specify prefix directory of your Kerberos installation [/usr/local] : " KRB_PREFIX
-    echo KRB_PREFIX=$KRB_PREFIX
+    read -p "Please specify prefix directory for your Kerberos installation [/usr/local] : " KRB_PREFIX
     if [[ $KRB_PREFIX = "" ]]; then
-      echo "on passe la"
       KRB_PREFIX="/usr/local"
     fi
-    echo KRB_PREFIX=$KRB_PREFIX
     if ! [ -d "$KRB_PREFIX" ]; then
       echo "The directory $KRB_PREFIX does not exist. Try another one."
       continue
@@ -71,12 +70,7 @@ if ! [[ $PATCH_VERSION = "" ]]; then
     echo "You chose : $KRB_PREFIX. OK ? [Y/n]"
     read ANSWER
   done
-  if ! [[ $KRB_PREFIX = "" ]]; then
-    $PWD/src/configure --prefix=$KRB_PREFIX && make && sudo make install
-  else 
-    # /usr/local by default 
-    $PWD/src/configure && make && sudo make install
-  fi
+  $PWD/src/configure --prefix=$KRB_PREFIX && make && sudo make install
 else
   sudo tar xzf /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.tar.gz -C /opt
   if [ $? -ne 0 ]; then
@@ -88,11 +82,10 @@ else
   ANSWER=no
   while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
   do
-    read -p "Please specify prefix directory of your Kerberos installation [/usr/local] : " KRB_PREFIX
+    read -p "Please specify prefix directory for your Kerberos installation [/usr/local] : " KRB_PREFIX
     if [[ $KRB_PREFIX = "" ]]; then
       KRB_PREFIX="/usr/local"
     fi
-    echo KRB_PREFIX=$KRB_PREFIX
     if ! [ -d "$KRB_PREFIX" ]; then
       echo "The directory $KRB_PREFIX does not exist. Try another one."
       continue
@@ -100,15 +93,18 @@ else
     echo "You chose : $KRB_PREFIX. OK ? [Y/n]"
     read ANSWER
   done
-  if ! [[ $KRB_PREFIX = "" ]]; then
-    $PWD/src/configure --prefix=$KRB_PREFIX && make && sudo make install
-  else
-    # /usr/local by default 
-    $PWD/src/configure && make && sudo make install
-  fi
+  $PWD/src/configure --prefix=$KRB_PREFIX && make && sudo make install
 fi
 
 if [ $? -ne 0 ]; then
   echo "Failed to install Kerberos V5 $MAJOR_VERSION.$MINOR_VERSION. Please fix compilation or installation errors before retrying to execute this script."
   return 1
+fi
+
+cd $START_DIR
+echo
+if ! [[ $PATCH_VERSION = "" ]]; then
+  echo "Kerberos V5 $MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION have been successfully installed in $KRB_PREFIX"
+else
+  echo "Kerberos V5 $MAJOR_VERSION.$MINOR_VERSION have been successfully installed in $KRB_PREFIX"
 fi
