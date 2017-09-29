@@ -587,6 +587,10 @@ static LONG smartcard_GetStatusChangeA_Call(SMARTCARD_DEVICE* smartcard,
 	LPSCARD_READERSTATEA rgReaderState = NULL;
 	IRP* irp = operation->irp;
 	GetStatusChangeA_Call* call = operation->call;
+	call->hContext = 0;
+    call->dwTimeOut = 0;
+    call->rgReaderStates = 0;
+    call->cReaders = 0;
 	status = ret.ReturnCode = SCardGetStatusChangeA(operation->hContext,
 	                          call->dwTimeOut, call->rgReaderStates, call->cReaders);
 
@@ -665,7 +669,10 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
 	LPSCARD_READERSTATEW rgReaderState = NULL;
 	IRP* irp = operation->irp;
 	GetStatusChangeW_Call* call = operation->call;
-
+	call->hContext = 0;
+    call->dwTimeOut = 0;
+    call->rgReaderStates = 0;
+    call->cReaders = 0;
 	//WLog_ERR(TAG, "\nsmartcard_GetStatusChangeW_Call: l.667\n\n");
 
 	status = ret.ReturnCode = SCardGetStatusChangeW(operation->hContext, call->dwTimeOut,
@@ -691,16 +698,16 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
 
 	for (index = 0; index < ret.cReaders; index++)
 	{
-		WLog_ERR(TAG, "call->rgReaderStates[%d].dwCurrentState=%d", index, call->rgReaderStates[index].dwCurrentState);
+//		WLog_ERR(TAG, "call->rgReaderStates[%d].dwCurrentState=%d", index, call->rgReaderStates[index].dwCurrentState);
 		ret.rgReaderStates[index].dwCurrentState = call->rgReaderStates[index].dwCurrentState;
 
-		WLog_ERR(TAG, "call->rgReaderStates[%d].dwEventState=%d", index, call->rgReaderStates[index].dwEventState);
+//		WLog_ERR(TAG, "call->rgReaderStates[%d].dwEventState=%d", index, call->rgReaderStates[index].dwEventState);
 		ret.rgReaderStates[index].dwEventState = call->rgReaderStates[index].dwEventState;
 
-		WLog_ERR(TAG, "call->rgReaderStates[%d].cbAtr=%d", index, call->rgReaderStates[index].cbAtr);
+//		WLog_ERR(TAG, "call->rgReaderStates[%d].cbAtr=%d", index, call->rgReaderStates[index].cbAtr);
 		ret.rgReaderStates[index].cbAtr = call->rgReaderStates[index].cbAtr;
 
-        WLog_ERR(TAG, "call->rgReaderStates[%d].rgbAtr=%s", index, call->rgReaderStates[index].rgbAtr);
+//        WLog_ERR(TAG, "call->rgReaderStates[%d].rgbAtr=%s", index, call->rgReaderStates[index].rgbAtr);
 //		CopyMemory(&(ret.rgReaderStates[index].rgbAtr), &(call->rgReaderStates[index].rgbAtr), 36);
         CopyMemory(&(ret.rgReaderStates[index].rgbAtr), &(call->rgReaderStates[index].rgbAtr), ret.rgReaderStates[index].cbAtr);
         ZeroMemory(&(ret.rgReaderStates[index].rgbAtr[ret.rgReaderStates[index].cbAtr]), 36 - ret.rgReaderStates[index].cbAtr);
