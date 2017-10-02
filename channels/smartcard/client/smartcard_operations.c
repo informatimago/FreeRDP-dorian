@@ -587,12 +587,52 @@ static LONG smartcard_GetStatusChangeA_Call(SMARTCARD_DEVICE* smartcard,
 	LPSCARD_READERSTATEA rgReaderState = NULL;
 	IRP* irp = operation->irp;
 	GetStatusChangeA_Call* call = operation->call;
-	call->hContext = 0;
-    call->dwTimeOut = 0;
-    call->rgReaderStates = 0;
-    call->cReaders = 0;
+
+
+/*
+	typedef struct
+	{
+		LPCSTR szReader;
+		LPVOID pvUserData;
+		DWORD dwCurrentState;
+		DWORD dwEventState;
+		DWORD cbAtr;
+		BYTE rgbAtr[36];
+	} SCARD_READERSTATEA, *PSCARD_READERSTATEA, *LPSCARD_READERSTATEA;
+*/
+
+
+
+
+	/**
+	 *  https://msdn.microsoft.com/fr-fr/library/windows/desktop/aa379773(v=vs.85).aspx
+	 * Important  Each member of SCARD_READERSTATE structure in
+     * rgReaderStates [in, out] array must be initialized to zero
+	 * and then set to specific values as necessary. If this is not done, the function will fail
+	 * in situations that involve remote card readers.
+	 */
+//	memset(call->rgReaderStates, 0, sizeof(SCARD_READERSTATEA));
+//	call->rgReaderStates->szReader = smartcard->name;
+//	call->rgReaderStates->szReader = calloc(strlen(smartcard->name)+1, sizeof(WCHAR));
+//	memcpy(call->rgReaderStates->szReader, smartcard->name, sizeof(*call->rgReaderStates->szReader));
+//	WLog_ERR(TAG, "\nsmartcard->name=%s\n\n", smartcard->name);
+	call->rgReaderStates->pvUserData = NULL;
+//	memset(call->rgReaderStates->szReader, 0, sizeof(call->rgReaderStates->szReader));
+//	memset(call->rgReaderStates->pvUserData, 0, sizeof(call->rgReaderStates->pvUserData));
+	call->rgReaderStates->dwCurrentState = 0;
+	call->rgReaderStates->dwEventState = 0;
+	call->rgReaderStates->cbAtr = 0;
+	memset(call->rgReaderStates->rgbAtr, 0, sizeof(call->rgReaderStates->rgbAtr));
+
+//	call->rgReaderStates = (LPSCARD_READERSTATEA) calloc(1, sizeof(SCARD_READERSTATEA));
+
 	status = ret.ReturnCode = SCardGetStatusChangeA(operation->hContext,
 	                          call->dwTimeOut, call->rgReaderStates, call->cReaders);
+
+	for (index = 0; index < call->cReaders; index++)
+	{
+		ZeroMemory(&(call->rgReaderStates[index].rgbAtr[call->rgReaderStates[index].cbAtr]), 36 - call->rgReaderStates[index].cbAtr);
+	}
 
 	if (status && (status != SCARD_E_TIMEOUT) && (status != SCARD_E_CANCELLED))
 	{
@@ -669,14 +709,36 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
 	LPSCARD_READERSTATEW rgReaderState = NULL;
 	IRP* irp = operation->irp;
 	GetStatusChangeW_Call* call = operation->call;
-	call->hContext = 0;
-    call->dwTimeOut = 0;
-    call->rgReaderStates = 0;
-    call->cReaders = 0;
 	//WLog_ERR(TAG, "\nsmartcard_GetStatusChangeW_Call: l.667\n\n");
+
+	/**
+	 *  https://msdn.microsoft.com/fr-fr/library/windows/desktop/aa379773(v=vs.85).aspx
+	 * Important  Each member of SCARD_READERSTATE structure in
+     * rgReaderStates [in, out] array must be initialized to zero
+	 * and then set to specific values as necessary. If this is not done, the function will fail
+	 * in situations that involve remote card readers.
+	 */
+//	memset(call->rgReaderStates, 0, sizeof(SCARD_READERSTATEW));
+//	call->rgReaderStates->szReader = calloc(strlen(smartcard->name)+1, sizeof(WCHAR));
+//	memcpy(call->rgReaderStates->szReader, smartcard->name, sizeof(*call->rgReaderStates->szReader));
+//	WLog_ERR(TAG, "\nsmartcard->name=%s\n\n", smartcard->name);
+	call->rgReaderStates->pvUserData = NULL;
+//	memset(call->rgReaderStates->szReader, 0, sizeof(call->rgReaderStates->szReader));
+//	memset(call->rgReaderStates->pvUserData, 0, sizeof(call->rgReaderStates->pvUserData));
+	call->rgReaderStates->dwCurrentState = 0;
+	call->rgReaderStates->dwEventState = 0;
+	call->rgReaderStates->cbAtr = 0;
+	memset(call->rgReaderStates->rgbAtr, 0, sizeof(call->rgReaderStates->rgbAtr));
+
+//	call->rgReaderStates = (LPSCARD_READERSTATEW) calloc(1, sizeof(SCARD_READERSTATEW));
 
 	status = ret.ReturnCode = SCardGetStatusChangeW(operation->hContext, call->dwTimeOut,
 	                          call->rgReaderStates, call->cReaders);
+
+	for (index = 0; index < call->cReaders; index++)
+	{
+		ZeroMemory(&(call->rgReaderStates[index].rgbAtr[call->rgReaderStates[index].cbAtr]), 36 - call->rgReaderStates[index].cbAtr);
+	}
 
 	if (status && (status != SCARD_E_TIMEOUT) && (status != SCARD_E_CANCELLED))
 	{
@@ -1908,13 +1970,14 @@ LONG smartcard_irp_device_control_call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OP
 {
 	IRP* irp;
 	LONG callResult;
-        LONG packResult;
+    LONG packResult;
 	UINT32 offset;
 	UINT32 ioControlCode;
 	UINT32 outputBufferLength;
 	UINT32 objectBufferLength;
 	irp = operation->irp;
 	ioControlCode = operation->ioControlCode;
+
 	/**
 	 * [MS-RDPESC] 3.2.5.1: Sending Outgoing Messages:
 	 * the output buffer length SHOULD be set to 2048
