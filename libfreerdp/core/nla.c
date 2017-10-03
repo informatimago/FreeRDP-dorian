@@ -400,7 +400,7 @@ int nla_client_init(rdpNla* nla)
 				return -1;
 			}
 
-			int ret = sspi_SetAuthIdentity_Smartcard(nla->identity, settings->Password, AT_KEYEXCHANGE,
+			int ret = sspi_SetAuthIdentity_Smartcard(nla->identity, settings->Password, /*AT_KEYEXCHANGE*/ AT_AUTHENTICATE,
 			          settings->CardName,
 			          settings->SmartcardReaderName,
 			          settings->ContainerName,

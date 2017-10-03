@@ -222,7 +222,7 @@ static void smartcard_release_all_contexts(SMARTCARD_DEVICE* smartcard)
 
 		for (index = 0; index < keyCount; index++)
 		{
-	/*		pContext = (SMARTCARD_CONTEXT*) ListDictionary_Remove(
+			pContext = (SMARTCARD_CONTEXT*) ListDictionary_Remove(
 			               smartcard->rgSCardContextList, (void*) pKeys[index]);
 
 			if (!pContext)
@@ -245,7 +245,6 @@ static void smartcard_release_all_contexts(SMARTCARD_DEVICE* smartcard)
 			{
 				WLog_ERR( TAG, "SCardCancel() failed with error %lu!", status );
 			}
-			*/
 		}
 
 		free(pKeys);
