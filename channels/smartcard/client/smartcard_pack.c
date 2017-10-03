@@ -173,6 +173,8 @@ SCARDCONTEXT smartcard_scard_context_native_from_redir(SMARTCARD_DEVICE* smartca
 		return 0;
 	}
 
+//	WLog_ERR(TAG, "context->cbContext=%d***********************\n\n\n", context->cbContext);
+
 	if (context->cbContext)
 		CopyMemory(&hContext, &(context->pbContext), context->cbContext);
 	else

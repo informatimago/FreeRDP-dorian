@@ -33,12 +33,14 @@ typedef struct _REDIR_SCARDCONTEXT
 {
 	/* [range] */ DWORD cbContext;
 	/* [size_is][unique] */ BYTE pbContext[8];
+//	/* [size_is][unique] */ BYTE* pbContext;
 } REDIR_SCARDCONTEXT;
 
 typedef struct _REDIR_SCARDHANDLE
 {
 	/* [range] */ DWORD cbHandle;
 	/* [size_is] */ BYTE pbHandle[8];
+//	/* [size_is] */ BYTE* pbHandle;
 } REDIR_SCARDHANDLE;
 
 typedef struct _Long_Call

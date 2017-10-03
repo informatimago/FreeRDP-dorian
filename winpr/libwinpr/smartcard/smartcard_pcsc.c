@@ -799,8 +799,8 @@ char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 	cchReaders = *pcchReaders;
 	namesWinSCard = (char*) calloc(cchReaders, 2);
 
-	if(names)
-		WLog_ERR(TAG, "l.802: names=%s", names);
+//	if(names)
+//		WLog_ERR(TAG, "l.802: names=%s", names);
 
 	if (!namesWinSCard)
 		return NULL;
@@ -1169,13 +1169,13 @@ WINSCARDAPI LONG WINAPI PCSC_SCardListReaders_Internal(SCARDCONTEXT hContext,
 
 	if (status == SCARD_S_SUCCESS)
 	{
-		WLog_ERR(TAG, "l.1171: *pMszReaderNames=%s; *pcchReaders=%d", *pMszReaders, *pcchReaders);
+//		WLog_ERR(TAG, "l.1171: *pMszReaderNames=%s; *pcchReaders=%d", *pMszReaders, *pcchReaders);
 
 		mszReadersWinSCard = PCSC_ConvertReaderNamesToWinSCard(*pMszReaders, pcchReaders);
 
 		if (mszReadersWinSCard)
 		{
-			WLog_ERR(TAG, "l.1177: mszReadersWinSCard=%s", mszReadersWinSCard);
+//			WLog_ERR(TAG, "l.1177: mszReadersWinSCard=%s", mszReadersWinSCard);
 			PCSC_SCardFreeMemory_Internal(hContext, *pMszReaders);
 			*pMszReaders = mszReadersWinSCard;
 			PCSC_AddMemoryBlock(hContext, *pMszReaders);

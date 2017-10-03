@@ -1497,7 +1497,7 @@ UINT rdpdr_send(rdpdrPlugin* rdpdr, wStream* s)
 	if (status != CHANNEL_RC_OK)
 	{
 		Stream_Free(s, TRUE);
-		WLog_ERR(TAG,  "pVirtualChannelWriteEx failed with %s [%08"PRIX32"]",
+		WLog_ERR(TAG,  "l.1500: pVirtualChannelWriteEx failed with %s [%08"PRIX32"]",
 		         WTSErrorToString(status), status);
 	}
 

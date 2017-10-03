@@ -177,7 +177,7 @@ static void smartcard_release_all_contexts(SMARTCARD_DEVICE* smartcard)
 	SMARTCARD_CONTEXT* pContext;
     LONG status;
 
-     WLog_ERR(TAG, "l.180: smartcard_release_all_contexts");
+//     WLog_ERR(TAG, "l.180: smartcard_release_all_contexts");
 
 
 	/**
@@ -222,7 +222,7 @@ static void smartcard_release_all_contexts(SMARTCARD_DEVICE* smartcard)
 
 		for (index = 0; index < keyCount; index++)
 		{
-			pContext = (SMARTCARD_CONTEXT*) ListDictionary_Remove(
+	/*		pContext = (SMARTCARD_CONTEXT*) ListDictionary_Remove(
 			               smartcard->rgSCardContextList, (void*) pKeys[index]);
 
 			if (!pContext)
@@ -245,6 +245,7 @@ static void smartcard_release_all_contexts(SMARTCARD_DEVICE* smartcard)
 			{
 				WLog_ERR( TAG, "SCardCancel() failed with error %lu!", status );
 			}
+			*/
 		}
 
 		free(pKeys);
@@ -717,9 +718,14 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 		return CHANNEL_RC_NO_MEMORY;
 	}
 
+	smartcard->device.Free = smartcard_free; // new
+
 	smartcard->device.type = RDPDR_DTYP_SMARTCARD;
 	smartcard->device.name = "SCARD";
 	smartcard->device.IRPRequest = smartcard_irp_request;
+
+	smartcard->device.Free = smartcard_free; // new
+
 	smartcard->device.Init = smartcard_init;
 	smartcard->device.Free = smartcard_free;
 	smartcard->rdpcontext = pEntryPoints->rdpcontext;

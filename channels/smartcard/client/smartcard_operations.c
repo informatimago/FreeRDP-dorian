@@ -746,14 +746,14 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
 	}
 
 	ret.cReaders = call->cReaders;
-	WLog_ERR(TAG, "call->cReaders=%d", call->cReaders);
+//	WLog_ERR(TAG, "call->cReaders=%d", call->cReaders);
 
-        ret.rgReaderStates = NULL;
+    ret.rgReaderStates = NULL;
 
 	if (ret.cReaders > 0)
 		ret.rgReaderStates = (ReaderState_Return*) calloc(ret.cReaders, sizeof(ReaderState_Return));
 
-	WLog_ERR(TAG, "ret.cReaders=%d allocated \n\n", ret.cReaders);
+//	WLog_ERR(TAG, "ret.cReaders=%d allocated \n\n", ret.cReaders);
 
 	if (!ret.rgReaderStates)
 		return STATUS_NO_MEMORY;
@@ -775,7 +775,7 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
         ZeroMemory(&(ret.rgReaderStates[index].rgbAtr[ret.rgReaderStates[index].cbAtr]), 36 - ret.rgReaderStates[index].cbAtr);
 	}
 
-    WLog_ERR(TAG, "avant smartcard_trace_get_status_change_return\n\n\n");
+//    WLog_ERR(TAG, "avant smartcard_trace_get_status_change_return\n\n\n");
 
 	smartcard_trace_get_status_change_return(smartcard, &ret, TRUE);
 
