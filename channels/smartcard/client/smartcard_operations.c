@@ -1136,12 +1136,12 @@ static LONG smartcard_StatusA_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERAT
         if (call->cchReaderLen == SCARD_AUTOALLOCATE)
         {
         	WLog_ERR(TAG, "SCardFreeMemory dans smartcard_StatusA_Call\n\n");
-//            SCardFreeMemory( operation->hContext, mszReaderName );
+            SCardFreeMemory( operation->hContext, mszReaderName );
         }
         else
         {
         	WLog_ERR(TAG, "on free dans smartcard_StatusA_Call\n\n");
-//            free( mszReaderName );
+            free( mszReaderName );
         }
 	}
 
@@ -1236,12 +1236,12 @@ static LONG smartcard_StatusW_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERAT
         if (call->cchReaderLen == SCARD_AUTOALLOCATE)
         {
         	WLog_ERR(TAG, "SCardFreeMemory dans smartcard_StatusW_Call\n\n");
-//            SCardFreeMemory( operation->hContext, mszReaderName );
+            SCardFreeMemory( operation->hContext, mszReaderName );
         }
         else
         {
         	WLog_ERR(TAG, "on free dans smartcard_StatusW_Call\n\n");
-//            free( mszReaderName );
+            free( mszReaderName );
         }
     }
 
@@ -1616,9 +1616,9 @@ LONG smartcard_irp_device_control_decode(SMARTCARD_DEVICE* smartcard,
 	}
 
 //	WLog_DBG(TAG, "%s (0x%08"PRIX32") FileId: %"PRIu32" CompletionId: %"PRIu32"",
-	WLog_ERR(TAG, "%s (0x%08"PRIX32") FileId: %"PRIu32" CompletionId: %"PRIu32"",
-	         smartcard_get_ioctl_string(ioControlCode, TRUE),
-	         ioControlCode, irp->FileId, irp->CompletionId);
+//	WLog_ERR(TAG, "%s (0x%08"PRIX32") FileId: %"PRIu32" CompletionId: %"PRIu32"",
+//	         smartcard_get_ioctl_string(ioControlCode, TRUE),
+//	         ioControlCode, irp->FileId, irp->CompletionId);
 
 	if ((ioControlCode != SCARD_IOCTL_ACCESSSTARTEDEVENT) &&
 	    (ioControlCode != SCARD_IOCTL_RELEASESTARTEDEVENT))
