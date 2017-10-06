@@ -795,6 +795,7 @@ char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 	char* namesWinSCard;
 	BOOL endReaderName = FALSE;
 	BOOL allReaders = FALSE;
+	char* temp_names = names;
 	p = (char*) names;
 	cchReaders = *pcchReaders;
 	namesWinSCard = (char*) calloc(cchReaders, 2);
@@ -806,6 +807,8 @@ char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 
 	q = namesWinSCard;
 	p = (char*) names;
+
+//	WLog_ERR(TAG, "avant while: names=%s; p=%s\n\n", names, p);
 
 	while ( (names!=NULL) && (p - names) < cchReaders)
 	{
@@ -851,6 +854,9 @@ char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 
 		p += strlen(p) + 1;
 	}
+
+	names = temp_names;
+	WLog_ERR(TAG, "apres while: names=%s\n\n", names);
 
 	*q = '\0';
 	q++;
@@ -2103,9 +2109,13 @@ WINSCARDAPI LONG WINAPI PCSC_SCardStatus_Internal(SCARDHANDLE hCard,
 
 	if (mszReaderNamesWinSCard)
 	{
-//		PCSC_SCardFreeMemory_Internal(hContext, *pMszReaderNames);
-		*pMszReaderNames = mszReaderNamesWinSCard;
-		PCSC_AddMemoryBlock(hContext, *pMszReaderNames);
+//		WLog_ERR(TAG, "*pMszReaderNames=%s\n",*pMszReaderNames);
+//		if(*pMszReaderNames)
+//			PCSC_SCardFreeMemory_Internal(hContext, *pMszReaderNames);
+//		*pMszReaderNames = mszReaderNamesWinSCard;
+//		PCSC_AddMemoryBlock(hContext, *pMszReaderNames);
+
+		PCSC_AddMemoryBlock(hContext, mszReaderNamesWinSCard);
 	}
 
 	pcsc_dwState &= 0xFFFF;
