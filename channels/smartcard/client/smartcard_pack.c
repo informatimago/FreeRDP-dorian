@@ -637,7 +637,7 @@ void smartcard_trace_list_reader_groups_return(SMARTCARD_DEVICE* smartcard,
 	else
 	{
 		length = ret->cBytes;
-		mszA = (char*) malloc(length);
+		mszA = (char*) calloc(length+1, sizeof(char));
 		CopyMemory(mszA, ret->msz, ret->cBytes);
 	}
 
@@ -1364,8 +1364,8 @@ LONG smartcard_unpack_get_status_change_a_call(SMARTCARD_DEVICE* smartcard, wStr
 			Stream_Read_UINT32(s, readerState->dwCurrentState); /* dwCurrentState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->dwEventState); /* dwEventState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->cbAtr); /* cbAtr (4 bytes) */
-			Stream_Read(s, readerState->rgbAtr, 32); /* rgbAtr [0..32] (32 bytes) */
-			Stream_Seek(s, 4); /* rgbAtr [32..36] (4 bytes) */
+            Stream_Read(s, readerState->rgbAtr, readerState->cbAtr); /* rgbAtr [0..cbAtr] (cbAtr bytes) */
+            Stream_Seek(s, 36 - readerState->cbAtr); /* rgbAtr [cbAtr..36] (36 - cbAtr bytes) */
 		}
 
 		for (index = 0; index < call->cReaders; index++)
@@ -1531,8 +1531,8 @@ LONG smartcard_unpack_get_status_change_w_call(SMARTCARD_DEVICE* smartcard, wStr
 			Stream_Read_UINT32(s, readerState->dwCurrentState); /* dwCurrentState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->dwEventState); /* dwEventState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->cbAtr); /* cbAtr (4 bytes) */
-			Stream_Read(s, readerState->rgbAtr, 32); /* rgbAtr [0..32] (32 bytes) */
-			Stream_Seek(s, 4); /* rgbAtr [32..36] (4 bytes) */
+			Stream_Read(s, readerState->rgbAtr, readerState->cbAtr); /* rgbAtr [0..cbAtr] (cbAtr bytes) */
+			Stream_Seek(s, 36 - readerState->cbAtr); /* rgbAtr [cbAtr..36] (36 - cbAtr bytes) */
 		}
 
 		for (index = 0; index < call->cReaders; index++)
@@ -1646,8 +1646,8 @@ LONG smartcard_pack_get_status_change_return(SMARTCARD_DEVICE* smartcard, wStrea
 		Stream_Write_UINT32(s, rgReaderState->dwCurrentState); /* dwCurrentState (4 bytes) */
 		Stream_Write_UINT32(s, rgReaderState->dwEventState); /* dwEventState (4 bytes) */
 		Stream_Write_UINT32(s, rgReaderState->cbAtr); /* cbAtr (4 bytes) */
-		Stream_Write(s, rgReaderState->rgbAtr, 32); /* rgbAtr [0..32] (32 bytes) */
-		Stream_Zero(s, 4); /* rgbAtr [32..36] (32 bytes) */
+		Stream_Write(s, rgReaderState->rgbAtr, rgReaderState->cbAtr); /* rgbAtr [0..cbAtr] (cbAtr bytes) */
+		Stream_Zero(s, 36 - rgReaderState->cbAtr); /* rgbAtr [cbAtr..36] (36 - cbAtr bytes) */
 	}
 
 	return SCARD_S_SUCCESS;
@@ -2846,8 +2846,8 @@ LONG smartcard_unpack_locate_cards_by_atr_a_call(SMARTCARD_DEVICE* smartcard, wS
 			Stream_Read_UINT32(s, readerState->dwCurrentState); /* dwCurrentState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->dwEventState); /* dwEventState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->cbAtr); /* cbAtr (4 bytes) */
-			Stream_Read(s, readerState->rgbAtr, 32); /* rgbAtr [0..32] (32 bytes) */
-			Stream_Seek(s, 4); /* rgbAtr [32..36] (4 bytes) */
+			Stream_Read(s, readerState->rgbAtr, readerState->cbAtr); /* rgbAtr [0..cbAtr] (cbAtr bytes) */
+			Stream_Seek(s, 36 - readerState->cbAtr); /* rgbAtr [cbAtr..36] (36 - cbAtr bytes) */
 		}
 
 		for (index = 0; index < call->cReaders; index++)

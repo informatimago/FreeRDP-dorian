@@ -587,6 +587,20 @@ static LONG smartcard_GetStatusChangeA_Call(SMARTCARD_DEVICE* smartcard,
 	LPSCARD_READERSTATEA rgReaderState = NULL;
 	IRP* irp = operation->irp;
 	GetStatusChangeA_Call* call = operation->call;
+
+    /**
+     *  https://msdn.microsoft.com/fr-fr/library/windows/desktop/aa379773(v=vs.85).aspx
+     * Important  Each member of SCARD_READERSTATE structure in
+     * rgReaderStates [in, out] array must be initialized to zero
+     * and then set to specific values as necessary. If this is not done, the function will fail
+     * in situations that involve remote card readers.
+     */
+	call->rgReaderStates->pvUserData = NULL;
+    call->rgReaderStates->dwCurrentState = 0;
+	call->rgReaderStates->dwEventState = 0;
+	call->rgReaderStates->cbAtr = 0;
+	memset(call->rgReaderStates->rgbAtr, 0, sizeof(call->rgReaderStates->rgbAtr));
+
 	status = ret.ReturnCode = SCardGetStatusChangeA(operation->hContext,
 	                          call->dwTimeOut, call->rgReaderStates, call->cReaders);
 
@@ -609,7 +623,8 @@ static LONG smartcard_GetStatusChangeA_Call(SMARTCARD_DEVICE* smartcard,
 		ret.rgReaderStates[index].dwCurrentState = call->rgReaderStates[index].dwCurrentState;
 		ret.rgReaderStates[index].dwEventState = call->rgReaderStates[index].dwEventState;
 		ret.rgReaderStates[index].cbAtr = call->rgReaderStates[index].cbAtr;
-		CopyMemory(&(ret.rgReaderStates[index].rgbAtr), &(call->rgReaderStates[index].rgbAtr), 32);
+		CopyMemory(&(ret.rgReaderStates[index].rgbAtr), &(call->rgReaderStates[index].rgbAtr), ret.rgReaderStates[index].cbAtr);
+        ZeroMemory(&(ret.rgReaderStates[index].rgbAtr[ret.rgReaderStates[index].cbAtr]), 36 - ret.rgReaderStates[index].cbAtr);
 	}
 
 	smartcard_trace_get_status_change_return(smartcard, &ret, FALSE);
@@ -664,7 +679,18 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
 	IRP* irp = operation->irp;
 	GetStatusChangeW_Call* call = operation->call;
 
-	WLog_ERR(TAG, "\nsmartcard_GetStatusChangeW_Call: l.667\n\n");
+    /**
+     *  https://msdn.microsoft.com/fr-fr/library/windows/desktop/aa379773(v=vs.85).aspx
+     * Important  Each member of SCARD_READERSTATE structure in
+     * rgReaderStates [in, out] array must be initialized to zero
+     * and then set to specific values as necessary. If this is not done, the function will fail
+     * in situations that involve remote card readers.
+     */
+	call->rgReaderStates->pvUserData = NULL;
+    call->rgReaderStates->dwCurrentState = 0;
+	call->rgReaderStates->dwEventState = 0;
+	call->rgReaderStates->cbAtr = 0;
+	memset(call->rgReaderStates->rgbAtr, 0, sizeof(call->rgReaderStates->rgbAtr));
 
 	status = ret.ReturnCode = SCardGetStatusChangeW(operation->hContext, call->dwTimeOut,
 	                          call->rgReaderStates, call->cReaders);
@@ -688,7 +714,8 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
 		ret.rgReaderStates[index].dwCurrentState = call->rgReaderStates[index].dwCurrentState;
 		ret.rgReaderStates[index].dwEventState = call->rgReaderStates[index].dwEventState;
 		ret.rgReaderStates[index].cbAtr = call->rgReaderStates[index].cbAtr;
-		CopyMemory(&(ret.rgReaderStates[index].rgbAtr), &(call->rgReaderStates[index].rgbAtr), 32);
+		CopyMemory(&(ret.rgReaderStates[index].rgbAtr), &(call->rgReaderStates[index].rgbAtr), ret.rgReaderStates[index].cbAtr);
+		ZeroMemory(&(ret.rgReaderStates[index].rgbAtr[ret.rgReaderStates[index].cbAtr]), 36 - ret.rgReaderStates[index].cbAtr);
 	}
 
 	smartcard_trace_get_status_change_return(smartcard, &ret, TRUE);
@@ -1135,12 +1162,10 @@ static LONG smartcard_StatusA_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERAT
 	if (mszReaderName){
         if (call->cchReaderLen == SCARD_AUTOALLOCATE)
         {
-        	WLog_ERR(TAG, "SCardFreeMemory dans smartcard_StatusA_Call\n\n");
             SCardFreeMemory( operation->hContext, mszReaderName );
         }
         else
         {
-        	WLog_ERR(TAG, "on free dans smartcard_StatusA_Call\n\n");
             free( mszReaderName );
         }
 	}
@@ -1235,12 +1260,10 @@ static LONG smartcard_StatusW_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERAT
     if (mszReaderName){
         if (call->cchReaderLen == SCARD_AUTOALLOCATE)
         {
-        	WLog_ERR(TAG, "SCardFreeMemory dans smartcard_StatusW_Call\n\n");
             SCardFreeMemory( operation->hContext, mszReaderName );
         }
         else
         {
-        	WLog_ERR(TAG, "on free dans smartcard_StatusW_Call\n\n");
             free( mszReaderName );
         }
     }
@@ -1497,7 +1520,8 @@ static LONG smartcard_LocateCardsByATRA_Call(SMARTCARD_DEVICE* smartcard,
 		states[i].dwCurrentState = call->rgReaderStates[i].Common.dwCurrentState;
 		states[i].dwEventState = call->rgReaderStates[i].Common.dwEventState;
 		states[i].cbAtr = call->rgReaderStates[i].Common.cbAtr;
-		CopyMemory(&(states[i].rgbAtr), &(call->rgReaderStates[i].Common.rgbAtr), 35);
+		CopyMemory(&(states[i].rgbAtr), &(call->rgReaderStates[i].Common.rgbAtr), states[i].cbAtr);
+		ZeroMemory(&(states[i].rgbAtr[states[i].cbAtr]), 36 - states[i].cbAtr);
 	}
 
 	status = ret.ReturnCode = SCardGetStatusChangeA(operation->hContext, 0x000001F4, states,
@@ -1546,7 +1570,8 @@ static LONG smartcard_LocateCardsByATRA_Call(SMARTCARD_DEVICE* smartcard,
 		ret.rgReaderStates[i].dwCurrentState = state->dwCurrentState;
 		ret.rgReaderStates[i].dwEventState = state->dwEventState;
 		ret.rgReaderStates[i].cbAtr = state->cbAtr;
-		CopyMemory(&(ret.rgReaderStates[i].rgbAtr), &(state->rgbAtr), 32);
+		CopyMemory(&(ret.rgReaderStates[i].rgbAtr), &(state->rgbAtr), ret.rgReaderStates[i].cbAtr);
+        ZeroMemory(&(ret.rgReaderStates[i].rgbAtr[ret.rgReaderStates[i].cbAtr]), 36 - ret.rgReaderStates[i].cbAtr);
 	}
 
 	free(states);
@@ -1593,8 +1618,7 @@ LONG smartcard_irp_device_control_decode(SMARTCARD_DEVICE* smartcard,
 
 	if (Stream_GetRemainingLength(irp->input) < 32)
 	{
-//		WLog_WARN(TAG, "Device Control Request is too short: %"PRIuz"",
-		WLog_ERR(TAG, "Device Control Request is too short: %"PRIuz"",
+		WLog_WARN(TAG, "Device Control Request is too short: %"PRIuz"",
 		          Stream_GetRemainingLength(irp->input));
 		return SCARD_F_INTERNAL_ERROR;
 	}
@@ -1608,17 +1632,15 @@ LONG smartcard_irp_device_control_decode(SMARTCARD_DEVICE* smartcard,
 
 	if (Stream_Length(irp->input) != (Stream_GetPosition(irp->input) + inputBufferLength))
 	{
-//		WLog_WARN(TAG, "InputBufferLength mismatch: Actual: %"PRIuz" Expected: %"PRIuz"",
-		WLog_ERR(TAG, "InputBufferLength mismatch: Actual: %"PRIuz" Expected: %"PRIuz"",
+		WLog_WARN(TAG, "InputBufferLength mismatch: Actual: %"PRIuz" Expected: %"PRIuz"",
 		          Stream_Length(irp->input),
 		          Stream_GetPosition(irp->input) + inputBufferLength);
 		return SCARD_F_INTERNAL_ERROR;
 	}
 
-//	WLog_DBG(TAG, "%s (0x%08"PRIX32") FileId: %"PRIu32" CompletionId: %"PRIu32"",
-//	WLog_ERR(TAG, "%s (0x%08"PRIX32") FileId: %"PRIu32" CompletionId: %"PRIu32"",
-//	         smartcard_get_ioctl_string(ioControlCode, TRUE),
-//	         ioControlCode, irp->FileId, irp->CompletionId);
+	WLog_DBG(TAG, "%s (0x%08"PRIX32") FileId: %"PRIu32" CompletionId: %"PRIu32"",
+	         smartcard_get_ioctl_string(ioControlCode, TRUE),
+	         ioControlCode, irp->FileId, irp->CompletionId);
 
 	if ((ioControlCode != SCARD_IOCTL_ACCESSSTARTEDEVENT) &&
 	    (ioControlCode != SCARD_IOCTL_RELEASESTARTEDEVENT))
