@@ -2103,7 +2103,7 @@ WINSCARDAPI LONG WINAPI PCSC_SCardStatus_Internal(SCARDHANDLE hCard,
 
 	if (mszReaderNamesWinSCard)
 	{
-		PCSC_SCardFreeMemory_Internal(hContext, *pMszReaderNames);
+//		PCSC_SCardFreeMemory_Internal(hContext, *pMszReaderNames);
 		*pMszReaderNames = mszReaderNamesWinSCard;
 		PCSC_AddMemoryBlock(hContext, *pMszReaderNames);
 	}
