@@ -2101,10 +2101,17 @@ WINSCARDAPI LONG WINAPI PCSC_SCardStatus_Internal(SCARDHANDLE hCard,
 	status = PCSC_MapErrorCodeToWinSCard(status);
 	*pcchReaderLen = (DWORD) pcsc_cchReaderLen;
 
-	mszReaderNamesWinSCard = PCSC_ConvertReaderNamesToWinSCard(*pMszReaderNames, pcchReaderLen);
+	if (status == SCARD_S_SUCCESS)
+	{
+		mszReaderNamesWinSCard = PCSC_ConvertReaderNamesToWinSCard(*pMszReaderNames, pcchReaderLen);
 
-	if (mszReaderNamesWinSCard)
-		PCSC_AddMemoryBlock(hContext, mszReaderNamesWinSCard);
+		if (mszReaderNamesWinSCard)
+		{
+			//PCSC_SCardFreeMemory_Internal(hContext, *pMszReaderNames);  // FIXME : triggers segfault
+			*pMszReaderNames = mszReaderNamesWinSCard;
+			PCSC_AddMemoryBlock(hContext, *pMszReaderNames);
+		}
+	}
 
 	pcsc_dwState &= 0xFFFF;
 	*pdwState = PCSC_ConvertCardStateToWinSCard((DWORD) pcsc_dwState, status);
