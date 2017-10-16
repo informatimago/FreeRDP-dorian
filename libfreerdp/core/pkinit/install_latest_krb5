@@ -3,13 +3,49 @@
 ALL_VERSIONS= 
 INDEX=1
 KRB_PREFIX=
+PROXY_USERNAME=
+PROXY_PASSWORD=
+PROXY_HOST=
+PROXY_PORT=
+HTTP_PROXY=
+HTTPS_PROXY=
 START_DIR=$(echo `pwd`)
-echo START_DIR=$START_DIR
 
-ALL_VERSIONS=$(echo `curl -s https://api.github.com/repos/krb5/krb5/tags | grep name | cut -d '"' -f 4 | cut -d "-" -f 2`)
+CURL=$(echo `dpkg -l curl | grep ii | cut -d ' ' -f 1`)
+if ! [ $CURL = "ii" ]; then
+  sudo apt-get install curl
+fi
+
+ALL_VERSIONS=$(echo `curl -s https://api.github.com/repos/krb5/krb5/tags | grep name | grep final | cut -d '"' -f 4 | cut -d "-" -f 2`)
+
+if [[ $ALL_VERSIONS = "" ]]; then
+  echo "curl failed to retrieve data. May be behind proxy. Retry."
+  #http://dducournau:10011990DD@orion-rosny.dsic.minint.fr:3128
+  ANSWER=no
+  while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
+  do
+    read -p "Please specify proxy username :" PROXY_USERNAME
+    read -s -p "Please specify proxy password :" PROXY_PASSWORD
+    read -p "Please specify proxy host :" PROXY_HOST
+    read -p "Please specify proxy port :" PROXY_PORT
+    HTTPS_PROXY=https://$PROXY_USERNAME:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT
+    echo "You chose : https://$PROXY_USERNAME:*********@$PROXY_HOST:$PROXY_PORT. OK ? [Y/n]"
+    read ANSWER
+  done
+
+  ALL_VERSIONS=$(echo `curl -x $HTTPS_PROXY -s https://api.github.com/repos/krb5/krb5/tags | grep name | grep final | cut -d '"' -f 4 | cut -d "-" -f 2`)
+
+  if [[ $ALL_VERSIONS = "" ]]; then
+   echo "curl failed to retrieve data. Please download krb5 sources by yourself"
+   return 1
+  fi
+fi
+echo "ALL_VERSIONS=$ALL_VERSIONS"
 
 VERSION=$(echo $ALL_VERSIONS |  cut -d " " -f $INDEX)
 let "INDEX++"
+
+echo VERSION=$VERSION
 
 while ! [[ $VERSION =~ [0-9] ]]
 do
@@ -37,20 +73,31 @@ if [ "$PATCH_VERSION" -lt 0 ]; then
 fi
 
 if ! [ -d "/opt" ]; then
-      echo "The directory $KRB_PREFIX does not exist. Try another one."
       mkdir /opt 
 fi
 
 sudo wget http://web.mit.edu/kerberos/dist/krb5/$MAJOR_VERSION.$MINOR_VERSION/krb5-$VERSION.tar.gz -P /opt
 
+if [ $? -ne 0 ]; then
+  echo "wget failed to retrieve data. May be behind proxy. Retry."
+  #http://dducournau:10011990DD@orion-rosny.dsic.minint.fr:3128
+  HTTP_PROXY=http://$PROXY_USERNAME:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT
+  echo "HTTP_PROXY=$HTTP_PROXY"
+  sudo wget -e use_proxy=yes -e http_proxy=$HTTP_PROXY http://web.mit.edu/kerberos/dist/krb5/$MAJOR_VERSION.$MINOR_VERSION/krb5-$VERSION.tar.gz -P /opt
+else
+  echo "wget ok sans proxy" 
+fi
+
 if [ $? -ne 0 ]; then 
   echo "Failed to download Kerberos $MAJOR_VERSION.$MINOR_VERSION. Please download it by yourself"
+  return 1
 fi
 
 if ! [[ $PATCH_VERSION = "" ]]; then
   sudo tar xzf /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION.tar.gz -C /opt
   if [ $? -ne 0 ]; then
     echo "Failed to extract Kerberos $MAJOR_VERSION.$MINOR_VERSION files. Please extract them by yourself"
+    return 1
   fi
   cd /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION
   sudo chown -R 1000:1000 /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION
@@ -75,9 +122,11 @@ else
   sudo tar xzf /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.tar.gz -C /opt
   if [ $? -ne 0 ]; then
     echo "Failed to extract Kerberos $MAJOR_VERSION.$MINOR_VERSION files. Please extract them by yourself"
+    return 1
   fi
   cd /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION 
   PWD=$(echo `pwd`)
+  echo PWD=$PWD
   sudo apt-get install bison
   ANSWER=no
   while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
@@ -108,3 +157,5 @@ if ! [[ $PATCH_VERSION = "" ]]; then
 else
   echo "Kerberos V5 $MAJOR_VERSION.$MINOR_VERSION have been successfully installed in $KRB_PREFIX"
 fi
+
+return 0
