@@ -67,6 +67,7 @@ CONFIG_FAILED="false"
 NEW_KRB_PREFIX=""
 CHECK_VERSION="true"
 RETVAL=0
+COUNT_FILES=0
 
 reset_path(){	
   if ! [ $START_PATH = $PATH ]; then
@@ -287,6 +288,13 @@ if [ $FLAVOUR = "MIT" ]; then
     echo "Please specify Kerberos MIT sources directory [-s|--krb-sources-dir]"
     return 1
   fi
+
+  COUNT_FILES=$(echo `find $KRB_SOURCES_DIR \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print | wc -l`)
+  if [ $COUNT_FILES -ne 4 ]; then
+    echo "Script failed to find files needed in $KRB_SOURCES_DIR"
+    return 1
+  fi
+
   find $KRB_SOURCES_DIR \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print -exec sudo cp {} $DESTINATION \;
   if [ $? -ne 0 ]; then
     echo "Script failed to copy all files in $DESTINATION"
