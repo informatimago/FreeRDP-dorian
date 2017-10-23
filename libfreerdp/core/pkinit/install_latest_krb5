@@ -20,7 +20,6 @@ ALL_VERSIONS=$(echo `curl -s https://api.github.com/repos/krb5/krb5/tags | grep 
 
 if [[ $ALL_VERSIONS = "" ]]; then
   echo "curl failed to retrieve data. May be behind proxy. Retry."
-  #http://dducournau:10011990DD@orion-rosny.dsic.minint.fr:3128
   if [[ $https_proxy = "" ]]; then
     ANSWER=no
     while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
@@ -35,7 +34,6 @@ if [[ $ALL_VERSIONS = "" ]]; then
     done
   else
     HTTPS_PROXY=$https_proxy
-    echo "env var https_proxy=$https_proxy"
   fi
 
   ALL_VERSIONS=$(echo `curl -x $HTTPS_PROXY -s https://api.github.com/repos/krb5/krb5/tags | grep name | grep final | cut -d '"' -f 4 | cut -d "-" -f 2`)
@@ -45,12 +43,9 @@ if [[ $ALL_VERSIONS = "" ]]; then
    return 1
   fi
 fi
-echo "ALL_VERSIONS=$ALL_VERSIONS"
 
 VERSION=$(echo $ALL_VERSIONS |  cut -d " " -f $INDEX)
 let "INDEX++"
-
-echo VERSION=$VERSION
 
 while ! [[ $VERSION =~ [0-9] ]]
 do
@@ -81,11 +76,10 @@ if ! [ -d "/opt" ]; then
   mkdir /opt 
 fi
 
-sudo wget http://web.mit.edu/kerberos/dist/krb5/$MAJOR_VERSION.$MINOR_VERSION/krb5-$VERSION.tar.gz -P /opt
+sudo wget --tries=5 http://web.mit.edu/kerberos/dist/krb5/$MAJOR_VERSION.$MINOR_VERSION/krb5-$VERSION.tar.gz -P /opt
 
 if [ $? -ne 0 ]; then
   echo "wget failed to retrieve data. May be behind proxy. Retry."
-  #http://dducournau:10011990DD@orion-rosny.dsic.minint.fr:3128
   if [[ $http_proxy = "" ]]; then
     HTTP_PROXY=http://$PROXY_USERNAME:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT
     echo "HTTP_PROXY=$HTTP_PROXY"
@@ -94,8 +88,6 @@ if [ $? -ne 0 ]; then
     echo "env var HTTP_PROXY=$HTTP_PROXY"
   fi
   sudo wget -e use_proxy=yes -e http_proxy=$HTTP_PROXY http://web.mit.edu/kerberos/dist/krb5/$MAJOR_VERSION.$MINOR_VERSION/krb5-$VERSION.tar.gz -P /opt
-else
-  echo "wget ok sans proxy" 
 fi
 
 if [ $? -ne 0 ]; then 
@@ -163,6 +155,7 @@ fi
 
 if [ $? -ne 0 ]; then
   echo "Failed to install Kerberos V5 $MAJOR_VERSION.$MINOR_VERSION. Please fix compilation or installation errors before retrying to execute this script."
+  cd $START_DIR
   return 1
 fi
 
