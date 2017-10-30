@@ -775,7 +775,7 @@ find_feature(GSM ${GSM_FEATURE_TYPE} ${GSM_FEATURE_PURPOSE} ${GSM_FEATURE_DESCRI
 find_feature(GSSAPI ${GSSAPI_FEATURE_TYPE} ${GSSAPI_FEATURE_PURPOSE} ${GSSAPI_FEATURE_DESCRIPTION})
 
 if ( (WITH_GSSAPI) AND (NOT GSS_FOUND))
-	message(WARNING "-DWITH_GSSAPI=ON is set, but not GSSAPI implementation was found, disabling")
+	message(WARNING "-DWITH_GSSAPI=ON is set, but no GSSAPI implementation was found, disabling")
 elseif(WITH_GSSAPI)
 	if(GSS_FLAVOUR STREQUAL "MIT") 
 		add_definitions("-DWITH_GSSAPI -DWITH_GSSAPI_MIT")

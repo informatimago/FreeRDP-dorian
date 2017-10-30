@@ -1,8 +1,9 @@
 #!/bin/bash
 
-ALL_VERSIONS= 
+ALL_VERSIONS=
 INDEX=1
 KRB_PREFIX=
+KRB_SOURCES=
 PROXY_USERNAME=
 PROXY_PASSWORD=
 PROXY_HOST=
@@ -73,7 +74,7 @@ if [ "$PATCH_VERSION" -lt 0 ]; then
 fi
 
 if ! [ -d "/opt" ]; then
-  mkdir /opt 
+  mkdir /opt
 fi
 
 sudo wget --tries=5 http://web.mit.edu/kerberos/dist/krb5/$MAJOR_VERSION.$MINOR_VERSION/krb5-$VERSION.tar.gz -P /opt
@@ -90,7 +91,7 @@ if [ $? -ne 0 ]; then
   sudo wget -e use_proxy=yes -e http_proxy=$HTTP_PROXY http://web.mit.edu/kerberos/dist/krb5/$MAJOR_VERSION.$MINOR_VERSION/krb5-$VERSION.tar.gz -P /opt
 fi
 
-if [ $? -ne 0 ]; then 
+if [ $? -ne 0 ]; then
   echo "Failed to download Kerberos $MAJOR_VERSION.$MINOR_VERSION. Please download it by yourself"
   return 1
 fi
@@ -102,6 +103,7 @@ if ! [[ $PATCH_VERSION = "" ]]; then
     return 1
   fi
   cd /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION
+  KRB_SOURCES=/opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION
   sudo chown -R 1000:1000 /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION
   PWD=$(echo `pwd`)
   BISON=$(echo `dpkg -l bison | grep ii | cut -d ' ' -f 1`)
@@ -129,7 +131,9 @@ else
     echo "Failed to extract Kerberos $MAJOR_VERSION.$MINOR_VERSION files. Please extract them by yourself"
     return 1
   fi
-  cd /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION 
+  cd /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION
+  sudo chown -R 1000:1000 /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION
+  KRB_SOURCES=/opt/krb5-$MAJOR_VERSION.$MINOR_VERSION
   PWD=$(echo `pwd`)
   echo PWD=$PWD
   BISON=$(echo `dpkg -l bison | grep ii | cut -d ' ' -f 1`)

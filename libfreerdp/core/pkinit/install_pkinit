@@ -23,7 +23,7 @@ fi
 # NOTE: This requires GNU getopt. On Mac OS X and FreeBSD,
 # you have to install this separately.
 TEMP=`getopt -o mHp:s:h --long mit-flavour,heimdal-flavour,krb-installed-prefix:,krb-sources-dir:,help \
-             -n 'pkinit_install' -- "$@"`
+             -n 'install_pkinit' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; return 1 ; fi
 
@@ -49,7 +49,7 @@ done
 if [ $MIT = true ]; then
   FLAVOUR=MIT
   if [[ $KRB_SOURCES_DIR = "" ]]; then
-    echo "Please specify MIT Kerberos sources directory [-p | --krb-installed-prefix]"
+    echo "Please specify MIT Kerberos sources directory [-s|--krb-sources-dir]"
     return 1
   fi
 elif [ $HEIMDAL = true ]; then
@@ -243,7 +243,7 @@ do
         echo "MIT has been set as Kerberos flavour"
       fi
     fi
-    break; 
+    break;
   fi
 done
 

@@ -1,0 +1,57 @@
+#!/bin/bash
+
+display_help(){
+  echo; echo "Usage:"
+  echo -e "\t-m [--mit-flavour]\t\tbuild against MIT Kerberos (used by default)"
+  echo -e "\t-H [--heimdal-flavour]\t\tbuild against Heimdal Kerberos"
+  echo -e "\t-s [--skip-install-krb]\t\tskip downloading and installation of Kerberos latest version"
+  echo -e "\t-h [--help]\t\t\tdisplay this help and exit"; echo
+}
+
+if [ $# -le 0 ]; then
+  display_help
+  return 1
+fi
+
+# NOTE: This requires GNU getopt. On Mac OS X and FreeBSD,
+# you have to install this separately.
+TEMP=`getopt -o mHs:h --long mit-flavour,heimdal-flavour,skip-install-krb:,help \
+             -n 'build_with_pkinit' -- "$@"`
+
+if [ $? != 0 ] ; then echo "Terminating..." >&2 ; return 1 ; fi
+
+eval set -- "$TEMP"
+
+MIT=true
+HEIMDAL=false
+SKIP_INSTALL_KRB=false
+
+while true; do
+  case "$1" in
+    -m | --mit-flavour ) MIT=true; shift;;
+    -H | --heimdal-flavour ) HEIMDAL=true; MIT=false; shift;;
+    -s | --skip-install-krb ) SKIP_INSTALL_KRB=true; shift;;
+    -h | --help ) display_help; return 1;;
+    -- ) shift; break ;;
+    * ) break ;;
+  esac
+done
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo DIR=$DIR
+
+if [ $SKIP_INSTALL_KRB = "false" ]; then
+  echo "install latest krb5"
+  source $DIR/install_latest_krb5
+fi
+
+echo KRB_PREFIX=$KRB_PREFIX
+echo KRB_SOURCES=$KRB_SOURCES
+
+if [ $MIT = "true" ]; then 
+  echo "install MIT pkinit"
+  source $DIR/install_pkinit -m -p $KRB_PREFIX -s $KRB_SOURCES 
+else
+  echo "install Heimdal pkinit"
+  source $DIR/install_pkinit -H -p $KRB_PREFIX
+fi
