@@ -59,6 +59,8 @@ if(UNIX)
         pkg_search_module(_GSS_PKG ${_HEIMDAL_MODNAME})
       endif()
 
+      message(STATUS "_GSS_PKG_PREFIX ici =${_GSS_PKG_PREFIX}")
+
       if("${_GSS_PKG_PREFIX} " STREQUAL " ")
         if(NOT "$ENV{PKG_CONFIG_PATH} " STREQUAL " ")
           list(APPEND _GSS_ROOT_HINTS "$ENV{PKG_CONFIG_PATH}")
@@ -122,9 +124,40 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
     message(SEND_ERROR "GSS configure script failed to get vendor")
   endif()
 
+  if(GSS_FLAVOUR STREQUAL "Heimdal")
+    execute_process(
+          COMMAND ${_GSS_CONFIGURE_SCRIPT} "--version"
+          OUTPUT_VARIABLE _GSS_VERSION
+          RESULT_VARIABLE _GSS_CONFIGURE_FAILED
+    )
+
+    string(STRIP "${_GSS_VERSION}" _GSS_VERSION)
+    string(SUBSTRING ${_GSS_VERSION} 8 -1 GSS_RELEASE_NUMBER)
+    string(REGEX MATCH "([0-9]+)\\." GSS_VERSION_MAJOR ${GSS_RELEASE_NUMBER})
+    string(REGEX REPLACE "\\." "" GSS_VERSION_MAJOR "${GSS_VERSION_MAJOR}")
+    string(REGEX MATCH "\\.([0-9]+)$" GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
+    if(NOT GSS_VERSION_MINOR)
+      string(REGEX MATCH "\\.([0-9]+)\\." GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
+      string(REGEX REPLACE "\\." "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
+      string(REGEX REPLACE "\\." "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
+      string(REGEX MATCH "([0-9]+)$" GSS_VERSION_PATCH ${GSS_RELEASE_NUMBER})
+      string(REGEX REPLACE "\\." "" GSS_VERSION_PATCH "${GSS_VERSION_PATCH}")
+    else()
+      string(REGEX REPLACE "\\." "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
+      set(GSS_VERSION_PATCH "0")
+    endif()
+    if(GSS_VERSION_MAJOR)
+      string(COMPARE GREATER ${GSS_VERSION_MAJOR} 6 GSS_VERSION_7)
+      message(STATUS "GSS_VERSION_7=${GSS_VERSION_7}; GSS_VERSION_MAJOR=${GSS_VERSION_MAJOR}; GSS_VERSION_MINOR=${GSS_VERSION_MINOR}; GSS_VERSION_PATCH=${GSS_VERSION_PATCH}")
+    else()
+      message(SEND_ERROR "Failed to retrieved Heimdal Kerberos version number")
+    endif()
+  endif()
+
   # NOTE: fail to link Heimdal libraries using configure script due to limitations
   # during Heimdal linking process. Then, we do it "manually".
-  if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR AND NOT _GSS_VENDOR STREQUAL "Heimdal")
+  #if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR AND NOT _GSS_VENDOR STREQUAL "Heimdal")
+  if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR AND NOT GSS_VERSION_7)
     execute_process(
           COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi"
           OUTPUT_VARIABLE _GSS_CFLAGS
@@ -440,6 +473,7 @@ if(GSS_FLAVOUR STREQUAL "MIT")
   if(GSS_VERSION_MAJOR AND GSS_VERSION_MINOR)
     string(COMPARE GREATER ${GSS_VERSION_MAJOR} 0 GSS_VERSION_1)
     string(COMPARE GREATER ${GSS_VERSION_MINOR} 12 GSS_VERSION_1_13)
+    message(STATUS "GSS_VERSION_7=${GSS_VERSION_1}; GSS_VERSION_MAJOR=${GSS_VERSION_MAJOR}; GSS_VERSION_MINOR=${GSS_VERSION_MINOR}; GSS_VERSION_PATCH=${GSS_VERSION_PATCH}")
   else()
     message(SEND_ERROR "Failed to retrieved Kerberos version number")
   endif()
