@@ -15,7 +15,7 @@ fi
 
 # NOTE: This requires GNU getopt. On Mac OS X and FreeBSD,
 # you have to install this separately.
-TEMP=`getopt -o mHs:h --long mit-flavour,heimdal-flavour,skip-install-krb:,help \
+TEMP=`getopt -o mHk:ps:h --long mit-flavour,heimdal-flavour,skip-install-krb:,krb-installed-prefix,krb-sources-dir:,help \
              -n 'build_with_pkinit' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; return 1 ; fi
@@ -25,12 +25,16 @@ eval set -- "$TEMP"
 MIT=true
 HEIMDAL=false
 SKIP_INSTALL_KRB=false
+KRB_INSTALLED_PREFIX=
+KRB_SOURCES_DIR=
 
 while true; do
   case "$1" in
     -m | --mit-flavour ) MIT=true; shift;;
     -H | --heimdal-flavour ) HEIMDAL=true; MIT=false; shift;;
-    -s | --skip-install-krb ) SKIP_INSTALL_KRB=true; shift;;
+    -k | --skip-install-krb ) SKIP_INSTALL_KRB=true; shift;;
+    -p | --krb-installed-prefix ) KRB_INSTALLED_PREFIX="$2"; shift 2;;
+    -s | --krb-sources-dir ) KRB_SOURCES_DIR="$2"; shift 2;;
     -h | --help ) display_help; return 1;;
     -- ) shift; break ;;
     * ) break ;;
@@ -43,10 +47,38 @@ echo DIR=$DIR
 if [ $SKIP_INSTALL_KRB = "false" ]; then
   echo "install latest krb5"
   source $DIR/install_latest_krb5
+else
+  if [ $MIT = "true" ]; then 
+    if [[ $KRB_INSTALLED_PREFIX = "" ]]; then
+      ANSWER=no
+      while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
+      do
+        read -p "Please specify prefix directory of your $1 installation : " KRB_INSTALLED_PREFIX
+        if ! [ -d "$KRB_INSTALLED_PREFIX" ]; then
+          echo "The directory $KRB_INSTALLED_PREFIX does not exist. Try another one."
+          continue
+        fi
+        echo "You entered : $KRB_INSTALLED_PREFIX. OK ? [Y/n]"
+        read ANSWER
+      done
+    fi
+    if [[ $KRB_SOURCES_DIR = "" ]]; then 
+      ANSWER=no
+      while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
+      do
+        read -p "Please specify prefix directory of your $1 installation : " KRB_SOURCES_DIR
+        if ! [ -d "$KRB_SOURCES_DIR" ]; then
+          echo "The directory $KRB_SOURCES_DIR does not exist. Try another one."
+          continue
+        fi
+        echo "You entered : $KRB_SOURCES_DIR. OK ? [Y/n]"
+        read ANSWER
+      done
+    fi
 fi
 
-echo KRB_PREFIX=$KRB_PREFIX
-echo KRB_SOURCES=$KRB_SOURCES
+echo KRB_PREFIX_INSTALLED=$KRB_INSTALLED_PREFIX
+echo KRB_SOURCES_DIR=$KRB_SOURCES_DIR
 
 if [ $MIT = "true" ]; then 
   echo "install MIT pkinit"
