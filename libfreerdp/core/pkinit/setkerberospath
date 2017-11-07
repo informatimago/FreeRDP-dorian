@@ -108,7 +108,7 @@ if [ "$1" = "Heimdal" ]; then
     # installed in a non-default directory, so no "heimdal" string presents
     # in env var PATH).
     # We set it by default to the default installation of Heimdal (/usr/heimdal).
-    # If you want an other path please specify KRB_INSTALLED_PREFIX.
+    # If you want an other path please specify KRB_PREFIX.
     # (*) Note in the particular \case where Heimdal is already set,
     # the Heimdal path is one of the default existing paths.
     if [[ $2 = "" ]]; then
