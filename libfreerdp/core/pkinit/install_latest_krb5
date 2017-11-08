@@ -15,8 +15,8 @@ fi
 
 # NOTE: This requires GNU getopt. On Mac OS X and FreeBSD,
 # you have to install this separately.
-TEMP=`getopt -o mHh --long mit-flavour,heimdal-flavour,help \
-             -n 'build_with_pkinit' -- "$@"`
+TEMP=`getopt -o mHp:h --long mit-flavour,heimdal-flavour,krb-prefix:,help \
+             -n 'install_latest_krb5' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; return 1 ; fi
 
@@ -33,7 +33,7 @@ HTTP_PROXY=
 HTTPS_PROXY=
 START_DIR=$(echo `pwd`)
 
-if [ $BUILD_WITH_PKINIT = "false" ] || [[ $BUILD_WITH_PKINIT = "" ]]; then
+if [ "$BUILD_WITH_PKINIT" = "false" ] || [[ $BUILD_WITH_PKINIT = "" ]]; then
   KRB_PREFIX=
   echo "build without pkinit: BUILD_WITH_PKINIT=$BUILD_WITH_PKINIT; KRB_PREFIX=$KRB_PREFIX"
 else
@@ -52,11 +52,11 @@ while true; do
 done
 
 CURL=$(echo `dpkg -l curl | grep ii | cut -d ' ' -f 1`)
-if ! [ $CURL = "ii" ]; then
+if ! [ "$CURL" = "ii" ]; then
   sudo apt-get install curl
 fi
 
-if [ $MIT = "true" ]; then
+if [ "$MIT" = "true" ]; then
   ALL_VERSIONS=$(echo `curl -s https://api.github.com/repos/krb5/krb5/tags | grep name | grep final | cut -d '"' -f 4 | cut -d "-" -f 2`)
 else
   ALL_VERSIONS=$(echo `curl -s https://api.github.com/repos/heimdal/heimdal/tags | grep name | grep heimdal | cut -d '"' -f 4 | cut -d '-' -f 2 | grep -Ev [a-z]`)
@@ -80,7 +80,7 @@ if [[ $ALL_VERSIONS = "" ]]; then
     HTTPS_PROXY=$https_proxy
   fi
 
-  if [ $MIT = "true" ]; then
+  if [ "$MIT" = "true" ]; then
     ALL_VERSIONS=$(echo `curl -x $HTTPS_PROXY -s https://api.github.com/repos/krb5/krb5/tags | grep name | grep final | cut -d '"' -f 4 | cut -d "-" -f 2`)
   else
     ALL_VERSIONS=$(echo `curl -x $HTTPS_PROXY -s https://api.github.com/repos/heimdal/heimdal/tags | grep name | grep heimdal | cut -d '"' -f 4 | cut -d '-' -f 2 | grep -Ev [a-z]`)
@@ -93,15 +93,11 @@ if [[ $ALL_VERSIONS = "" ]]; then
 fi
 
 VERSION=$(echo $ALL_VERSIONS |  cut -d " " -f 1)
-echo VERSION ICI=$VERSION
-
 MAJOR_VERSION=$(echo $VERSION | cut -d '.' -f1)
 MINOR_VERSION=$(echo $VERSION | cut -d '.' -f2)
 PATCH_VERSION=$(echo $VERSION | cut -d '.' -f3)
 
-echo MAJOR_VERSION=$MAJOR_VERSION
-
-if [ $MIT = "true" ]; then
+if [ "$MIT" = "true" ]; then
   if [ "$MAJOR_VERSION" -lt 1 ]; then
    echo "Failed to retrieve MIT Kerberos release >= 1.15.0 required for pkinit, please download it by yourself"
    return 1
@@ -129,35 +125,31 @@ else
 fi
 
 if ! [ -d "/opt" ]; then
-  mkdir /opt
+  sudo mkdir /opt
 fi
 
-if [ $MIT = "true" ]; then
-  [ -f "/opt/krb5-$VERSION" ] && echo "/opt/krb5-$VERSION.tar.gz already downloaded" ||
+if [ "$MIT" = "true" ]; then
+  [ -f "/opt/krb5-$VERSION.tar.gz" ] && echo "/opt/krb5-$VERSION.tar.gz already downloaded" ||
     sudo wget --tries=5 http://web.mit.edu/kerberos/dist/krb5/$MAJOR_VERSION.$MINOR_VERSION/krb5-$VERSION.tar.gz -P /opt
 else
-  [ -f "/opt/heimdal-$VERSION" ] && echo "/opt/heimdal-$VERSION.tar.gz already downloaded" ||
+  [ -f "/opt/heimdal-$VERSION.tar.gz" ] && echo "/opt/heimdal-$VERSION.tar.gz already downloaded" ||
     sudo wget --tries=5 https://github.com/heimdal/heimdal/releases/download/heimdal-$VERSION/heimdal-$VERSION.tar.gz -P /opt
 fi
 
 if [ $? -ne 0 ]; then
   echo "wget failed to retrieve data. May be behind proxy. Retry."
-  if [ $MIT = "true" ]; then
+  if [ "$MIT" = "true" ]; then
     if [[ $http_proxy = "" ]]; then
       HTTP_PROXY=http://$PROXY_USERNAME:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT
-      echo "HTTP_PROXY=$HTTP_PROXY"
     else
       HTTP_PROXY=$http_proxy
-      echo "env var HTTP_PROXY=$HTTP_PROXY"
     fi
     sudo wget -e use_proxy=yes -e http_proxy=$HTTP_PROXY http://web.mit.edu/kerberos/dist/krb5/$MAJOR_VERSION.$MINOR_VERSION/krb5-$VERSION.tar.gz -P /opt
   else
     if [[ $https_proxy = "" ]]; then
       HTTPS_PROXY=http://$PROXY_USERNAME:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT
-      echo "HTTPS_PROXY=$HTTPS_PROXY"
     else
       HTTPS_PROXY=$https_proxy
-      echo "env var HTTPS_PROXY=$HTTPS_PROXY"
     fi
     sudo wget -e use_proxy=yes -e https_proxy=$HTTPS_PROXY https://github.com/heimdal/heimdal/releases/download/heimdal-$VERSION/heimdal-$VERSION.tar.gz -P /opt 
   fi
@@ -168,7 +160,7 @@ if [ $? -ne 0 ]; then
   return 1
 fi
 
-if [ $MIT = "true" ]; then
+if [ "$MIT" = "true" ]; then
   if ! [[ $PATCH_VERSION = "" ]]; then
     sudo tar xzf /opt/krb5-$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION.tar.gz -C /opt
     if [ $? -ne 0 ]; then
@@ -202,32 +194,39 @@ fi
 PWD=$(echo `pwd`)
 echo PWD=$PWD
 BISON=$(echo `dpkg -l bison | grep ii | cut -d ' ' -f 1`)
-if ! [ $BISON = "ii" ]; then
+if ! [ "$BISON" = "ii" ]; then
   sudo apt-get install bison
 fi
-ANSWER=no
-while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
-do
-  read -p "Please specify prefix directory for your Kerberos installation [/usr/local] : " KRB_PREFIX
-  if [[ $KRB_PREFIX = "" ]]; then
-    KRB_PREFIX="/usr/local"
-  fi
-  if ! [ -d "$KRB_PREFIX" ]; then
-    echo "The directory $KRB_PREFIX does not exist. Try another one."
-    continue
-  fi
-  echo "You chose : $KRB_PREFIX. OK ? [Y/n]"
-  read ANSWER
-done
 
-if [ $MIT = "true" ]; then
+if [[ $KRB_PREFIX = "" ]]; then
+  ANSWER=no
+  while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
+  do
+    read -p "Please specify prefix directory for your Kerberos installation [/usr/local] : " KRB_PREFIX
+    if [[ $KRB_PREFIX = "" ]]; then
+      KRB_PREFIX="/usr/local"
+    fi
+    if ! [ -d "$KRB_PREFIX" ]; then
+      echo "The directory $KRB_PREFIX does not exist. Try another one."
+      continue
+    fi
+    echo "You chose : $KRB_PREFIX. OK ? [Y/n]"
+    read ANSWER
+  done
+fi
+
+if [ "$MIT" = "true" ]; then
   $PWD/src/configure --prefix=$KRB_PREFIX && make && sudo make install
 else
-  $PWD/autogen.sh && $PWD/configure --prefix=$KRB_PREFIX && make && sudo make install
+  TEXINFO=$(echo `dpkg -l texinfo | grep ii | cut -d ' ' -f 1`)
+  if ! [ "$TEXINFO" = "ii" ]; then
+    sudo apt-get install texinfo 
+  fi
+  $PWD/autogen.sh && $PWD/configure --prefix=$KRB_PREFIX --with-db-type-preference= && make && sudo make install
 fi
 
 if [ $? -ne 0 ]; then
-  if [ $MIT = "true" ]; then
+  if [ "$MIT" = "true" ]; then
     echo "Failed to install MIT Kerberos V5 $VERSION. Please fix compilation or installation errors before retrying to execute this script."
   else
     echo "Failed to install Heimdal Kerberos V5 $VERSION. Please fix compilation or installation errors before retrying to execute this script."
@@ -238,7 +237,7 @@ fi
 
 cd $START_DIR
 echo
-if [[ $MIT = "true" ]]; then
+if [ "$MIT" = "true" ]; then
   echo "MIT Kerberos V5 $VERSION have been successfully installed in $KRB_PREFIX"
 else
   echo "Heimdal Kerberos V5 $VERSION have been successfully installed in $KRB_PREFIX"

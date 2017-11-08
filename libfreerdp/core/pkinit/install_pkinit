@@ -51,13 +51,13 @@ while true; do
   esac
 done
 
-if [ $MIT = true ]; then
+if [ "$MIT" = "true" ]; then
   FLAVOUR=MIT
   if [[ $KRB_SOURCES_DIR = "" ]]; then
     echo "Please specify MIT Kerberos sources directory [-s|--krb-sources-dir]"
     return 1
   fi
-elif [ $HEIMDAL = true ]; then
+elif [ "$HEIMDAL" = "true" ]; then
   FLAVOUR=Heimdal
 else
   FLAVOUR=MIT
@@ -75,7 +75,7 @@ RETVAL=0
 COUNT_FILES=0
 
 reset_path(){	
-  if ! [ $START_PATH = $PATH ]; then
+  if ! [ "$START_PATH" = "$PATH" ]; then
     CURRENT_PATH=$PATH
     LAST_ADDED_PATH=`echo ${CURRENT_PATH%%:*}`
     echo "Incorrect Kerberos path given : $LAST_ADDED_PATH. PATH not changed."
@@ -85,7 +85,7 @@ reset_path(){
 }
 
 check_version(){
-  if [ $FLAVOUR = "MIT" ]; then
+  if [ "$FLAVOUR" = "MIT" ]; then
     # Need at least 'Kerberos 5 release 1.15' due to bugs in older versions of PKINIT
     VERSION=$(($KRB5CONFIG --version) 2>&1)
     if [[ $VERSION =~ [H|h]eimdal ]]; then
@@ -136,7 +136,7 @@ check_version(){
 }
 
 test_config(){
-  KRB5CONFIG=$(which krb5-config)
+  KRB5CONFIG=$(echo `which krb5-config`)
   KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
   if [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "Heimdal" ]] ||
      [[ $KRB5VENDOR = "Massachusetts Institute of Technology" && $FLAVOUR = "MIT" ]]; then
@@ -171,7 +171,7 @@ do
       fi
     fi
   fi
-
+   
   if ! [[ $NEW_KRB_PREFIX = "" ]]; then
     KRB_PREFIX=$NEW_KRB_PREFIX
   fi
@@ -179,7 +179,7 @@ do
   # set PATH according to Kerberos flavour we choose to use,
   # i.e MIT or Heimdal.
   if [[ $KRB_PREFIX = "" ]]; then
-    if [ $FLAVOUR = "MIT" ]; then
+    if [ "$FLAVOUR" = "MIT" ]; then
       source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $KRB_PREFIX
     else
       if [[ $NEW_KRB_PREFIX = "" ]]; then
@@ -189,7 +189,7 @@ do
       fi
     fi
   else
-    if [ $FLAVOUR = "MIT" ]; then
+    if [ "$FLAVOUR" = "MIT" ]; then
       if [[ $NEW_KRB_PREFIX = "" ]]; then
         source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $KRB_PREFIX
       else
@@ -208,14 +208,14 @@ do
 
   test_config
   RETVAL_TEST=$?
-  if [ $RETVAL_TEST = 0 ]; then
+  if [ "$RETVAL_TEST" = 0 ]; then
     check_version
     RETVAL_CHECK=$?
-    if [ $RETVAL_CHECK = 1 ]; then
+    if [ "$RETVAL_CHECK" = 1 ]; then
       CHECK_VERSION="false"
     fi
   fi
-  if [ $RETVAL_TEST = 1 ] || [ $RETVAL_CHECK = 1 ]; then
+  if [ "$RETVAL_TEST" = 1 ] || [ "$RETVAL_CHECK" = 1 ]; then
     ANSWER=y
     echo "Configuration test failed $TEST_CONFIG time(s). Abort ? [Y/n]"
     read ANSWER
@@ -261,7 +261,7 @@ fi
 # Add krb5support lib flag to krb5-config file
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
 
-if [ $FLAVOUR = "MIT" ]; then
+if [ "$FLAVOUR" = "MIT" ]; then
   touch /tmp/krb5-config
   chmod 755 /tmp/krb5-config
   sed s/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lcom_err\"/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lcom_err\ \-lkrb5support\"/g $KRB5PREFIX/bin/krb5-config > /tmp/krb5-config

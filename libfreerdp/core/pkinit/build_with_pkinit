@@ -47,8 +47,8 @@ done
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo DIR=$DIR
 
-if [ $SKIP_INSTALL_KRB = "false" ] && [ $MIT = "true" ]; then
-  if [ $MIT = "true" ]; then
+if [ "$SKIP_INSTALL_KRB" = "false" ]; then
+  if [ "$MIT" = "true" ]; then
     echo "install latest MIT krb5"
     source $DIR/install_latest_krb5 -m -p $KRB_PREFIX
   else
@@ -60,7 +60,7 @@ if [ $SKIP_INSTALL_KRB = "false" ] && [ $MIT = "true" ]; then
     return 1
   fi
 else
-  if [ $MIT = "true" ]; then
+  if [ "$MIT" = "true" ]; then
     if [[ $KRB_PREFIX = "" ]]; then
       ANSWER=no
       while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
@@ -93,7 +93,7 @@ fi
 echo "ici: KRB_PREFIX=$KRB_PREFIX"
 echo "la: KRB_SOURCES_DIR=$KRB_SOURCES_DIR"
 
-if [ $MIT = "true" ]; then
+if [ "$MIT" = "true" ]; then
   echo "install MIT pkinit"
   source $DIR/install_pkinit -m -p $KRB_PREFIX -s $KRB_SOURCES_DIR
 else

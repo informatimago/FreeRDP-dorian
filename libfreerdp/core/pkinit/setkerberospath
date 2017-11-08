@@ -4,7 +4,7 @@ KRB5CONFIG=$(which krb5-config)
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
 KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
 SUPPLY_USR_HEIMDAL_PATH="false"
-  
+
 set_krb_flavour(){
   if [[ $2 = "" ]]; then
     ANSWER=no
@@ -93,7 +93,7 @@ check_path(){
       break
     fi
     
-    if [ $LAST_ROUND = "false" ]; then
+    if [ "$LAST_ROUND" = "false" ]; then
       KEEP_PATH=$PATH_CHECKED:$CURRENT_GLOBAL_PATH_TO_TEST
     fi
   done
