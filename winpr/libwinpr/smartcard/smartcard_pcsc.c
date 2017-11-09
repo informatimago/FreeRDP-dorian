@@ -1708,7 +1708,8 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChangeW(SCARDCONTEXT hContext,
 		states[index].dwEventState = rgReaderStates[index].dwEventState;
 		states[index].cbAtr = rgReaderStates[index].cbAtr;
 		CopyMemory(&(states[index].rgbAtr), &(rgReaderStates[index].rgbAtr), rgReaderStates[index].cbAtr);
-		ZeroMemory(&(states[index].rgbAtr[rgReaderStates[index].cbAtr]), 36 - rgReaderStates[index].cbAtr);
+//		ZeroMemory(&(states[index].rgbAtr[rgReaderStates[index].cbAtr]), 36 - rgReaderStates[index].cbAtr);
+		ZeroMemory(&(states[index].rgbAtr[rgReaderStates[index].cbAtr]), PCSC_MAX_ATR_SIZE - rgReaderStates[index].cbAtr);
 	}
 
 	status = PCSC_SCardGetStatusChange_Internal(hContext, dwTimeout, states, cReaders);
@@ -1721,7 +1722,8 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChangeW(SCARDCONTEXT hContext,
 		rgReaderStates[index].dwEventState = states[index].dwEventState;
 		rgReaderStates[index].cbAtr = states[index].cbAtr;
 		CopyMemory(&(rgReaderStates[index].rgbAtr), &(states[index].rgbAtr), states[index].cbAtr);
-		ZeroMemory(&(rgReaderStates[index].rgbAtr[states[index].cbAtr]), 36 - states[index].cbAtr);
+//		ZeroMemory(&(rgReaderStates[index].rgbAtr[states[index].cbAtr]), 36 - states[index].cbAtr);
+		ZeroMemory(&(rgReaderStates[index].rgbAtr[states[index].cbAtr]), PCSC_MAX_ATR_SIZE - states[index].cbAtr);
 
 	}
 
@@ -2107,7 +2109,7 @@ WINSCARDAPI LONG WINAPI PCSC_SCardStatus_Internal(SCARDHANDLE hCard,
 
 		if (mszReaderNamesWinSCard)
 		{
-			//PCSC_SCardFreeMemory_Internal(hContext, *pMszReaderNames);  // FIXME : triggers segfault
+			PCSC_SCardFreeMemory_Internal(hContext, *pMszReaderNames);  // FIXME : triggers segfault
 			*pMszReaderNames = mszReaderNamesWinSCard;
 			PCSC_AddMemoryBlock(hContext, *pMszReaderNames);
 		}
