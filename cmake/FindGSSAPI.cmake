@@ -5,8 +5,8 @@
 #  GSS_ROOT_FLAVOUR - Set this variable to the flavour of Kerberos installation (MIT or Heimdal)
 #
 # Read-Only variables:
-#  GSS_FOUND - system has the Heimdal library
-#  GSS_FLAVOUR - "MIT" or "Heimdal" if anything found.
+#  GSS_FOUND - system has the MIT or Heimdal library
+#  GSS_FLAVOUR - MIT or Heimdal if anything found.
 #  GSS_INCLUDE_DIR - the Heimdal include directory
 #  GSS_LIBRARIES - The libraries needed to use GSS
 #  GSS_LINK_DIRECTORIES - Directories to add to linker search path
@@ -173,6 +173,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
   #if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR AND NOT _GSS_VENDOR STREQUAL "Heimdal")
   #if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR AND NOT GSS_VERSION_7)
   if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR)
+  #if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " ")
     message(STATUS "on passe dans le note")
     execute_process(
           COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi"
@@ -489,8 +490,12 @@ find_package_handle_standard_args(GSS
     VERSION_VAR
         GSS_VERSION
     FAIL_MESSAGE
-        "Could NOT find GSS, try to set the path to GSS root folder in the system variable GSS_ROOT_DIR"
+        "Failed to find GSS libraries, try to set the path to GSS root folder in the system variable GSS_ROOT_DIR"
 )
+
+if(NOT GSS_FOUND)
+  message(SEND_ERROR "GSS not found")
+endif()
 
 if(GSS_FLAVOUR STREQUAL "MIT")
   string(STRIP "${GSS_VERSION}" GSS_VERSION)
