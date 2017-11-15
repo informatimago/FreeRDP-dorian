@@ -514,6 +514,8 @@ int sspi_SetAuthIdentity_Smartcard(SEC_WINNT_AUTH_IDENTITY* identity, const char
 		identity->UserHintLength = (ULONG)(status - 1);
 	}
 
+//	WLog_ERR(TAG, "*(identity->UserHint)=%s", identity->UserHint);
+
 	if (identity->DomainHint)
 		free(identity->DomainHint);
 
@@ -684,7 +686,7 @@ int sspi_CopyAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, SEC_WINNT_AUTH_IDEN
 			                                        (UINT32) srcIdentity->CspData->KeySpec,
 			                                        (char*) srcIdentity->CspData->CardName, (char*) srcIdentity->CspData->ReaderName,
 			                                        (char*) srcIdentity->CspData->ContainerName,
-			                                        (char*) srcIdentity->CspData->CspName, (char*) srcIdentity->UserHint,
+			                                        (char*) srcIdentity->CspData->CspName, /*(char*) srcIdentity->UserHint*/ "AC.INT\qsjdqslfkjqdqfjsdfkj\DUCOURNAUDO",
 			                                        (char*) srcIdentity->DomainHint);
 		}
 

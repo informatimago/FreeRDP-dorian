@@ -351,6 +351,8 @@ int nla_client_init(rdpNla* nla)
 			{
 				settings->Username = _strdup(settings->UserPrincipalName);
 
+				WLog_ERR(TAG, "username=%s", settings->Username);
+
 				if (settings->Username == NULL)
 				{
 					WLog_ERR(TAG, "Error strdup UPN-Username");
@@ -400,12 +402,14 @@ int nla_client_init(rdpNla* nla)
 				return -1;
 			}
 
+			WLog_ERR(TAG, "settings->UserHint=%s", settings->UserHint);
+
 			int ret = sspi_SetAuthIdentity_Smartcard(nla->identity, settings->Password, AT_KEYEXCHANGE,
 			          settings->CardName,
 			          settings->SmartcardReaderName,
 			          settings->ContainerName,
 			          settings->CspName,
-			          settings->UserHint,
+			          /*settings->UserHint*/ "AC.INT\\DUCOURNAUDO",
 			          settings->DomainHint);
 
 			if (ret < 0)

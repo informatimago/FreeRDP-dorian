@@ -1222,6 +1222,8 @@ static BOOL rdp_write_logon_info_v1(wStream* s, logon_info* info)
 	int len;
 	WCHAR* wString = NULL;
 
+	WLog_ERR(TAG, "rdp_write_logon_info_v1: domain=%s ; username=%s ; sessionId=%d", info->domain, info->username, info->sessionId);
+
 	if (!Stream_EnsureRemainingCapacity(s, sz))
 		return FALSE;
 
@@ -1265,6 +1267,8 @@ static BOOL rdp_write_logon_info_v2(wStream* s, logon_info* info)
 	int Size = 2 + 4 + 4 + 4 + 4 + 558;
 	int domainLen, usernameLen, len;
 	WCHAR* wString;
+
+	WLog_ERR(TAG, "rdp_write_logon_info_v2: domain=%s ; username=%s ; sessionId=%d", info->domain, info->username, info->sessionId);
 
 	if (!Stream_EnsureRemainingCapacity(s, Size))
 		return FALSE;
@@ -1352,6 +1356,8 @@ BOOL rdp_send_save_session_info(rdpContext* context, UINT32 type, void* data)
 	BOOL status;
 	rdpRdp* rdp = context->rdp;
 	s = rdp_data_pdu_init(rdp);
+
+	WLog_ERR(TAG, "rdp_send_save_session_info");
 
 	if (!s)
 		return FALSE;
