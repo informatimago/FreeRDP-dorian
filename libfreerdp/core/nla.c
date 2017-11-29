@@ -223,14 +223,18 @@ int nla_client_init(rdpNla* nla)
 	if (settings->RestrictedAdminModeRequired)
 		settings->DisableCredentialsDelegation = TRUE;
 
-	if ((!settings->Password) || (!settings->Username)
+	if ( ((!settings->Password) || (!settings->Username)
 	    || (!strlen(settings->Password)) || (!strlen(settings->Username)))
+		&& !settings->SmartcardLogon)
 	{
+                WLog_ERR(TAG, "prompt password");
 		PromptPassword = TRUE;
 	}
 
-	if (settings->SmartcardLogon)
+	if (settings->SmartcardLogon){
+                WLog_ERR(TAG, "prompt pin");
 		PromptPin = TRUE;
+	}
 
 	if (PromptPassword && settings->Username && strlen(settings->Username))
 	{
@@ -298,7 +302,9 @@ int nla_client_init(rdpNla* nla)
 		else if (settings->SmartcardLogon &&
 		         settings->CredentialsType == SEC_SMARTCARD_DELEGATION_CRED_TYPE)
 		{
+            WLog_ERR(TAG, "credstype=%d ; pkinit=%d", settings->CredentialsType, settings->Pkinit);
 			nla->credType = settings->CredentialsType;
+if(settings->Pkinit){
 #if defined(WITH_PKCS11H) && defined(WITH_GSSAPI)
 
 			if (get_info_smartcard(nla) != CKR_OK)
@@ -317,6 +323,7 @@ int nla_client_init(rdpNla* nla)
 			WLog_ERR(TAG, "Enable PKCS11H and GSSAPI features to authenticate via smartcard");
 			return -1;
 #endif
+}
 			settings->Password = calloc(strlen(PREFIX_PIN_GLOBAL) + PIN_LENGTH + 1, sizeof(char));
 
 			if (settings->Password == NULL)
@@ -414,6 +421,9 @@ int nla_client_init(rdpNla* nla)
 				         __LINE__);
 				return -1;
 			}
+		}
+                else {
+			WLog_ERR(TAG, "dans le else");
 		}
 	}
 
