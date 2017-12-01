@@ -10,7 +10,7 @@ display_help(){
   echo; echo "Usage:"
   echo -e "\t-m [--mit-flavour]\t\tuse MIT flavour for Kerberos (used by default)"
   echo -e "\t-H [--heimdal-flavour]\t\tuse Heimdal flavour for Kerberos"
-  echo -e "\t-p [--krb-installed-prefix]\tspecify Kerberos installed prefix"
+  echo -e "\t-p [--krb-prefix]\tspecify Kerberos prefix"
   echo -e "\t-s [--krb-sources-dir]\t\tspecify Kerberos sources directory (used by MIT only)"
   echo -e "\t-h [--help]\t\t\tdisplay this help and exit"; echo
 }
@@ -22,8 +22,8 @@ fi
 
 # NOTE: This requires GNU getopt. On Mac OS X and FreeBSD,
 # you have to install this separately.
-TEMP=`getopt -o mHp:s:h --long mit-flavour,heimdal-flavour,krb-installed-prefix:,krb-sources-dir:,help \
-             -n 'pkinit_install' -- "$@"`
+TEMP=`getopt -o mHp:s:h --long mit-flavour,heimdal-flavour,krb-prefix:,krb-sources-dir:,help \
+             -n 'install_pkinit' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; return 1 ; fi
 
@@ -31,14 +31,19 @@ eval set -- "$TEMP"
 
 MIT=true
 HEIMDAL=false
-KRB_INSTALLED_PREFIX=
-KRB_SOURCES_DIR=
+if [ $BUILD_WITH_PKINIT = "false" ] || [[ $BUILD_WITH_PKINIT = "" ]]; then
+  KRB_PREFIX=
+  KRB_SOURCES_DIR=
+  echo "build without pkinit: BUILD_WITH_PKINIT=$BUILD_WITH_PKINIT; KRB_PREFIX=$KRB_PREFIX; KRB_SOURCES_DIR=$KRB_SOURCES_DIR"
+else
+  echo "build with pkinit: BUILD_WITH_PKINIT=$BUILD_WITH_PKINIT; KRB_PREFIX=$KRB_PREFIX; KRB_SOURCES_DIR=$KRB_SOURCES_DIR"
+fi
 
 while true; do
   case "$1" in
     -m | --mit-flavour ) MIT=true; shift;;
     -H | --heimdal-flavour ) HEIMDAL=true; MIT=false; shift;;
-    -p | --krb-installed-prefix ) KRB_INSTALLED_PREFIX="$2"; shift 2;;
+    -p | --krb-prefix ) KRB_PREFIX="$2"; shift 2;;
     -s | --krb-sources-dir ) KRB_SOURCES_DIR="$2"; shift 2;;
     -h | --help ) display_help; return 1;;
     -- ) shift; break ;;
@@ -46,13 +51,13 @@ while true; do
   esac
 done
 
-if [ $MIT = true ]; then
+if [ "$MIT" = "true" ]; then
   FLAVOUR=MIT
   if [[ $KRB_SOURCES_DIR = "" ]]; then
-    echo "Please specify MIT Kerberos sources directory [-p | --krb-installed-prefix]"
+    echo "Please specify MIT Kerberos sources directory [-s|--krb-sources-dir]"
     return 1
   fi
-elif [ $HEIMDAL = true ]; then
+elif [ "$HEIMDAL" = "true" ]; then
   FLAVOUR=Heimdal
 else
   FLAVOUR=MIT
@@ -67,9 +72,10 @@ CONFIG_FAILED="false"
 NEW_KRB_PREFIX=""
 CHECK_VERSION="true"
 RETVAL=0
+COUNT_FILES=0
 
 reset_path(){	
-  if ! [ $START_PATH = $PATH ]; then
+  if ! [ "$START_PATH" = "$PATH" ]; then
     CURRENT_PATH=$PATH
     LAST_ADDED_PATH=`echo ${CURRENT_PATH%%:*}`
     echo "Incorrect Kerberos path given : $LAST_ADDED_PATH. PATH not changed."
@@ -79,7 +85,7 @@ reset_path(){
 }
 
 check_version(){
-  if [ $FLAVOUR = "MIT" ]; then
+  if [ "$FLAVOUR" = "MIT" ]; then
     # Need at least 'Kerberos 5 release 1.15' due to bugs in older versions of PKINIT
     VERSION=$(($KRB5CONFIG --version) 2>&1)
     if [[ $VERSION =~ [H|h]eimdal ]]; then
@@ -130,7 +136,7 @@ check_version(){
 }
 
 test_config(){
-  KRB5CONFIG=$(which krb5-config)
+  KRB5CONFIG=$(echo `which krb5-config`)
   KRB5VENDOR=$(($KRB5CONFIG --vendor) 2>&1)
   if [[ $KRB5VENDOR =~ [H|h]eimdal$ && $FLAVOUR = "Heimdal" ]] ||
      [[ $KRB5VENDOR = "Massachusetts Institute of Technology" && $FLAVOUR = "MIT" ]]; then
@@ -148,7 +154,7 @@ do
     check_version
     RETVAL=$?
     if [ "$RETVAL" -eq 0 ]; then
-      if [[ $KRB_INSTALLED_PREFIX = "" ]]; then
+      if [[ $KRB_PREFIX = "" ]]; then
         if [[ $KRB5VENDOR =~ [H|h]eimdal$ ]]; then
           echo "Heimdal is already being set as Kerberos flavour"
         elif [[ $KRB5VENDOR = "Massachusetts Institute of Technology" ]]; then
@@ -161,37 +167,37 @@ do
     else
       CHECK_VERSION="false"
       if ! [[ $NEW_KRB_PREFIX = "" ]]; then
-        KRB_INSTALLED_PREFIX=$NEW_KRB_PREFIX
+        KRB_PREFIX=$NEW_KRB_PREFIX
       fi
     fi
   fi
-
+   
   if ! [[ $NEW_KRB_PREFIX = "" ]]; then
-    KRB_INSTALLED_PREFIX=$NEW_KRB_PREFIX
+    KRB_PREFIX=$NEW_KRB_PREFIX
   fi
 
   # set PATH according to Kerberos flavour we choose to use,
   # i.e MIT or Heimdal.
-  if [[ $KRB_INSTALLED_PREFIX = "" ]]; then
-    if [ $FLAVOUR = "MIT" ]; then
-      source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $KRB_INSTALLED_PREFIX
+  if [[ $KRB_PREFIX = "" ]]; then
+    if [ "$FLAVOUR" = "MIT" ]; then
+      source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $KRB_PREFIX
     else
       if [[ $NEW_KRB_PREFIX = "" ]]; then
-        source $DIR/setkerberospath $FLAVOUR $KRB_INSTALLED_PREFIX
+        source $DIR/setkerberospath $FLAVOUR $KRB_PREFIX
       else
         source $DIR/setkerberospath $FLAVOUR $NEW_KRB_PREFIX
       fi
     fi
   else
-    if [ $FLAVOUR = "MIT" ]; then
+    if [ "$FLAVOUR" = "MIT" ]; then
       if [[ $NEW_KRB_PREFIX = "" ]]; then
-        source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $KRB_INSTALLED_PREFIX
+        source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $KRB_PREFIX
       else
         source $DIR/setkerberospath $FLAVOUR $KRB_SOURCES_DIR $NEW_KRB_PREFIX
       fi
     else
       if [[ $NEW_KRB_PREFIX = "" ]]; then
-        source $DIR/setkerberospath $FLAVOUR $KRB_INSTALLED_PREFIX
+        source $DIR/setkerberospath $FLAVOUR $KRB_PREFIX
       else
         source $DIR/setkerberospath $FLAVOUR $NEW_KRB_PREFIX
       fi
@@ -202,14 +208,14 @@ do
 
   test_config
   RETVAL_TEST=$?
-  if [ $RETVAL_TEST = 0 ]; then
+  if [ "$RETVAL_TEST" = 0 ]; then
     check_version
     RETVAL_CHECK=$?
-    if [ $RETVAL_CHECK = 1 ]; then
+    if [ "$RETVAL_CHECK" = 1 ]; then
       CHECK_VERSION="false"
     fi
   fi
-  if [ $RETVAL_TEST = 1 ] || [ $RETVAL_CHECK = 1 ]; then
+  if [ "$RETVAL_TEST" = 1 ] || [ "$RETVAL_CHECK" = 1 ]; then
     ANSWER=y
     echo "Configuration test failed $TEST_CONFIG time(s). Abort ? [Y/n]"
     read ANSWER
@@ -242,7 +248,7 @@ do
         echo "MIT has been set as Kerberos flavour"
       fi
     fi
-    break; 
+    break;
   fi
 done
 
@@ -255,7 +261,7 @@ fi
 # Add krb5support lib flag to krb5-config file
 KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
 
-if [ $FLAVOUR = "MIT" ]; then
+if [ "$FLAVOUR" = "MIT" ]; then
   touch /tmp/krb5-config
   chmod 755 /tmp/krb5-config
   sed s/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lcom_err\"/lib_flags\=\"\$lib_flags\ \-lkrb5\ \-lk5crypto\ \-lcom_err\ \-lkrb5support\"/g $KRB5PREFIX/bin/krb5-config > /tmp/krb5-config
@@ -287,7 +293,14 @@ if [ $FLAVOUR = "MIT" ]; then
     echo "Please specify Kerberos MIT sources directory [-s|--krb-sources-dir]"
     return 1
   fi
-  find $KRB_SOURCES_DIR \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print -exec sudo cp {} $DESTINATION \;
+
+  COUNT_FILES=$(echo `find $KRB_SOURCES_DIR \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print | wc -l`)
+  if [ $COUNT_FILES -ne 4 ]; then
+    echo "Script failed to find files needed in $KRB_SOURCES_DIR"
+    return 1
+  fi
+
+  find $KRB_SOURCES_DIR \( -name 'k5-platform.h' -o -name 'k5-json.h' -o -name 'k5-thread.h' -o -name 'autoconf.h' \) -print -exec sudo cp -v {} $DESTINATION \;
   if [ $? -ne 0 ]; then
     echo "Script failed to copy all files in $DESTINATION"
     return 1

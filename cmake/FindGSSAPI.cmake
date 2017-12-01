@@ -5,8 +5,8 @@
 #  GSS_ROOT_FLAVOUR - Set this variable to the flavour of Kerberos installation (MIT or Heimdal)
 #
 # Read-Only variables:
-#  GSS_FOUND - system has the Heimdal library
-#  GSS_FLAVOUR - "MIT" or "Heimdal" if anything found.
+#  GSS_FOUND - system has the MIT or Heimdal library
+#  GSS_FLAVOUR - MIT or Heimdal if anything found.
 #  GSS_INCLUDE_DIR - the Heimdal include directory
 #  GSS_LIBRARIES - The libraries needed to use GSS
 #  GSS_LINK_DIRECTORIES - Directories to add to linker search path
@@ -59,6 +59,8 @@ if(UNIX)
         pkg_search_module(_GSS_PKG ${_HEIMDAL_MODNAME})
       endif()
 
+      message(STATUS "_GSS_PKG_PREFIX ici =${_GSS_PKG_PREFIX}")
+
       if("${_GSS_PKG_PREFIX} " STREQUAL " ")
         if(NOT "$ENV{PKG_CONFIG_PATH} " STREQUAL " ")
           list(APPEND _GSS_ROOT_HINTS "$ENV{PKG_CONFIG_PATH}")
@@ -105,6 +107,8 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
           bin
   )
 
+  message(STATUS "_GSS_CONFIGURE_SCRIPT=${_GSS_CONFIGURE_SCRIPT}; _GSS_ROOT_HINTS=${_GSS_ROOT_HINTS}; PATH_SUFFIXES=${PATH_SUFFIXES}")
+
   execute_process(
        COMMAND ${_GSS_CONFIGURE_SCRIPT} "--vendor"
        OUTPUT_VARIABLE _GSS_VENDOR
@@ -115,16 +119,62 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
     string(STRIP "${_GSS_VENDOR}" _GSS_VENDOR)
     if((GSS_FLAVOUR STREQUAL "Heimdal" AND NOT _GSS_VENDOR STREQUAL "Heimdal")
        OR (GSS_FLAVOUR STREQUAL "MIT" AND NOT _GSS_VENDOR STREQUAL "Massachusetts Institute of Technology"))
-      message(SEND_ERROR "GSS vendor and GSS flavour are not matching : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}") 
-      message(STATUS "Try to set the path to GSS root folder in the system variable GSS_ROOT_DIR")
+      message(STATUS "Try to set, if not done, the path to GSS root folder in the system variable GSS_ROOT_DIR")
+      message(FATAL_ERROR "GSS vendor and GSS flavour are not matching : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}") 
     endif()
   else()
     message(SEND_ERROR "GSS configure script failed to get vendor")
   endif()
 
-  # NOTE: fail to link Heimdal libraries using configure script due to limitations
-  # during Heimdal linking process. Then, we do it "manually".
-  if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR AND NOT _GSS_VENDOR STREQUAL "Heimdal")
+  if(GSS_FLAVOUR STREQUAL "Heimdal")
+    execute_process(
+          COMMAND ${_GSS_CONFIGURE_SCRIPT} "--version"
+          OUTPUT_VARIABLE _GSS_VERSION
+          RESULT_VARIABLE _GSS_CONFIGURE_FAILED
+    )
+
+    string(STRIP "${_GSS_VERSION}" _GSS_VERSION)
+    string(SUBSTRING ${_GSS_VERSION} 8 -1 GSS_RELEASE_NUMBER)
+    message(STATUS "GSS_RELEASE_NUMBER=${GSS_RELEASE_NUMBER}")
+    string(REGEX MATCH "([0-9]+)\\." GSS_VERSION_MAJOR ${GSS_RELEASE_NUMBER})
+    message(STATUS "GSS_VERSION_MAJOR=${GSS_VERSION_MAJOR}")
+    string(REGEX REPLACE "\\." "" GSS_VERSION_MAJOR "${GSS_VERSION_MAJOR}")
+    message(STATUS "GSS_VERSION_MAJOR=${GSS_VERSION_MAJOR}")
+    string(REGEX MATCH "\\.([0-9]+)\\." GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
+    message(STATUS "Heimdal: GSS_VERSION_MINOR=${GSS_VERSION_MINOR}")
+    if(GSS_VERSION_MINOR)
+      string(REGEX REPLACE "\\." "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
+      message(STATUS "GSS_VERSION_MINOR=${GSS_VERSION_MINOR}")
+      string(REGEX MATCH "([0-9]+)$" GSS_VERSION_PATCH ${GSS_RELEASE_NUMBER})
+      message(STATUS "GSS_VERSION_PATCH=${GSS_VERSION_PATCH}")
+    else()
+      string(REGEX MATCH "\\.([0-9]+)$" GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
+      message(STATUS "GSS_VERSION_MINOR 2=${GSS_VERSION_MINOR}")
+      string(REGEX REPLACE "\\." "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
+      message(STATUS "GSS_VERSION_MINOR 2=${GSS_VERSION_MINOR}")
+      set(GSS_VERSION_PATCH "0")
+      message(STATUS "GSS_VERSION_PATCH=${GSS_VERSION_PATCH}")
+    endif()
+    if(NOT "${GSS_VERSION_MAJOR} " STREQUAL " " AND NOT "${GSS_VERSION_MINOR} " STREQUAL " ")
+      message(STATUS "Heimdal: GSS_VERSION_7=${GSS_VERSION_7}")
+      string(COMPARE GREATER ${GSS_VERSION_MAJOR} 6 GSS_VERSION_7)
+      message(STATUS "Heimdal: GSS_VERSION_7=${GSS_VERSION_7}; GSS_VERSION_MAJOR=${GSS_VERSION_MAJOR}; GSS_VERSION_MINOR=${GSS_VERSION_MINOR}; GSS_VERSION_PATCH=${GSS_VERSION_PATCH}")
+    else()
+      message(SEND_ERROR "Failed to retrieved Heimdal Kerberos version number")
+    endif()
+  endif()
+
+  message(STATUS "avant NOTE: GSS_VERSION_7=${GSS_VERSION_7}")
+
+  # NOTE: limitations during Heimdal libraries linking process have been met.
+  # Then, for Heimdal versions >= 7.0.0, linking is done "manually".
+  # For Heimdal versions < 7.0.0, the Kerberos configure script is used to get cflags and lib flags,
+  # but LD_LIBRARY_PATH MUST be set for the binary to be linked with the right libraries.
+  #if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR AND NOT _GSS_VENDOR STREQUAL "Heimdal")
+  #if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR AND NOT GSS_VERSION_7)
+  if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " " AND GSS_FLAVOUR)
+  #if(NOT "${_GSS_CONFIGURE_SCRIPT} " STREQUAL " ")
+    message(STATUS "on passe dans le note")
     execute_process(
           COMMAND ${_GSS_CONFIGURE_SCRIPT} "--cflags" "gssapi"
           OUTPUT_VARIABLE _GSS_CFLAGS
@@ -156,9 +206,21 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
     elseif(_GSS_VENDOR STREQUAL "Heimdal")
       execute_process(
             COMMAND ${_GSS_CONFIGURE_SCRIPT} "--deps --libs" "gssapi kafs"
-            OUTPUT_VARIABLE _GSS_LIB_FLAGS
+            #OUTPUT_VARIABLE _GSS_LIB_FLAGS
+            OUTPUT_VARIABLE _GSS_LIB_FLAGS_CONFIG_SCRIPT
             RESULT_VARIABLE _GSS_CONFIGURE_FAILED
       )
+      string(STRIP "${_GSS_LIB_FLAGS_CONFIG_SCRIPT}" _GSS_LIB_FLAGS_CONFIG_SCRIPT)
+      message(STATUS "_GSS_LIB_FLAGS_CONFIG_SCRIPT=${_GSS_LIB_FLAGS_CONFIG_SCRIPT}")
+      #string(SUBSTRING 
+      #set(_GSS_LIB_FLAGS "-Wl,--enable-new-dtags -Wl,rpath -Wl,$ENV{GSS_ROOT_DIR}/lib/x86_64-linux-gnu")
+      #set(_GSS_LIB_FLAGS "-Wl,--enable-new-dtags -Wl,rpath -Wl,$ENV{GSS_ROOT_DIR}/lib/x86_64-linux-gnu -R$ENV{GSS_ROOT_DIR}/lib/x86_64-linux-gnu")
+      #set(_GSS_LIB_FLAGS "-R$ENV{GSS_ROOT_DIR}/lib/x86_64-linux-gnu")
+      message(STATUS "_GSS_LIB_FLAGS 1 =${_GSS_LIB_FLAGS}")
+      list(APPEND _GSS_LIB_FLAGS "${_GSS_LIB_FLAGS_CONFIG_SCRIPT}") 
+      message(STATUS "_GSS_LIB_FLAGS 2 =${_GSS_LIB_FLAGS}")
+      string(REGEX REPLACE ";" " " _GSS_LIB_FLAGS "${_GSS_LIB_FLAGS}")
+      message(STATUS "_GSS_LIB_FLAGS 3 =${_GSS_LIB_FLAGS}")
     else()
       message(SEND_ERROR "Unknown vendor")
     endif()
@@ -215,7 +277,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
           message(SEND_ERROR "Try to set the Kerberos flavour (GSS_ROOT_FLAVOUR)")
         endif()
       elseif("$ENV{PKG_CONFIG_PATH} " STREQUAL " ")
-	message(WARNING "Try to set PKG_CONFIG_PATH to PREFIX_OF_KERBEROS/lib/pkgconfig")
+	message(WARNING "Try to set PKG_CONFIG_PATH to PREFIX_OF_KERBEROS/path-to-lib/pkgconfig")
       endif()
     elseif(_GSS_VENDOR STREQUAL "Heimdal")
       find_path(_GSS_INCLUDE_DIR
@@ -252,6 +314,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
     if(GSS_FLAVOUR)
       set(_GSS_LIBDIR_SUFFIXES "")
       set(_GSS_LIBDIR_HINTS ${_GSS_ROOT_HINTS})
+      message(STATUS "_GSS_ROOT_HINTS=${_GSS_ROOT_HINTS}")
       get_filename_component(_GSS_CALCULATED_POTENTIAL_ROOT "${_GSS_INCLUDE_DIR}" PATH)
       list(APPEND _GSS_LIBDIR_HINTS ${_GSS_CALCULATED_POTENTIAL_ROOT})
 
@@ -294,6 +357,8 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
                   PATH_SUFFIXES
                       ${_GSS_LIBDIR_SUFFIXES}
       )
+
+      message(STATUS "_GSS_LIBRARIES=${_GSS_LIBRARIES}; _GSS_LIBNAME=${_GSS_LIBNAME}; _GSS_LIBDIR_HINTS=${_GSS_LIBDIR_HINTS}; _GSS_LIBDIR_SUFFIXES=${_GSS_LIBDIR_SUFFIXES}")
 
       if(GSS_FLAVOUR STREQUAL "MIT")
         find_library(_KRB5_LIBRARY
@@ -347,7 +412,8 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
                         ${_GSS_LIBDIR_HINTS}
                     PATH_SUFFIXES
                         ${_GSS_LIBDIR_SUFFIXES}
-          )
+        )
+        message(STATUS "_GSS_LIBDIR_HINTS=${_GSS_LIBDIR_HINTS}; _GSS_LIBDIR_SUFFIXES=${_GSS_LIBDIR_SUFFIXES}")
 	list(APPEND _GSS_LIBRARIES ${_KRB5_LIBRARY} ${_KAFS_LIBRARY} ${_ROKEN_LIBRARY})
       endif()
     endif()
@@ -375,11 +441,17 @@ else()
 endif()
 
 set(GSS_INCLUDE_DIR ${_GSS_INCLUDE_DIR})
+message(STATUS "GSS_INCLUDE_DIR=${GSS_INCLUDE_DIR}")
 set(GSS_LIBRARIES ${_GSS_LIBRARIES})
+message(STATUS "GSS_LIBRARIES=${GSS_LIBRARIES}")
 set(GSS_LINK_DIRECTORIES ${_GSS_LINK_DIRECTORIES})
+message(STATUS "GSS_LINK_DIRECTORIES=${GSS_LINK_DIRECTORIES}")
 set(GSS_LINKER_FLAGS ${_GSS_LINKER_FLAGS})
+message(STATUS "GSS_LINKER_FLAGS=${GSS_LINKER_FLAGS}")
 set(GSS_COMPILER_FLAGS ${_GSS_COMPILER_FLAGS})
+message(STATUS "GSS_COMPILER_FLAGS=${GSS_COMPILER_FLAGS}")
 set(GSS_VERSION ${_GSS_VERSION})
+message(STATUS "GSS_VERSION=${GSS_VERSION}")
 
 if(GSS_FLAVOUR)
   if(NOT GSS_VERSION AND GSS_FLAVOUR STREQUAL "Heimdal")
@@ -418,30 +490,40 @@ find_package_handle_standard_args(GSS
     VERSION_VAR
         GSS_VERSION
     FAIL_MESSAGE
-        "Could NOT find GSS, try to set the path to GSS root folder in the system variable GSS_ROOT_DIR"
+        "Failed to find GSS libraries, try to set the path to GSS root folder in the system variable GSS_ROOT_DIR"
 )
+
+if(NOT GSS_FOUND)
+  message(SEND_ERROR "GSS not found")
+endif()
 
 if(GSS_FLAVOUR STREQUAL "MIT")
   string(STRIP "${GSS_VERSION}" GSS_VERSION)
   string(SUBSTRING ${GSS_VERSION} 19 -1 GSS_RELEASE_NUMBER)
+  message(STATUS "MIT: GSS_RELEASE_NUMBER=${GSS_RELEASE_NUMBER}")
   string(REGEX MATCH "([0-9]+)\\." GSS_VERSION_MAJOR ${GSS_RELEASE_NUMBER})
+  message(STATUS "MIT: GSS_VERSION_MAJOR=${GSS_VERSION_MAJOR}")
   string(REGEX REPLACE "\\." "" GSS_VERSION_MAJOR "${GSS_VERSION_MAJOR}")
-  string(REGEX MATCH "\\.([0-9]+)$" GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
-  if(NOT GSS_VERSION_MINOR)
-    string(REGEX MATCH "\\.([0-9]+)\\." GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
+  message(STATUS "MIT: GSS_VERSION_MAJOR=${GSS_VERSION_MAJOR}")
+  string(REGEX MATCH "\\.([0-9]+)\\." GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
+  message(STATUS "MIT: GSS_VERSION_MINOR=${GSS_VERSION_MINOR}")
+  if(GSS_VERSION_MINOR)
     string(REGEX REPLACE "\\." "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
     string(REGEX REPLACE "\\." "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
     string(REGEX MATCH "([0-9]+)$" GSS_VERSION_PATCH ${GSS_RELEASE_NUMBER})
-    string(REGEX REPLACE "\\." "" GSS_VERSION_PATCH "${GSS_VERSION_PATCH}")
   else()
+    string(REGEX MATCH "\\.([0-9]+)$" GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
+    message(STATUS "MIT: GSS_VERSION_MINOR=${GSS_VERSION_MINOR}")
     string(REGEX REPLACE "\\." "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
+    message(STATUS "MIT: GSS_VERSION_MINOR=${GSS_VERSION_MINOR}")
     set(GSS_VERSION_PATCH "0")
   endif()
-  if(GSS_VERSION_MAJOR AND GSS_VERSION_MINOR)
+  if(NOT "${GSS_VERSION_MAJOR} " STREQUAL " " AND NOT "${GSS_VERSION_MINOR} " STREQUAL " ")
     string(COMPARE GREATER ${GSS_VERSION_MAJOR} 0 GSS_VERSION_1)
     string(COMPARE GREATER ${GSS_VERSION_MINOR} 12 GSS_VERSION_1_13)
+    message(STATUS "MIT: GSS_VERSION_1=${GSS_VERSION_1}; GSS_VERSION_1_13=${GSS_VERSION_1_13}; GSS_VERSION_MAJOR=${GSS_VERSION_MAJOR}; GSS_VERSION_MINOR=${GSS_VERSION_MINOR}; GSS_VERSION_PATCH=${GSS_VERSION_PATCH}")
   else()
-    message(SEND_ERROR "Failed to retrieved Kerberos version number")
+    message(SEND_ERROR "Failed to retrieved MIT Kerberos version number")
   endif()
 endif()
 

@@ -1,0 +1,102 @@
+#!/bin/bash
+
+display_help(){
+  echo; echo "Usage:"
+  echo -e "\t-m [--mit-flavour]\t\tbuild against MIT Kerberos (used by default)"
+  echo -e "\t-H [--heimdal-flavour]\t\tbuild against Heimdal Kerberos"
+  echo -e "\t-k [--skip-install-krb]\t\tskip downloading and installation of Kerberos latest version"
+  echo -e "\t-p [--krb-prefix]\t\tspecify Kerberos prefix"
+  echo -e "\t-s [--krb-sources-dir]\t\tspecify Kerberos sources directory (used by MIT only)"
+  echo -e "\t-h [--help]\t\t\tdisplay this help and exit"; echo
+}
+
+if [ $# -le 0 ]; then
+  display_help
+  return 1
+fi
+
+# NOTE: This requires GNU getopt. On Mac OS X and FreeBSD,
+# you have to install this separately.
+TEMP=`getopt -o mHkp:s:h --long mit-flavour,heimdal-flavour,skip-install-krb,krb-prefix:,krb-sources-dir:,help \
+             -n 'build_with_pkinit' -- "$@"`
+
+if [ $? != 0 ] ; then echo "Terminating..." >&2 ; return 1 ; fi
+
+eval set -- "$TEMP"
+
+MIT=true
+HEIMDAL=false
+SKIP_INSTALL_KRB=false
+KRB_PREFIX=
+KRB_SOURCES_DIR=
+BUILD_WITH_PKINIT=true
+
+while true; do
+  case "$1" in
+    -m | --mit-flavour ) MIT=true; shift;;
+    -H | --heimdal-flavour ) HEIMDAL=true; MIT=false; shift;;
+    -k | --skip-install-krb ) SKIP_INSTALL_KRB=true; shift;;
+    -p | --krb-prefix ) KRB_PREFIX="$2"; shift 2;;
+    -s | --krb-sources-dir ) KRB_SOURCES_DIR="$2"; shift 2;;
+    -h | --help ) display_help; return 1;;
+    -- ) shift; break ;;
+    * ) break ;;
+  esac
+done
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo DIR=$DIR
+
+if [ "$SKIP_INSTALL_KRB" = "false" ]; then
+  if [ "$MIT" = "true" ]; then
+    echo "install latest MIT krb5"
+    source $DIR/install_latest_krb5 -m -p $KRB_PREFIX
+  else
+    echo "install latest Heimdal krb5"
+    source $DIR/install_latest_krb5 -H -p $KRB_PREFIX
+  fi
+
+  if [ $? -ne 0 ]; then
+    return 1
+  fi
+else
+  if [ "$MIT" = "true" ]; then
+    if [[ $KRB_PREFIX = "" ]]; then
+      ANSWER=no
+      while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
+      do
+        read -p "Please specify prefix directory of your Kerberos installation : " KRB_PREFIX
+        if ! [ -d "$KRB_PREFIX" ]; then
+          echo "The directory $KRB_PREFIX does not exist. Try another one."
+          continue
+        fi
+        echo "You entered : $KRB_PREFIX. OK ? [Y/n]"
+        read ANSWER
+      done
+    fi
+    if [[ $KRB_SOURCES_DIR = "" ]]; then
+      ANSWER=no
+      while ! [[ $ANSWER =~ [Y|y] ]] && ! [[ $ANSWER =~ [Y|y]es ]] && ! [[ $ANSWER = "" ]]
+      do
+        read -p "Please specify Kerberos sources directory : " KRB_SOURCES_DIR
+        if ! [ -d "$KRB_SOURCES_DIR" ]; then
+          echo "The directory $KRB_SOURCES_DIR does not exist. Try another one."
+          continue
+        fi
+        echo "You entered : $KRB_SOURCES_DIR. OK ? [Y/n]"
+        read ANSWER
+      done
+    fi
+  fi
+fi
+
+echo "ici: KRB_PREFIX=$KRB_PREFIX"
+echo "la: KRB_SOURCES_DIR=$KRB_SOURCES_DIR"
+
+if [ "$MIT" = "true" ]; then
+  echo "install MIT pkinit"
+  source $DIR/install_pkinit -m -p $KRB_PREFIX -s $KRB_SOURCES_DIR
+else
+  echo "install Heimdal pkinit"
+  source $DIR/install_pkinit -H -p $KRB_PREFIX
+fi

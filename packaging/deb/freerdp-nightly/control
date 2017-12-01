@@ -28,18 +28,20 @@ Build-Depends:
  libcups2-dev,
  libpcsclite-dev,
  libasound2-dev,
- libpulse-dev, 
+ libpulse-dev,
  libavcodec-dev,
  libavutil-dev,
  libjpeg-dev,
- libgsm1-dev, 
+ libgsm1-dev,
  libusb-1.0-0-dev,
  libudev-dev,
  libdbus-glib-1-dev,
- uuid-dev, 
+ uuid-dev,
  libxml2-dev,
  libgstreamer1.0-dev | libgstreamer0.10-dev,
- libgstreamer-plugins-base1.0-dev | libgstreamer-plugins-base0.10-dev
+ libgstreamer-plugins-base1.0-dev | libgstreamer-plugins-base0.10-dev,
+ libkrb5-dev (>= 1.15)
+ libpkcs11-helper1-dev
 Standards-Version: 3.9.5
 Homepage: http://www.freerdp.com/
 Vcs-Browser: http://github.com/FreeRDP/FreeRDP.git
