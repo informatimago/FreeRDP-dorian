@@ -1419,7 +1419,7 @@ int NLA_SIZEOF_TS_PWD_OR_SC_CREDS(rdpNla* nla, SEC_DELEGATION_CREDENTIALS_TYPE c
 
 int nla_sizeof_ts_credentials(rdpNla* nla)
 {
-	size = 0;
+	int size = 0;
 	size += ber_sizeof_integer(nla->credType);
 	size += ber_sizeof_contextual_tag(ber_sizeof_integer(nla->credType));
 	size += ber_sizeof_sequence_octet_string(ber_sizeof_sequence((NLA_SIZEOF_TS_PWD_OR_SC_CREDS(nla,
