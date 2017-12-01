@@ -107,8 +107,8 @@ static COMMAND_LINE_ARGUMENT_A args[] =
 	{ "serial", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, "tty", "Redirect serial device" },
 	{ "parallel", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Redirect parallel device" },
 	{ "smartcard", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Redirect smartcard device" },
-	{ "smartcard-logon", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Smartcard logon" },
-	{ "pkinit", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Smartcard logon with Kerberos authentication" },
+	{ "smartcard-logon", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Smartcard logon with Kerberos authentication" },
+	{ "smartcard-logon-rdp", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Smartcard logon with RDP only (no NLA)" },
 	{ "pin", COMMAND_LINE_VALUE_OPTIONAL, "<PIN code>", NULL, NULL, -1, NULL, "PIN code" },
 	{ "pkcs11-module", COMMAND_LINE_VALUE_OPTIONAL, "<module>", NULL, NULL, -1, NULL, "Module PKCS11" },
 	{ "pkinit-anchors", COMMAND_LINE_VALUE_OPTIONAL, "<pkinit anchors>", NULL, NULL, -1, NULL, "PKINIT anchors" },
@@ -316,17 +316,17 @@ BOOL freerdp_client_print_command_line_help(int argc, char** argv)
 	printf("Multimedia Redirection: /multimedia:sys:alsa\n");
 	printf("USB Device Redirection: /usb:id,dev:054c:0268\n");
 	printf("\n");
-	printf("Smartcard logon: /smartcard-logon\n");
-	printf("Smartcard logon with Kerberos authentication: /pkinit\n");
+	printf("Smartcard logon with Kerberos authentication: /smartcard-logon\n");
+	printf("Smartcard logon (rdp only): /smartcard-logon-rdp\n");
 	printf("PIN code: /pin:<PIN code>\n");
 	printf("PKCS11 module to load: /pkcs11-module:<module>\n");
-	printf("PKINIT anchors : /pkinit-anchors:<pkinit_anchors>\n");
+	printf("PKINIT anchors: /pkinit-anchors:<pkinit_anchors>\n");
 	printf("Ticket start time: /start-time:<time to issue ticket>\n");
 	printf("Ticket lifetime: /lifetime:<ticket lifetime>\n");
 	printf("Ticket renewable lifetime: /renewable-lifetime:<ticket renewable lifetime>\n");
 	printf("Activate KRB5 PKINIT trace: /T\n");
-	printf("CSP Name : /csp:<csp name>\n");
-	printf("Card Name : /card:<card name>\n");
+	printf("CSP Name: /csp:<csp name>\n");
+	printf("Card Name: /card:<card name>\n");
 	printf("\n");
 	printf("For Gateways, the https_proxy environment variable is respected:\n");
 #ifdef _WIN32
@@ -1487,8 +1487,6 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 	compatibility = freerdp_client_detect_command_line(argc, argv, &flags,
 	                allowUnknown);
 
-	WLog_ERR(TAG, "DEBUT: pkinit=%d; nla=%d; rdp=%d; tls=%d", settings->Pkinit, settings->NlaSecurity, settings->RdpSecurity, settings->TlsSecurity);
-
 	if (compatibility)
 	{
 		WLog_WARN(TAG, "Using deprecated command-line interface!");
@@ -2598,7 +2596,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 			if (!(settings->ActionScript = _strdup(arg->Value)))
 				return COMMAND_LINE_ERROR_MEMORY;
 		}
-		CommandLineSwitchCase(arg, "smartcard-logon")
+		CommandLineSwitchCase(arg, "smartcard-logon-rdp")
 		{
 			settings->SmartcardLogon = TRUE;
 			settings->Pin = NULL;
@@ -2608,28 +2606,23 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 			settings->ExtSecurity = FALSE;
 			freerdp_set_param_bool(settings, FreeRDP_PasswordIsSmartcardPin, TRUE);
 		}
-		CommandLineSwitchCase(arg, "pkinit")
+		CommandLineSwitchCase(arg, "smartcard-logon")
 		{
-			if (settings->SmartcardLogon == TRUE)
-			{
-				settings->Pkinit = TRUE;
-				settings->RdpSecurity = FALSE;
-				settings->TlsSecurity = FALSE;
-				settings->NlaSecurity = TRUE;
-				settings->ExtSecurity = FALSE;
-				settings->DisableCredentialsDelegation = FALSE;
-				settings->PinPadIsPresent = FALSE;
-				settings->StartTime = 0;
-				/* Ticket lifetime value in seconds ; KDC default value : 600mn (i.e. 36000s) ; 600mn at maximum */
-				settings->LifeTime = 36000;
-				/* Ticket renewable lifetime value in seconds ; KDC default value : 1 day (i.e. 86400s) ; 7 days at maximum */
-				settings->RenewableLifeTime = 86400;
-				settings->Krb5Trace = FALSE;
-			}
-			else
-			{
-				return COMMAND_LINE_ERROR_MEMORY;
-			}
+			settings->SmartcardLogon = TRUE;
+			settings->Pin = NULL;
+			settings->RdpSecurity = FALSE;
+			settings->TlsSecurity = FALSE;
+			settings->NlaSecurity = TRUE;
+			settings->ExtSecurity = FALSE;
+			settings->DisableCredentialsDelegation = FALSE;
+			settings->PinPadIsPresent = FALSE;
+			settings->StartTime = 0;
+			/* Ticket lifetime value in seconds ; KDC default value : 600mn (i.e. 36000s) ; 600mn at maximum */
+			settings->LifeTime = 36000;
+			/* Ticket renewable lifetime value in seconds ; KDC default value : 1 day (i.e. 86400s) ; 7 days at maximum */
+			settings->RenewableLifeTime = 86400;
+			settings->Krb5Trace = FALSE;
+			freerdp_set_param_bool(settings, FreeRDP_PasswordIsSmartcardPin, TRUE);
 		}
 		CommandLineSwitchCase(arg, "pin")
 		{
@@ -2839,8 +2832,6 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 	{
 		FillMemory(arg->Value, strlen(arg->Value), '*');
 	}
-
-	WLog_ERR(TAG, "pkinit=%d; nla=%d; rdp=%d; tls=%d", settings->Pkinit, settings->NlaSecurity, settings->RdpSecurity, settings->TlsSecurity);
 
 	return status;
 }

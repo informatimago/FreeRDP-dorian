@@ -304,7 +304,6 @@ int nla_client_init(rdpNla* nla)
 		{
             WLog_ERR(TAG, "credstype=%d ; pkinit=%d", settings->CredentialsType, settings->Pkinit);
 			nla->credType = settings->CredentialsType;
-if(settings->Pkinit){
 #if defined(WITH_PKCS11H) && defined(WITH_GSSAPI)
 
 			if (get_info_smartcard(nla) != CKR_OK)
@@ -323,7 +322,6 @@ if(settings->Pkinit){
 			WLog_ERR(TAG, "Enable PKCS11H and GSSAPI features to authenticate via smartcard");
 			return -1;
 #endif
-}
 			settings->Password = calloc(strlen(PREFIX_PIN_GLOBAL) + PIN_LENGTH + 1, sizeof(char));
 
 			if (settings->Password == NULL)
