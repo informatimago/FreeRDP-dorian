@@ -422,14 +422,14 @@ static BOOL rdp_read_info_packet(rdpRdp* rdp, wStream* s)
 	settings->CompressionEnabled = ((flags & INFO_COMPRESSION) ? TRUE : FALSE);
 	settings->LogonNotify = ((flags & INFO_LOGONNOTIFY) ? TRUE : FALSE);
 
-	 // settings for smartcard-logon
-	 if(settings->SmartcardLogon){
-		 settings->DisableCtrlAltDel = ((flags & INFO_DISABLECTRLALTDEL) ? TRUE : FALSE);
-	     settings->ForceEncryptedCsPdu = ((flags & INFO_FORCE_ENCRYPTED_CS_PDU) ? TRUE : FALSE);
-	     settings->MouseHasWheel = ((flags & INFO_MOUSE_HAS_WHEEL) ? TRUE : FALSE);
-	     settings->PasswordIsSmartcardPin = ((flags & INFO_PASSWORD_IS_SC_PIN) ? TRUE : FALSE);
-	 }
-
+	/* settings for smartcard-logon */
+	if (settings->SmartcardLogon)
+	{
+		settings->DisableCtrlAltDel = ((flags & INFO_DISABLECTRLALTDEL) ? TRUE : FALSE);
+		settings->ForceEncryptedCsPdu = ((flags & INFO_FORCE_ENCRYPTED_CS_PDU) ? TRUE : FALSE);
+		settings->MouseHasWheel = ((flags & INFO_MOUSE_HAS_WHEEL) ? TRUE : FALSE);
+		settings->PasswordIsSmartcardPin = ((flags & INFO_PASSWORD_IS_SC_PIN) ? TRUE : FALSE);
+	}
 
 	if (flags & INFO_COMPRESSION)
 	{
@@ -655,7 +655,8 @@ static void rdp_write_info_packet(rdpRdp* rdp, wStream* s)
 		INFO_DISABLECTRLALTDEL;
 
 	/* set flags for smartcard-logon */
-	if(settings->SmartcardLogon){
+	if (settings->SmartcardLogon)
+	{
 		flags |= INFO_DISABLECTRLALTDEL;
 		flags |= INFO_AUTOLOGON;
 		flags |= INFO_FORCE_ENCRYPTED_CS_PDU;

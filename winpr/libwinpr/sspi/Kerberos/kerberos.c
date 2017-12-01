@@ -32,10 +32,6 @@
 
 #include "kerberos.h"
 
-#ifdef WITH_GSSAPI_HEIMDAL
-#include <krb5-protos.h>
-#endif
-
 #include "../sspi.h"
 #include "../../log.h"
 #define TAG WINPR_TAG("sspi.Kerberos")
@@ -377,6 +373,9 @@ cleanup:
 	free(lusername);
 	free(lpassword);
 
+	if (status <= 0)
+		return 1;
+
 	if (krb_name)
 		free(krb_name);
 
@@ -445,6 +444,7 @@ SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextA(PCredHandle phCred
 
 		if (SSPI_GSS_ERROR(context->major_status))
 		{
+#if !defined(WITH_PKCS11H)
 			/* GSSAPI failed because we do not have credentials */
 			if (context->major_status & SSPI_GSS_S_NO_CRED)
 			{
@@ -469,11 +469,16 @@ SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextA(PCredHandle phCred
 
 				if (SSPI_GSS_ERROR(context->major_status))
 				{
-					/* We can't use Kerberos */
+					/* We can't use Kerberos with login/password*/
 					WLog_ERR(TAG, "Init GSS security context failed : can't use Kerberos");
 					return SEC_E_INTERNAL_ERROR;
 				}
 			}
+#else
+		/* We can't use Kerberos with smartcard */
+		WLog_ERR(TAG, "Init GSS security context failed : can't use Kerberos");
+		return SEC_E_INTERNAL_ERROR;
+#endif
 		}
 
 #endif

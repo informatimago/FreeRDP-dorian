@@ -769,20 +769,24 @@ int PCSC_RedirectReader(char* readerName)
 		{
 			if (strcmp(name, "") == 0)
 			{
+				free(readers);
 				return 1;
 			}
 
 			if (strncmp(readerName, name, strlen(readerName)) == 0)
 			{
+				free(readers);
 				return 1;
 			}
 		}
 		else
 		{
+			free(readers);
 			return 2;
 		}
 	}
 
+	free(readers);
 	return 0;
 }
 
