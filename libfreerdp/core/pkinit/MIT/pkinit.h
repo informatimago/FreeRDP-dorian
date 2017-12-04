@@ -36,7 +36,7 @@
 
 /* k5-platform.h, k5-json.h, k5-thread.h, autoconf.h are not installed
  * by default in /usr/include. These files and their include files (autoconf.h, k5-thread.h)
- * Execute install_pkinit script to install them */
+ * Source install_pkinit script to install them */
 #include <pkinit/k5-platform.h>
 #include <pkinit/k5-json.h>
 

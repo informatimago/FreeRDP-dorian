@@ -226,15 +226,10 @@ static int nla_client_init(rdpNla* nla)
 	if ( ((!settings->Password) || (!settings->Username)
 	    || (!strlen(settings->Password)) || (!strlen(settings->Username)))
 		&& !settings->SmartcardLogon)
-	{
-                WLog_ERR(TAG, "prompt password");
 		PromptPassword = TRUE;
-	}
 
-	if (settings->SmartcardLogon){
-                WLog_ERR(TAG, "prompt pin");
+	if (settings->SmartcardLogon)
 		PromptPin = TRUE;
-	}
 
 	if (PromptPassword && settings->Username && strlen(settings->Username))
 	{
@@ -302,7 +297,6 @@ static int nla_client_init(rdpNla* nla)
 		else if (settings->SmartcardLogon &&
 		         settings->CredentialsType == SEC_SMARTCARD_DELEGATION_CRED_TYPE)
 		{
-            WLog_ERR(TAG, "credstype=%d ; pkinit=%d", settings->CredentialsType, settings->Pkinit);
 			nla->credType = settings->CredentialsType;
 #if defined(WITH_PKCS11H) && defined(WITH_GSSAPI)
 
@@ -419,9 +413,6 @@ static int nla_client_init(rdpNla* nla)
 				         __LINE__);
 				return -1;
 			}
-		}
-                else {
-			WLog_ERR(TAG, "dans le else");
 		}
 	}
 
@@ -1742,7 +1733,7 @@ BOOL nla_read_ts_smartcard_creds(rdpNla* nla, wStream* s)
 	return TRUE;
 }
 
-int nla_write_ts_password_creds(rdpNla* nla, wStream* s)
+static int nla_write_ts_password_creds(rdpNla* nla, wStream* s)
 {
 	int size = 0;
 	int innerSize = nla_sizeof_ts_password_creds(nla);

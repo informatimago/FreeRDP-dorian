@@ -648,11 +648,21 @@ static void rdp_write_info_packet(rdpRdp* rdp, wStream* s)
 	BOOL usedPasswordCookie = FALSE;
 	rdpSettings* settings = rdp->settings;
 	flags = INFO_MOUSE |
-		INFO_UNICODE |
-		INFO_LOGONERRORS |
-		INFO_MAXIMIZESHELL |
-		INFO_ENABLEWINDOWSKEY |
-		INFO_DISABLECTRLALTDEL;
+	        INFO_UNICODE |
+	        INFO_LOGONERRORS |
+	        INFO_MAXIMIZESHELL |
+	        INFO_ENABLEWINDOWSKEY |
+	        INFO_DISABLECTRLALTDEL;
+
+	/* set flags for smartcard-logon */
+	if (settings->SmartcardLogon)
+	{
+		flags |= INFO_DISABLECTRLALTDEL;
+		flags |= INFO_AUTOLOGON;
+		flags |= INFO_FORCE_ENCRYPTED_CS_PDU;
+		flags |= INFO_MOUSE_HAS_WHEEL;
+		flags |= INFO_PASSWORD_IS_SC_PIN;
+	}
 
 	/* set flags for smartcard-logon */
 	if (settings->SmartcardLogon)

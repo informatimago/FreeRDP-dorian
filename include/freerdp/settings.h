@@ -664,14 +664,14 @@ typedef struct _RDPDR_PARALLEL RDPDR_PARALLEL;
 #define FreeRDP_CertificateName					1409
 #define FreeRDP_CertificateFile					1410
 #define FreeRDP_PrivateKeyFile					1411
-#define FreeRDP_RdpKeyFile					1412
+#define FreeRDP_RdpKeyFile						1412
 #define FreeRDP_RdpServerRsaKey					1413
-#define FreeRDP_RdpServerCertificate				1414
-#define FreeRDP_ExternalCertificateManagement			1415
-#define FreeRDP_CertificateContent 1416
-#define FreeRDP_PrivateKeyContent	1417
-#define FreeRDP_RdpKeyContent		1418
-#define FreeRDP_AutoAcceptCertificate		1419
+#define FreeRDP_RdpServerCertificate			1414
+#define FreeRDP_ExternalCertificateManagement	1415
+#define FreeRDP_CertificateContent 				1416
+#define FreeRDP_PrivateKeyContent				1417
+#define FreeRDP_RdpKeyContent					1418
+#define FreeRDP_AutoAcceptCertificate			1419
 
 #define FreeRDP_Workarea					1536
 #define FreeRDP_Fullscreen					1537
@@ -1105,8 +1105,8 @@ struct rdp_settings
 	ALIGN64 UINT64 IdCertificateLength; /* 1299 */
 	ALIGN64 char* PkinitIdentity; /* 1300 */
 	ALIGN64 char* PkinitAnchors; /* 1301*/
-	ALIGN64 char * SlotID; /* 1302 */
-	ALIGN64 char * TokenLabel; /* 1303 */
+	ALIGN64 char* SlotID;  /* 1302 */
+	ALIGN64 char* TokenLabel;  /* 1303 */
 	ALIGN64 INT32 TokenFlags; /* 1304 */
 	ALIGN64 UINT64 StartTime; /* 1305 */
 	ALIGN64 UINT64 LifeTime; /* 1306 */

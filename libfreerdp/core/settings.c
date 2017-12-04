@@ -563,6 +563,7 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 
 	if (!settings->ServerMode)
 	{
+		settings->RedirectClipboard = TRUE;
 		/* these values are used only by the client part */
 		settings->HomePath = GetKnownPath(KNOWN_PATH_HOME);
 
@@ -1120,6 +1121,7 @@ void freerdp_settings_free(rdpSettings* settings)
 	{
 		if (memset_s(settings->Pin, 4, 0, 4))
 			memset(settings->Pin, 0, 4);
+
 		free(settings->Pin);
 	}
 
