@@ -654,7 +654,9 @@ typedef struct _RDPDR_PARALLEL RDPDR_PARALLEL;
 #define FreeRDP_StartTime						1305
 #define FreeRDP_LifeTime						1306
 #define FreeRDP_RenewableLifeTime				1307
-#define FreeRDP_Krb5Trace						1308
+#define FreeRDP_Pkinit							1308
+#define FreeRDP_PkinitCertificate				1309
+#define FreeRDP_Krb5Trace						1310
 
 #define FreeRDP_KerberosKdc						1344
 #define FreeRDP_KerberosRealm					1345
@@ -1109,9 +1111,10 @@ struct rdp_settings
 	ALIGN64 UINT64 StartTime; /* 1305 */
 	ALIGN64 UINT64 LifeTime; /* 1306 */
 	ALIGN64 UINT64 RenewableLifeTime; /* 1307 */
-	ALIGN64 char* PkinitCertificate; /* 1308 */
-	ALIGN64 BOOL Krb5Trace; /* 1309 */
-	UINT64 padding1344[1344 - 1310]; /* 1310 */
+	ALIGN64 BOOL Pkinit; /* 1308 */
+	ALIGN64 char* PkinitCertificate; /* 1309 */
+	ALIGN64 BOOL Krb5Trace; /* 1310 */
+	UINT64 padding1344[1344 - 1311]; /* 1311 */
 
 	/* Kerberos Authentication */
 	ALIGN64 char* KerberosKdc; /* 1344 */

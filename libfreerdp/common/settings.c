@@ -1707,6 +1707,10 @@ int freerdp_set_param_bool(rdpSettings* settings, int id, BOOL param)
 			settings->SmartcardLogon = param;
 			break;
 
+		case FreeRDP_Pkinit:
+			settings->Pkinit = param;
+			break;
+
 		case FreeRDP_PinLoginRequired:
 			settings->PinLoginRequired = param;
 			break;

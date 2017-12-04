@@ -97,7 +97,8 @@ static COMMAND_LINE_ARGUMENT_A args[] =
 	{ "serial", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, "tty", "Redirect serial device" },
 	{ "parallel", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Redirect parallel device" },
 	{ "smartcard", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Redirect smartcard device" },
-	{ "smartcard-logon", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Smartcard authentication" },
+	{ "smartcard-logon", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Smartcard logon with Kerberos authentication" },
+	{ "smartcard-logon-rdp", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Smartcard logon with RDP only (no NLA)" },
 	{ "pin", COMMAND_LINE_VALUE_OPTIONAL, "<PIN code>", NULL, NULL, -1, NULL, "PIN code" },
 	{ "pkcs11-module", COMMAND_LINE_VALUE_OPTIONAL, "<module>", NULL, NULL, -1, NULL, "Module PKCS11" },
 	{ "pkinit-anchors", COMMAND_LINE_VALUE_OPTIONAL, "<pkinit anchors>", NULL, NULL, -1, NULL, "PKINIT anchors" },
@@ -346,16 +347,17 @@ BOOL freerdp_client_print_command_line_help_ex(int argc, char** argv,
 	printf("Multimedia Redirection: /multimedia:sys:alsa\n");
 	printf("USB Device Redirection: /usb:id,dev:054c:0268\n");
 	printf("\n");
-	printf("Smartcard logon: /smartcard-logon\n");
+	printf("Smartcard logon with Kerberos authentication: /smartcard-logon\n");
+	printf("Smartcard logon (rdp only): /smartcard-logon-rdp\n");
 	printf("PIN code: /pin:<PIN code>\n");
 	printf("PKCS11 module to load: /pkcs11-module:<module>\n");
-	printf("PKINIT anchors : /pkinit-anchors:<pkinit_anchors>\n");
+	printf("PKINIT anchors: /pkinit-anchors:<pkinit_anchors>\n");
 	printf("Ticket start time: /start-time:<time to issue ticket>\n");
 	printf("Ticket lifetime: /lifetime:<ticket lifetime>\n");
 	printf("Ticket renewable lifetime: /renewable-lifetime:<ticket renewable lifetime>\n");
 	printf("Activate KRB5 PKINIT trace: /T\n");
-	printf("CSP Name : /csp:<csp name>\n");
-	printf("Card Name : /card:<card name>\n");
+	printf("CSP Name: /csp:<csp name>\n");
+	printf("Card Name: /card:<card name>\n");
 	printf("\n");
 	printf("For Gateways, the https_proxy environment variable is respected:\n");
 #ifdef _WIN32
@@ -1990,6 +1992,15 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 			if (!(settings->Password = _strdup(arg->Value)))
 				return COMMAND_LINE_ERROR_MEMORY;
+
+			/* overwrite argument so it won't appear in ps */
+			p = arg->Value;
+
+			while (*p)
+				*(p++) = 'X';
+
+			while (*arg->Value)
+				*(arg->Value++) = 'X';
 		}
 		CommandLineSwitchCase(arg, "g")
 		{
@@ -2865,6 +2876,16 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		{
 			settings->FIPSMode = TRUE;
 		}
+		CommandLineSwitchCase(arg, "smartcard-logon-rdp")
+		{
+			settings->SmartcardLogon = TRUE;
+			settings->Pin = NULL;
+			settings->RdpSecurity = TRUE;
+			settings->TlsSecurity = FALSE;
+			settings->NlaSecurity = FALSE;
+			settings->ExtSecurity = FALSE;
+			freerdp_set_param_bool(settings, FreeRDP_PasswordIsSmartcardPin, TRUE);
+		}
 		CommandLineSwitchCase(arg, "smartcard-logon")
 		{
 			settings->SmartcardLogon = TRUE;
@@ -2899,8 +2920,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 			/* overwrite argument so it won't appear in ps */
 			p = arg->Value;
+
 			while (*p)
 				*(p++) = 'X';
+
 			while (*arg->Value)
 				*(arg->Value++) = 'X';
 		}
