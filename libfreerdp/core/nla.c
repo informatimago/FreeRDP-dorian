@@ -226,15 +226,10 @@ static int nla_client_init(rdpNla* nla)
 	if ( ((!settings->Password) || (!settings->Username)
 	    || (!strlen(settings->Password)) || (!strlen(settings->Username)))
 		&& !settings->SmartcardLogon)
-	{
-                WLog_ERR(TAG, "prompt password");
 		PromptPassword = TRUE;
-	}
 
-	if (settings->SmartcardLogon){
-                WLog_ERR(TAG, "prompt pin");
+	if (settings->SmartcardLogon)
 		PromptPin = TRUE;
-	}
 
 	if (PromptPassword && settings->Username && strlen(settings->Username))
 	{
@@ -302,7 +297,6 @@ static int nla_client_init(rdpNla* nla)
 		else if (settings->SmartcardLogon &&
 		         settings->CredentialsType == SEC_SMARTCARD_DELEGATION_CRED_TYPE)
 		{
-            WLog_ERR(TAG, "credstype=%d ; pkinit=%d", settings->CredentialsType, settings->Pkinit);
 			nla->credType = settings->CredentialsType;
 #if defined(WITH_PKCS11H) && defined(WITH_GSSAPI)
 
@@ -419,9 +413,6 @@ static int nla_client_init(rdpNla* nla)
 				         __LINE__);
 				return -1;
 			}
-		}
-                else {
-			WLog_ERR(TAG, "dans le else");
 		}
 	}
 
@@ -1371,7 +1362,7 @@ int nla_sizeof_ts_password_creds(rdpNla* nla)
 	return length;
 }
 
-int nla_sizeof_ts_cspdatadetail(rdpNla* nla)
+static int nla_sizeof_ts_cspdatadetail(rdpNla* nla)
 {
 	int length = 0;
 
@@ -1431,7 +1422,7 @@ int nla_sizeof_ts_credentials(rdpNla* nla)
 	size += ber_sizeof_integer(nla->credType);
 	size += ber_sizeof_contextual_tag(ber_sizeof_integer(nla->credType));
 	size += ber_sizeof_sequence_octet_string(ber_sizeof_sequence((NLA_SIZEOF_TS_PWD_OR_SC_CREDS(nla,
-	        nla->credType))));
+		nla->credType))));
 	return size;
 }
 
@@ -1742,7 +1733,7 @@ BOOL nla_read_ts_smartcard_creds(rdpNla* nla, wStream* s)
 	return TRUE;
 }
 
-int nla_write_ts_password_creds(rdpNla* nla, wStream* s)
+static int nla_write_ts_password_creds(rdpNla* nla, wStream* s)
 {
 	int size = 0;
 	int innerSize = nla_sizeof_ts_password_creds(nla);
@@ -1838,7 +1829,7 @@ int nla_read_ts_creds(rdpNla* nla, wStream* s, SEC_DELEGATION_CREDENTIALS_TYPE c
 BOOL nla_read_ts_credentials(rdpNla* nla, PSecBuffer ts_credentials)
 {
 	wStream* s;
-	int length;
+	int length = 0;
 	int ts_creds_length = 0;
 	UINT32 * value = NULL;
 	BOOL ret;
@@ -1878,9 +1869,8 @@ static int nla_write_ts_credentials(rdpNla* nla, wStream* s)
 	/* [0] credType (INTEGER) */
 	size += ber_write_contextual_tag(s, 0, ber_sizeof_integer(nla->credType), TRUE);
 	size += ber_write_integer(s, nla->credType);
-
 	/* [1] credentials (OCTET STRING) */
-	credSize = ber_sizeof_sequence( (NLA_SIZEOF_TS_PWD_OR_SC_CREDS(nla, nla->credType)) );
+	credSize = ber_sizeof_sequence( (NLA_SIZEOF_TS_PWD_OR_SC_CREDS(nla, nla->credType)));
 	size += ber_write_contextual_tag(s, 1, ber_sizeof_octet_string(credSize), TRUE);
 	size += ber_write_octet_string_tag(s, credSize);
 	size += (nla_write_ts_creds(nla, s, nla->credType));

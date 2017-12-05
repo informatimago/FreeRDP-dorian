@@ -448,6 +448,7 @@ SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextA(PCredHandle phCred
 			/* GSSAPI failed because we do not have credentials */
 			if (context->major_status & SSPI_GSS_S_NO_CRED)
 			{
+
 				/* Then let's try to acquire credentials using login and password,
 				 * and only those two, means not with a smartcard.
 				 * If we use smartcard-logon, the credentials have already
