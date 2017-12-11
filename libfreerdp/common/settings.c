@@ -319,14 +319,6 @@ RDPDR_DEVICE* freerdp_device_clone(RDPDR_DEVICE* device)
 				goto out_smartc_name_error;
 		}
 
-		if (smartcard->Path)
-		{
-			_smartcard->Path = _strdup(smartcard->Path);
-
-			if (!_smartcard->Path)
-				goto out_smartc_path_error;
-		}
-
 		return (RDPDR_DEVICE*) _smartcard;
 	out_smartc_path_error:
 		free(_smartcard->Name);
@@ -442,7 +434,6 @@ void freerdp_device_collection_free(rdpSettings* settings)
 		}
 		else if (settings->DeviceArray[index]->Type == RDPDR_DTYP_SMARTCARD)
 		{
-			free(((RDPDR_SMARTCARD*) device)->Path);
 		}
 		else if (settings->DeviceArray[index]->Type == RDPDR_DTYP_SERIAL)
 		{

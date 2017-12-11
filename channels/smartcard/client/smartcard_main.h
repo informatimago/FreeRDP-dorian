@@ -110,9 +110,6 @@ struct _SMARTCARD_DEVICE
 {
 	DEVICE device;
 
-	char* name;
-	char* path;
-
 	HANDLE thread;
 	HANDLE StartedEvent;
 	wMessageQueue* IrpQueue;
@@ -128,7 +125,8 @@ void smartcard_context_free(SMARTCARD_CONTEXT* pContext);
 UINT smartcard_complete_irp(SMARTCARD_DEVICE* smartcard, IRP* irp);
 UINT smartcard_process_irp(SMARTCARD_DEVICE* smartcard, IRP* irp);
 
-LONG smartcard_irp_device_control_decode(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERATION* operation);
+LONG smartcard_irp_device_control_decode(SMARTCARD_DEVICE* smartcard,
+        SMARTCARD_OPERATION* operation);
 LONG smartcard_irp_device_control_call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERATION* operation);
 
 #include "smartcard_pack.h"
