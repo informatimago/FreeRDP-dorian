@@ -581,19 +581,19 @@ static LONG smartcard_GetStatusChangeA_Decode(SMARTCARD_DEVICE* smartcard,
 static LONG smartcard_GetStatusChangeA_Call(SMARTCARD_DEVICE* smartcard,
         SMARTCARD_OPERATION* operation)
 {
-	LONG status;
 	UINT32 index;
 	GetStatusChange_Return ret;
 	LPSCARD_READERSTATEA rgReaderState = NULL;
 	IRP* irp = operation->irp;
 	GetStatusChangeA_Call* call = operation->call;
-	ret.ReturnCode = SCardGetStatusChangeA(operation->hContext, call->dwTimeOut, call->rgReaderStates, call->cReaders);
-
+	ret.ReturnCode = SCardGetStatusChangeA(operation->hContext, call->dwTimeOut, call->rgReaderStates,
+	                                       call->cReaders);
 	ret.cReaders = call->cReaders;
 	ret.rgReaderStates = NULL;
 
-	if (ret.cReaders > 0) {
-		ret.rgReaderStates = (ReaderState_Return *) calloc(ret.cReaders, sizeof(ReaderState_Return));
+	if (ret.cReaders > 0)
+	{
+		ret.rgReaderStates = (ReaderState_Return*) calloc(ret.cReaders, sizeof(ReaderState_Return));
 
 		if (!ret.rgReaderStates)
 			return STATUS_NO_MEMORY;
@@ -653,13 +653,13 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
 	IRP* irp = operation->irp;
 	GetStatusChangeW_Call* call = operation->call;
 	ret.ReturnCode = SCardGetStatusChangeW(operation->hContext, call->dwTimeOut,
-	                          call->rgReaderStates, call->cReaders);
-
+	                                       call->rgReaderStates, call->cReaders);
 	ret.cReaders = call->cReaders;
 	ret.rgReaderStates = NULL;
 
-	if (ret.cReaders > 0) {
-		ret.rgReaderStates = (ReaderState_Return *) calloc(ret.cReaders, sizeof(ReaderState_Return));
+	if (ret.cReaders > 0)
+	{
+		ret.rgReaderStates = (ReaderState_Return*) calloc(ret.cReaders, sizeof(ReaderState_Return));
 
 		if (!ret.rgReaderStates)
 			return STATUS_NO_MEMORY;
@@ -2018,10 +2018,9 @@ LONG smartcard_irp_device_control_call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OP
 	Stream_SetPosition(irp->output, RDPDR_DEVICE_IO_RESPONSE_LENGTH);
 	/* Device Control Response */
 	Stream_Write_UINT32(irp->output, outputBufferLength); /* OutputBufferLength (4 bytes) */
-
 	smartcard_pack_common_type_header(smartcard, irp->output); /* CommonTypeHeader (8 bytes) */
-	smartcard_pack_private_type_header(smartcard, irp->output, objectBufferLength); /* PrivateTypeHeader (8 bytes) */
-
+	smartcard_pack_private_type_header(smartcard, irp->output,
+	                                   objectBufferLength); /* PrivateTypeHeader (8 bytes) */
 	Stream_Write_UINT32(irp->output, result); /* Result (4 bytes) */
 	Stream_SetPosition(irp->output, Stream_Length(irp->output));
 	return SCARD_S_SUCCESS;

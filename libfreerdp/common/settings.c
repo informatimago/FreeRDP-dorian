@@ -320,8 +320,6 @@ RDPDR_DEVICE* freerdp_device_clone(RDPDR_DEVICE* device)
 		}
 
 		return (RDPDR_DEVICE*) _smartcard;
-	out_smartc_path_error:
-		free(_smartcard->Name);
 	out_smartc_name_error:
 		free(_smartcard);
 		return NULL;
