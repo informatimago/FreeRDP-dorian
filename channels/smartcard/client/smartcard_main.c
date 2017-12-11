@@ -175,7 +175,7 @@ static void smartcard_release_all_contexts(SMARTCARD_DEVICE* smartcard)
 	int keyCount;
 	ULONG_PTR* pKeys;
 	SMARTCARD_CONTEXT* pContext;
-    LONG status;
+	LONG status;
 
 	/**
 	 * On protocol termination, the following actions are performed:
@@ -200,9 +200,10 @@ static void smartcard_release_all_contexts(SMARTCARD_DEVICE* smartcard)
 			if (!pContext)
 				continue;
 
-            status = SCardCancel( pContext->hContext );
-            if ( status != SCARD_S_SUCCESS)
-                WLog_ERR( TAG, "SCardCancel() failed with error %lu!", status );
+			status = SCardCancel(pContext->hContext);
+
+			if (status != SCARD_S_SUCCESS)
+				WLog_ERR(TAG, "SCardCancel() failed with error %lu!", status);
 		}
 
 		free(pKeys);
@@ -226,6 +227,7 @@ static void smartcard_release_all_contexts(SMARTCARD_DEVICE* smartcard)
 				continue;
 
 			status = SCardIsValidContext(pContext->hContext);
+
 			if (status == SCARD_S_SUCCESS)
 			{
 				SCardReleaseContext(pContext->hContext);
@@ -240,7 +242,7 @@ static void smartcard_release_all_contexts(SMARTCARD_DEVICE* smartcard)
 			}
 			else
 			{
-				WLog_ERR( TAG, "SCardCancel() failed with error %lu!", status );
+				WLog_ERR(TAG, "SCardCancel() failed with error %lu!", status);
 			}
 		}
 
@@ -289,11 +291,11 @@ static UINT smartcard_free(DEVICE* device)
 	}
 
 	ListDictionary_Free(smartcard->rgSCardContextList);
-    smartcard->rgSCardContextList = NULL;
+	smartcard->rgSCardContextList = NULL;
 	ListDictionary_Free(smartcard->rgOutstandingMessages);
-    smartcard->rgOutstandingMessages = NULL;
+	smartcard->rgOutstandingMessages = NULL;
 	Queue_Free(smartcard->CompletedIrpQueue);
-    smartcard->CompletedIrpQueue = NULL;
+	smartcard->CompletedIrpQueue = NULL;
 
 	if (smartcard->StartedEvent)
 	{
@@ -588,7 +590,7 @@ static void* smartcard_thread_func(void* arg)
 
 						if ((error = smartcard_complete_irp(smartcard, irp)))
 						{
-							WLog_ERR(TAG, "l.591: smartcard_complete_irp failed with error %"PRIu32"!", error);
+							WLog_ERR(TAG, "smartcard_complete_irp failed with error %"PRIu32"!", error);
 							goto out;
 						}
 					}
@@ -647,7 +649,7 @@ static void* smartcard_thread_func(void* arg)
 						goto out;
 					}
 
-					WLog_ERR(TAG, "l.650: smartcard_complete_irp failed with error %"PRIu32"!", error);
+					WLog_ERR(TAG, "smartcard_complete_irp failed with error %"PRIu32"!", error);
 					goto out;
 				}
 			}
@@ -694,7 +696,6 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 {
 	char* name;
 	char* path;
-	//size_t length;
 	int ck;
 	RDPDR_SMARTCARD* device;
 	SMARTCARD_DEVICE* smartcard;
@@ -717,21 +718,7 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	smartcard->device.Init = smartcard_init;
 	smartcard->device.Free = smartcard_free;
 	smartcard->rdpcontext = pEntryPoints->rdpcontext;
-
-#if 0
-	length = strlen(smartcard->device.name);
-	smartcard->device.data = Stream_New(NULL, length + 1);
-
-	if (!smartcard->device.data)
-	{
-		WLog_ERR(TAG, "Stream_New failed!");
-		goto error_device_data;
-	}
-
-	Stream_Write(smartcard->device.data, "SCARD", 6);
-#else
 	smartcard->device.data = NULL;
-#endif
 	smartcard->name = NULL;
 	smartcard->path = NULL;
 
@@ -820,7 +807,6 @@ error_completed_irp_queue:
 	MessageQueue_Free(smartcard->IrpQueue);
 error_irp_queue:
 	Stream_Free(smartcard->device.data, TRUE);
-error_device_data:
 	free(smartcard);
 	return error;
 }

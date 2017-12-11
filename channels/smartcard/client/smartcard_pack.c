@@ -278,8 +278,7 @@ LONG smartcard_unpack_redir_scard_context_ref(SMARTCARD_DEVICE* smartcard, wStre
         REDIR_SCARDCONTEXT* context)
 {
 	UINT32 length;
-
-    ZeroMemory( &( context->pbContext ), sizeof( context->pbContext ) );
+	ZeroMemory(&(context->pbContext), sizeof(context->pbContext));
 
 	if (context->cbContext == 0)
 		return SCARD_S_SUCCESS;
@@ -314,7 +313,6 @@ LONG smartcard_unpack_redir_scard_context_ref(SMARTCARD_DEVICE* smartcard, wStre
 	}
 
 	Stream_Read(s, &(context->pbContext), context->cbContext);
-
 	return SCARD_S_SUCCESS;
 }
 
@@ -323,7 +321,7 @@ LONG smartcard_pack_redir_scard_context_ref(SMARTCARD_DEVICE* smartcard, wStream
 {
 	if (context->cbContext)
 	{
-        Stream_Write_UINT32(s, context->cbContext); /* Length (4 bytes) */
+		Stream_Write_UINT32(s, context->cbContext); /* Length (4 bytes) */
 		Stream_Write(s, &(context->pbContext), context->cbContext);
 	}
 
@@ -409,11 +407,11 @@ LONG smartcard_unpack_redir_scard_handle_ref(SMARTCARD_DEVICE* smartcard, wStrea
 LONG smartcard_pack_redir_scard_handle_ref(SMARTCARD_DEVICE* smartcard, wStream* s,
         REDIR_SCARDHANDLE* handle)
 {
-    if (handle->cbHandle)
-    {
+	if (handle->cbHandle)
+	{
 		Stream_Write_UINT32(s, handle->cbHandle); /* Length (4 bytes) */
 		Stream_Write(s, &(handle->pbHandle), handle->cbHandle);
-    }
+	}
 
 	return SCARD_S_SUCCESS;
 }
@@ -637,8 +635,8 @@ void smartcard_trace_list_reader_groups_return(SMARTCARD_DEVICE* smartcard,
 	else
 	{
 		length = ret->cBytes;
-		mszA = (char*) calloc(length+1, sizeof(char));
-		CopyMemory(mszA, ret->msz, ret->cBytes);
+		mszA = (char*) calloc(length + 1, sizeof(char));
+		strncpy(mszA, ret->msz, length + 1);
 	}
 
 	for (index = 0; index < length - 2; index++)
@@ -1364,8 +1362,8 @@ LONG smartcard_unpack_get_status_change_a_call(SMARTCARD_DEVICE* smartcard, wStr
 			Stream_Read_UINT32(s, readerState->dwCurrentState); /* dwCurrentState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->dwEventState); /* dwEventState (4 bytes) */
 			Stream_Read_UINT32(s, readerState->cbAtr); /* cbAtr (4 bytes) */
-            Stream_Read(s, readerState->rgbAtr, readerState->cbAtr); /* rgbAtr [0..cbAtr] (cbAtr bytes) */
-            Stream_Seek(s, 36 - readerState->cbAtr); /* rgbAtr [cbAtr..36] (36 - cbAtr bytes) */
+			Stream_Read(s, readerState->rgbAtr, readerState->cbAtr); /* rgbAtr [0..cbAtr] (cbAtr bytes) */
+			Stream_Seek(s, 36 - readerState->cbAtr); /* rgbAtr [cbAtr..36] (36 - cbAtr bytes) */
 		}
 
 		for (index = 0; index < call->cReaders; index++)
@@ -1858,19 +1856,17 @@ void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* r
 	size_t index;
 	size_t length;
 	char* pbAtr = NULL;
-//	char* mszReaderNamesA = NULL;
 	LPSTR* mszReaderNamesA = NULL;
 
 	if (!WLog_IsLevelActive(WLog_Get(TAG), WLOG_DEBUG))
 		return;
 
-#ifdef FROM_MASTER
 	if (unicode)
 	{
 		length = ret->cBytes / 2;
 
 		if (ConvertFromUnicode(CP_UTF8, 0, (WCHAR*) ret->mszReaderNames, (int)length,
-		                       &mszReaderNamesA, 0, NULL, NULL) < 1)
+		                       mszReaderNamesA, 0, NULL, NULL) < 1)
 		{
 			WLog_ERR(TAG, "ConvertFromUnicode failed");
 			return;
@@ -1879,48 +1875,16 @@ void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* r
 	else
 	{
 		length = (int) ret->cBytes;
-		mszReaderNamesA = (char*) malloc(length);
+		mszReaderNamesA = (LPSTR*) calloc(length + 1, sizeof(LPSTR));
 
 		if (!mszReaderNamesA)
 		{
-			WLog_ERR(TAG, "malloc failed!");
+			WLog_ERR(TAG, "calloc failed!");
 			return;
 		}
 
-		CopyMemory(mszReaderNamesA, ret->mszReaderNames, ret->cBytes);
+		strncpy(mszReaderNamesA, ret->mszReaderNames, ret->cBytes + 1);
 	}
-#endif
-
-#ifndef FROM_COMMIT
-  if (ret->mszReaderNames)
-    {
-		if (unicode)
-		{
-			WLog_ERR(TAG, "ConvertFromUnicode UNICODE");
-			length = ret->cBytes / 2;
-			if (ConvertFromUnicode(CP_UTF8, 0, (WCHAR*) ret->mszReaderNames, (int)length,
-				mszReaderNamesA, 0, NULL, NULL) < 1)
-			{
-				WLog_ERR(TAG, "ConvertFromUnicode failed");
-				return;
-			}
-		}
-		else
-		{
-			WLog_ERR(TAG, "ConvertFromUnicode PAS UNICODE");
-			length = (int) ret->cBytes;
-			mszReaderNamesA = (LPSTR*) calloc(length + 1, sizeof(LPSTR));
-			if (!mszReaderNamesA)
-			{
-				WLog_ERR(TAG, "calloc failed!");
-				return;
-			}
-//			CopyMemory(mszReaderNamesA, ret->mszReaderNames, ret->cBytes);
-			strncpy(mszReaderNamesA, ret->mszReaderNames, ret->cBytes);
-			mszReaderNamesA[length] = '\0';
-        }
-	}
-#endif 
 
 	if (!mszReaderNamesA)
 		length = 0;
