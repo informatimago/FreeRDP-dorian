@@ -2002,8 +2002,6 @@ WINSCARDAPI LONG WINAPI PCSC_SCardStatus_Internal(SCARDHANDLE hCard,
 	PCSC_DWORD pcsc_dwProtocol = 0;
 	PCSC_DWORD pcsc_cbAtrLen = 0;
 
-	WLog_ERR(TAG, "(debut): *pMszReaderNames=%s; mszReaderNames=%s", *pMszReaderNames, mszReaderNames);
-
 	if (!g_PCSC.pfnSCardStatus)
 		return SCARD_E_NO_SERVICE;
 
@@ -2112,9 +2110,9 @@ WINSCARDAPI LONG WINAPI PCSC_SCardStatus_Internal(SCARDHANDLE hCard,
 
 		if (mszReaderNamesWinSCard)
 		{
-			PCSC_SCardFreeMemory_Internal(hContext, *pMszReaderNames);  // FIXME : triggers segfault
 			*pMszReaderNames = mszReaderNamesWinSCard;
 			PCSC_AddMemoryBlock(hContext, *pMszReaderNames);
+			PCSC_SCardFreeMemory_Internal(hContext, *pMszReaderNames);
 		}
 	}
 

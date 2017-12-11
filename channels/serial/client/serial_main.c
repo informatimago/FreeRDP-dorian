@@ -591,7 +591,6 @@ static void create_irp_thread(SERIAL_DEVICE* serial, IRP* irp)
 	 */
 	key = irp->CompletionId;
 	previousIrpThread = ListDictionary_GetItemValue(serial->IrpThreads, (void*)key);
-        WLog_ERR(TAG, "key=%d; previousIrpThread=%d\n", key, previousIrpThread);
 
 	if (previousIrpThread)
 	{
@@ -621,8 +620,6 @@ static void create_irp_thread(SERIAL_DEVICE* serial, IRP* irp)
 	{
 		WLog_Print(serial->log, WLOG_WARN,
 		           "Number of IRP threads threshold reached: %d, keep on anyway",
-		           ListDictionary_Count(serial->IrpThreads));
-		WLog_ERR(TAG, "Number of IRP threads threshold reached: %d, keep on anyway",
 		           ListDictionary_Count(serial->IrpThreads));
 		assert(FALSE); /* unimplemented */
 		/* TODO: MAX_IRP_THREADS has been thought to avoid a
@@ -695,7 +692,6 @@ static void terminate_pending_irp_threads(SERIAL_DEVICE* serial)
 
 		CloseHandle(irpThread);
 		WLog_Print(serial->log, WLOG_DEBUG, "IRP thread terminated, CompletionId %p", (void*) id);
-		WLog_ERR(TAG, "IRP thread terminated, CompletionId %p", (void*) id);
 	}
 
 	ListDictionary_Clear(serial->IrpThreads);

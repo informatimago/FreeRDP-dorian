@@ -240,10 +240,6 @@ static void smartcard_release_all_contexts(SMARTCARD_DEVICE* smartcard)
 				MessageQueue_Free(pContext->IrpQueue);
 				free(pContext);
 			}
-			else
-			{
-				WLog_ERR(TAG, "SCardCancel() failed with error %lu!", status);
-			}
 		}
 
 		free(pKeys);
