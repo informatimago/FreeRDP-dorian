@@ -399,7 +399,6 @@ static UINT serial_process_irp_device_control(SERIAL_DEVICE* serial, IRP* irp)
 		WLog_Print(serial->log, WLOG_DEBUG,
 		           "CommDeviceIoControl failure: IoControlCode=[0x%"PRIX32"] %s, last-error: 0x%08"PRIX32"",
 		           IoControlCode, _comm_serial_ioctl_name(IoControlCode), GetLastError());
-		           IoControlCode, _comm_serial_ioctl_name(IoControlCode), GetLastError());
 		irp->IoStatus = _GetLastErrorToIoStatus(serial);
 	}
 

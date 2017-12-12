@@ -682,7 +682,6 @@ BOOL CommDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuffe
 		{
 			CommLog_Print(WLOG_WARN, "[permissive]: whereas it failed, made to succeed IoControlCode=[0x%08"PRIX32"] %s, last-error: 0x%08"PRIX32"",
 				dwIoControlCode, _comm_serial_ioctl_name(dwIoControlCode), GetLastError());
-							dwIoControlCode, _comm_serial_ioctl_name(dwIoControlCode), GetLastError());
 		}
 
 		return TRUE; /* always! */

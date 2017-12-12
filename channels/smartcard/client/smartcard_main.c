@@ -803,6 +803,7 @@ error_completed_irp_queue:
 	MessageQueue_Free(smartcard->IrpQueue);
 error_irp_queue:
 	Stream_Free(smartcard->device.data, TRUE);
+error_device_data:
 	free(smartcard);
 	return error;
 }
