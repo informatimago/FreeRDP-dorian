@@ -223,9 +223,9 @@ static int nla_client_init(rdpNla* nla)
 	if (settings->RestrictedAdminModeRequired)
 		settings->DisableCredentialsDelegation = TRUE;
 
-	if ( ((!settings->Password) || (!settings->Username)
-	    || (!strlen(settings->Password)) || (!strlen(settings->Username)))
-		&& !settings->SmartcardLogon)
+	if (((!settings->Password) || (!settings->Username)
+	     || (!strlen(settings->Password)) || (!strlen(settings->Username)))
+	    && !settings->SmartcardLogon)
 		PromptPassword = TRUE;
 
 	if (settings->SmartcardLogon)
@@ -1829,9 +1829,9 @@ int nla_read_ts_creds(rdpNla* nla, wStream* s, SEC_DELEGATION_CREDENTIALS_TYPE c
 BOOL nla_read_ts_credentials(rdpNla* nla, PSecBuffer ts_credentials)
 {
 	wStream* s;
-	int length;
+	int length = 0;
 	int ts_creds_length = 0;
-	UINT32 * value = NULL;
+	UINT32* value = NULL;
 	BOOL ret;
 
 	if (!ts_credentials || !ts_credentials->pvBuffer)
@@ -1847,14 +1847,13 @@ BOOL nla_read_ts_credentials(rdpNla* nla, PSecBuffer ts_credentials)
 
 	/* TSCredentials (SEQUENCE) */
 	ret = ber_read_sequence_tag(s, &length) &&
-		/* [0] credType (INTEGER) */
-		ber_read_contextual_tag(s, 0, &length, TRUE) &&
-		ber_read_integer(s, value) &&
-		/* [1] credentials (OCTET STRING) */
-		ber_read_contextual_tag(s, 1, &length, TRUE) &&
-		ber_read_octet_string_tag(s, &ts_creds_length) &&
-		( nla_read_ts_creds(nla, s, *value) ) ;
-
+	      /* [0] credType (INTEGER) */
+	      ber_read_contextual_tag(s, 0, &length, TRUE) &&
+	      ber_read_integer(s, value) &&
+	      /* [1] credentials (OCTET STRING) */
+	      ber_read_contextual_tag(s, 1, &length, TRUE) &&
+	      ber_read_octet_string_tag(s, &ts_creds_length) &&
+	      (nla_read_ts_creds(nla, s, *value)) ;
 	Stream_Free(s, FALSE);
 	return ret;
 }
@@ -1869,9 +1868,8 @@ static int nla_write_ts_credentials(rdpNla* nla, wStream* s)
 	/* [0] credType (INTEGER) */
 	size += ber_write_contextual_tag(s, 0, ber_sizeof_integer(nla->credType), TRUE);
 	size += ber_write_integer(s, nla->credType);
-
 	/* [1] credentials (OCTET STRING) */
-	credSize = ber_sizeof_sequence( (NLA_SIZEOF_TS_PWD_OR_SC_CREDS(nla, nla->credType)) );
+	credSize = ber_sizeof_sequence((NLA_SIZEOF_TS_PWD_OR_SC_CREDS(nla, nla->credType)));
 	size += ber_write_contextual_tag(s, 1, ber_sizeof_octet_string(credSize), TRUE);
 	size += ber_write_octet_string_tag(s, credSize);
 	size += (nla_write_ts_creds(nla, s, nla->credType));
