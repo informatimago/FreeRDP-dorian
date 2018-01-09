@@ -223,9 +223,9 @@ static int nla_client_init(rdpNla* nla)
 	if (settings->RestrictedAdminModeRequired)
 		settings->DisableCredentialsDelegation = TRUE;
 
-	if (((!settings->Password) || (!settings->Username)
-	     || (!strlen(settings->Password)) || (!strlen(settings->Username)))
-	    && !settings->SmartcardLogon)
+	if ( ((!settings->Password) || (!settings->Username)
+	    || (!strlen(settings->Password)) || (!strlen(settings->Username)))
+		&& !settings->SmartcardLogon)
 		PromptPassword = TRUE;
 
 	if (settings->SmartcardLogon)
@@ -399,7 +399,8 @@ static int nla_client_init(rdpNla* nla)
 				return -1;
 			}
 
-			int ret = sspi_SetAuthIdentity_Smartcard(nla->identity, settings->Password, AT_KEYEXCHANGE,
+			WLog_ERR(TAG, "SmartcardReaderName=%s", settings->SmartcardReaderName);
+			int ret = sspi_SetAuthIdentity_Smartcard(nla->identity, settings->Password, AT_KEYEXCHANGE /*AT_AUTHENTICATE*/,
 			          settings->CardName,
 			          settings->SmartcardReaderName,
 			          settings->ContainerName,
@@ -1362,7 +1363,7 @@ int nla_sizeof_ts_password_creds(rdpNla* nla)
 	return length;
 }
 
-int nla_sizeof_ts_cspdatadetail(rdpNla* nla)
+static int nla_sizeof_ts_cspdatadetail(rdpNla* nla)
 {
 	int length = 0;
 
@@ -1422,7 +1423,7 @@ int nla_sizeof_ts_credentials(rdpNla* nla)
 	size += ber_sizeof_integer(nla->credType);
 	size += ber_sizeof_contextual_tag(ber_sizeof_integer(nla->credType));
 	size += ber_sizeof_sequence_octet_string(ber_sizeof_sequence((NLA_SIZEOF_TS_PWD_OR_SC_CREDS(nla,
-	        nla->credType))));
+		nla->credType))));
 	return size;
 }
 
@@ -1869,7 +1870,7 @@ static int nla_write_ts_credentials(rdpNla* nla, wStream* s)
 	size += ber_write_contextual_tag(s, 0, ber_sizeof_integer(nla->credType), TRUE);
 	size += ber_write_integer(s, nla->credType);
 	/* [1] credentials (OCTET STRING) */
-	credSize = ber_sizeof_sequence((NLA_SIZEOF_TS_PWD_OR_SC_CREDS(nla, nla->credType)));
+	credSize = ber_sizeof_sequence( (NLA_SIZEOF_TS_PWD_OR_SC_CREDS(nla, nla->credType)));
 	size += ber_write_contextual_tag(s, 1, ber_sizeof_octet_string(credSize), TRUE);
 	size += ber_write_octet_string_tag(s, credSize);
 	size += (nla_write_ts_creds(nla, s, nla->credType));

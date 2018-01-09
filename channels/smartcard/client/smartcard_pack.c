@@ -28,6 +28,9 @@
 
 #include "smartcard_pack.h"
 
+#define FROM_MASTER
+#undef FROM_MASTER
+
 LONG smartcard_unpack_common_type_header(SMARTCARD_DEVICE* smartcard, wStream* s)
 {
 	UINT8 version;
@@ -278,7 +281,9 @@ LONG smartcard_unpack_redir_scard_context_ref(SMARTCARD_DEVICE* smartcard, wStre
         REDIR_SCARDCONTEXT* context)
 {
 	UINT32 length;
+#ifndef FROM_MASTER
 	ZeroMemory(&(context->pbContext), sizeof(context->pbContext));
+#endif
 
 	if (context->cbContext == 0)
 		return SCARD_S_SUCCESS;
@@ -312,19 +317,35 @@ LONG smartcard_unpack_redir_scard_context_ref(SMARTCARD_DEVICE* smartcard, wStre
 		return STATUS_BUFFER_TOO_SMALL;
 	}
 
+#ifdef FROM_MASTER
 	Stream_Read(s, &(context->pbContext), context->cbContext);
+#else
+	if (context->cbContext)
+		Stream_Read(s, &(context->pbContext), context->cbContext);
+	else
+		ZeroMemory(&(context->pbContext), sizeof(context->pbContext));
+#endif
+
 	return SCARD_S_SUCCESS;
 }
 
 LONG smartcard_pack_redir_scard_context_ref(SMARTCARD_DEVICE* smartcard, wStream* s,
         REDIR_SCARDCONTEXT* context)
 {
+#ifdef FROM_MASTER
+	Stream_Write_UINT32(s, context->cbContext); /* Length (4 bytes) */
+
+	if (context->cbContext)
+	{
+		Stream_Write(s, &(context->pbContext), context->cbContext);
+	}
+#else
 	if (context->cbContext)
 	{
 		Stream_Write_UINT32(s, context->cbContext); /* Length (4 bytes) */
 		Stream_Write(s, &(context->pbContext), context->cbContext);
 	}
-
+#endif
 	return SCARD_S_SUCCESS;
 }
 
@@ -407,12 +428,18 @@ LONG smartcard_unpack_redir_scard_handle_ref(SMARTCARD_DEVICE* smartcard, wStrea
 LONG smartcard_pack_redir_scard_handle_ref(SMARTCARD_DEVICE* smartcard, wStream* s,
         REDIR_SCARDHANDLE* handle)
 {
+#ifdef FROM_MASTER
+	Stream_Write_UINT32(s, handle->cbHandle); /* Length (4 bytes) */
+
+	if (handle->cbHandle)
+		Stream_Write(s, &(handle->pbHandle), handle->cbHandle);
+#else
 	if (handle->cbHandle)
 	{
 		Stream_Write_UINT32(s, handle->cbHandle); /* Length (4 bytes) */
 		Stream_Write(s, &(handle->pbHandle), handle->cbHandle);
 	}
-
+#endif
 	return SCARD_S_SUCCESS;
 }
 
@@ -636,10 +663,10 @@ void smartcard_trace_list_reader_groups_return(SMARTCARD_DEVICE* smartcard,
 	{
 		length = ret->cBytes;
 		mszA = (char*) calloc(length + 1, sizeof(char));
-		strncpy(mszA, ret->msz, length + 1);
+		strncpy(mszA, (const char*) ret->msz, length + 1);
 	}
 
-	for (index = 0; index < length - 2; index++)
+	for (index = 0; index < length; index++)
 	{
 		if (mszA[index] == '\0')
 			mszA[index] = ',';
@@ -806,7 +833,7 @@ void smartcard_trace_list_readers_return(SMARTCARD_DEVICE* smartcard, ListReader
         BOOL unicode)
 {
 	size_t index;
-	size_t length;
+	size_t length = 0;
 	char* mszA = NULL;
 
 	if (!WLog_IsLevelActive(WLog_Get(TAG), WLOG_DEBUG))
@@ -844,11 +871,10 @@ void smartcard_trace_list_readers_return(SMARTCARD_DEVICE* smartcard, ListReader
 			return;
 		}
 
-		strncpy(mszA, ret->msz, length);
-		mszA[length] = '\0';
+		strncpy(mszA, (const char*) ret->msz, length + 1);
 	}
 
-	for (index = 0; index < length - 2; index++)
+	for (index = 0; index < length; index++)
 	{
 		if (mszA[index] == '\0')
 			mszA[index] = ',';
@@ -1853,6 +1879,68 @@ LONG smartcard_pack_status_return(SMARTCARD_DEVICE* smartcard, wStream* s, Statu
 
 void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* ret, BOOL unicode)
 {
+#ifdef FROM_MASTER
+	size_t index;
+	size_t length = 0;
+	char* pbAtr = NULL;
+	LPSTR* mszReaderNamesA = NULL;
+
+	if (!WLog_IsLevelActive(WLog_Get(TAG), WLOG_DEBUG))
+		return;
+
+	if (ret->mszReaderNames)
+	{
+		if (unicode)
+		{
+			length = ret->cBytes / 2;
+
+			if (ConvertFromUnicode(CP_UTF8, 0, (WCHAR*) ret->mszReaderNames, (int) length,
+			                       mszReaderNamesA, 0, NULL, NULL) < 1)
+			{
+				WLog_ERR(TAG, "ConvertFromUnicode failed");
+				return;
+			}
+		}
+		else
+		{
+			length = ret->cBytes;
+			mszReaderNamesA = (LPSTR*) malloc(length + 1);
+
+			if (!mszReaderNamesA)
+			{
+				WLog_ERR(TAG, "malloc failed!");
+				return;
+			}
+
+			strncpy(mszReaderNamesA, (const char*) ret->mszReaderNames, length + 1);
+		}
+	}
+	
+	for (index = 0; index < length; index++)
+	{
+		if (mszReaderNamesA[index] == '\0')
+			mszReaderNamesA[index] = ',';
+	}
+
+	pbAtr = winpr_BinToHexString(ret->pbAtr, ret->cbAtrLen, FALSE);
+	WLog_DBG(TAG, "Status%s_Return {", unicode ? "W" : "A");
+	WLog_DBG(TAG, "ReturnCode: %s (0x%08"PRIX32")",
+	         SCardGetErrorString(ret->ReturnCode), ret->ReturnCode);
+	WLog_DBG(TAG, "dwState: %s (0x%08"PRIX32") dwProtocol: %s (0x%08"PRIX32")",
+	         SCardGetCardStateString(ret->dwState), ret->dwState,
+	         SCardGetProtocolString(ret->dwProtocol), ret->dwProtocol);
+
+	if (mszReaderNamesA)
+	{
+		WLog_DBG(TAG, "cBytes: %"PRIu32" mszReaderNames: %s",
+		         ret->cBytes, mszReaderNamesA);
+	}
+
+	WLog_DBG(TAG, "cbAtrLen: %"PRIu32" pbAtr: %s", ret->cbAtrLen, pbAtr);
+	WLog_DBG(TAG, "}");
+	free(mszReaderNamesA);
+	free(pbAtr);
+#else
 	size_t index;
 	size_t length;
 	char* pbAtr = NULL;
@@ -1916,6 +2004,7 @@ void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* r
 	WLog_DBG(TAG, "}");
 	free(mszReaderNamesA);
 	free(pbAtr);
+#endif
 }
 
 LONG smartcard_unpack_get_attrib_call(SMARTCARD_DEVICE* smartcard, wStream* s, GetAttrib_Call* call)

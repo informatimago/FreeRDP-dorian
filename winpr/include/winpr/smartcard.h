@@ -30,6 +30,9 @@
 #define _WINSCARD_H_	/* do not include winscard.h */
 #endif
 
+#define FROM_MASTER
+#undef FROM_MASTER
+
 #ifndef SCARD_S_SUCCESS
 
 #define SCARD_S_SUCCESS	NO_ERROR
@@ -1044,8 +1047,6 @@ typedef LONG(WINAPI* fnSCardListReadersWithDeviceInstanceIdW)(SCARDCONTEXT hCont
         LPCWSTR szDeviceInstanceId, LPWSTR mszReaders, LPDWORD pcchReaders);
 
 typedef LONG(WINAPI* fnSCardAudit)(SCARDCONTEXT hContext, DWORD dwEvent);
-
-typedef LONG(WINAPI* fnSCardAddReaderName)(HANDLE* key, LPSTR readerName);
 
 typedef LONG(WINAPI* fnSCardAddReaderName)(HANDLE* key, LPSTR readerName);
 

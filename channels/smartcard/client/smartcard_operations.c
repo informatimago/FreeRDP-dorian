@@ -39,6 +39,9 @@
 
 #include "smartcard_main.h"
 
+#define FROM_MASTER
+#undef FROM_MASTER
+
 const char* smartcard_get_ioctl_string(UINT32 ioControlCode, BOOL funcName)
 {
 	switch (ioControlCode)
@@ -522,8 +525,14 @@ static LONG smartcard_ListReadersW_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_O
 	IRP* irp = operation->irp;
 	ListReaders_Call* call = operation->call;
 	cchReaders = SCARD_AUTOALLOCATE;
+#ifdef FROM_MASTER
 	status = ret.ReturnCode = SCardListReadersW(operation->hContext,
 	                          (LPCWSTR) call->mszGroups, (LPWSTR) &mszReaders, &cchReaders);
+#else
+	status = ret.ReturnCode = SCardListReadersW(operation->hContext,
+	                          (LPCWSTR) call->mszGroups, (LPWSTR) &mszReaders, &cchReaders);
+#endif
+
 	ret.msz = (BYTE*) mszReaders;
 	ret.cBytes = cchReaders * 2;
 
@@ -586,6 +595,11 @@ static LONG smartcard_GetStatusChangeA_Call(SMARTCARD_DEVICE* smartcard,
 	GetStatusChange_Return ret;
 	LPSCARD_READERSTATEA rgReaderState = NULL;
 	IRP* irp = operation->irp;
+#ifdef FROM_MASTER
+	GetStatusChangeA_Call* call = operation->call;
+	status = ret.ReturnCode = SCardGetStatusChangeA(operation->hContext, call->dwTimeOut, call->rgReaderStates,
+	                                       call->cReaders);
+#else
 	GetStatusChangeA_Call* call = operation->call;
 	/**
 	* https://msdn.microsoft.com/library/windows/desktop/aa379773(v=vs.85).aspx
@@ -601,6 +615,7 @@ static LONG smartcard_GetStatusChangeA_Call(SMARTCARD_DEVICE* smartcard,
 	memset(call->rgReaderStates->rgbAtr, 0, sizeof(call->rgReaderStates->rgbAtr));
 	status = ret.ReturnCode = SCardGetStatusChangeA(operation->hContext,
 	                          call->dwTimeOut, call->rgReaderStates, call->cReaders);
+#endif
 
 	if (status && (status != SCARD_E_TIMEOUT) && (status != SCARD_E_CANCELLED))
 	{
@@ -611,10 +626,12 @@ static LONG smartcard_GetStatusChangeA_Call(SMARTCARD_DEVICE* smartcard,
 	ret.rgReaderStates = NULL;
 
 	if (ret.cReaders > 0)
+	{
 		ret.rgReaderStates = (ReaderState_Return*) calloc(ret.cReaders, sizeof(ReaderState_Return));
 
-	if (!ret.rgReaderStates)
-		return STATUS_NO_MEMORY;
+		if (!ret.rgReaderStates)
+			return STATUS_NO_MEMORY;
+	}
 
 	for (index = 0; index < ret.cReaders; index++)
 	{
@@ -629,11 +646,15 @@ static LONG smartcard_GetStatusChangeA_Call(SMARTCARD_DEVICE* smartcard,
 
 	smartcard_trace_get_status_change_return(smartcard, &ret, FALSE);
 
+#ifdef FROM_MASTER
+smartcard_pack_get_status_change_return(smartcard, irp->output, &ret);	
+#else
 	if ((status = smartcard_pack_get_status_change_return(smartcard, irp->output, &ret)))
 	{
 		WLog_ERR(TAG, "smartcard_pack_get_status_change_return failed with error %"PRId32"", status);
 		return status;
 	}
+#endif
 
 	if (call->rgReaderStates)
 	{
@@ -678,6 +699,10 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
 	LPSCARD_READERSTATEW rgReaderState = NULL;
 	IRP* irp = operation->irp;
 	GetStatusChangeW_Call* call = operation->call;
+#ifdef FROM_MASTER
+	ret.ReturnCode = SCardGetStatusChangeW(operation->hContext, call->dwTimeOut,
+	                                       call->rgReaderStates, call->cReaders);
+#else
 	/**
 	* https://msdn.microsoft.com/library/windows/desktop/aa379773(v=vs.85).aspx
 	* Important  Each member of SCARD_READERSTATE structure in
@@ -697,15 +722,18 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
 	{
 		call->cReaders = 0;
 	}
+#endif
 
 	ret.cReaders = call->cReaders;
 	ret.rgReaderStates = NULL;
 
 	if (ret.cReaders > 0)
+	{
 		ret.rgReaderStates = (ReaderState_Return*) calloc(ret.cReaders, sizeof(ReaderState_Return));
 
-	if (!ret.rgReaderStates)
-		return STATUS_NO_MEMORY;
+		if (!ret.rgReaderStates)
+			return STATUS_NO_MEMORY;
+	}
 
 	for (index = 0; index < ret.cReaders; index++)
 	{
@@ -719,12 +747,16 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
 	}
 
 	smartcard_trace_get_status_change_return(smartcard, &ret, TRUE);
-
+	
+#ifdef FROM_MASTER
+	smartcard_pack_get_status_change_return(smartcard, irp->output, &ret);
+#else
 	if ((status = smartcard_pack_get_status_change_return(smartcard, irp->output, &ret)))
 	{
 		WLog_ERR(TAG, "smartcard_pack_get_status_change_return failed with error %"PRId32"", status);
 		return status;
 	}
+#endif
 
 	if (call->rgReaderStates)
 	{
@@ -817,17 +849,20 @@ static LONG smartcard_ConnectA_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERA
 	if (status)
 	{
 		WLog_ERR(TAG, "SCardConnectA failed with error %"PRId32"", status);
-		return status;
+		goto out_fail;
 	}
 
 	if ((status = smartcard_pack_connect_return(smartcard, irp->output, &ret)))
 	{
 		WLog_ERR(TAG, "smartcard_pack_connect_return failed with error %"PRId32"", status);
-		return status;
+        goto out_fail;
 	}
 
+	status = ret.ReturnCode;
+
+out_fail:
 	free(call->szReader);
-	return ret.ReturnCode;
+	return status;
 }
 
 static LONG smartcard_ConnectW_Decode(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERATION* operation)
@@ -877,17 +912,20 @@ static LONG smartcard_ConnectW_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERA
 	if (status)
 	{
 		WLog_ERR(TAG, "SCardConnectW failed with error %"PRId32"", status);
-		return status;
+		goto out_fail;
 	}
 
 	if ((status = smartcard_pack_connect_return(smartcard, irp->output, &ret)))
 	{
 		WLog_ERR(TAG, "smartcard_pack_connect_return failed with error %"PRId32"", status);
-		return status;
+		goto out_fail;
 	}
 
+	status = ret.ReturnCode;
+
+out_fail:
 	free(call->szReader);
-	return ret.ReturnCode;
+	return status;
 }
 
 static LONG smartcard_Reconnect_Decode(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERATION* operation)
@@ -1095,6 +1133,60 @@ static LONG smartcard_StatusA_Decode(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPER
 
 static LONG smartcard_StatusA_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERATION* operation)
 {
+#ifdef FROM_MASTER
+	LONG status;
+	Status_Return ret = { 0 };
+	DWORD cchReaderLen = 0;
+	DWORD cbAtrLen = 0;
+	LPSTR mszReaderNames = NULL;
+	IRP* irp = operation->irp;
+	Status_Call* call = operation->call;
+	ZeroMemory(ret.pbAtr, 32);
+
+	WLog_ERR(TAG, "FROM_MASTER: smartcard_StatusA_Call l.1088");
+
+	if (call->cbAtrLen > 32)
+		call->cbAtrLen = 32;
+
+	cbAtrLen = call->cbAtrLen;
+
+	if (call->fmszReaderNamesIsNULL)
+		cchReaderLen = 0;
+	else
+		cchReaderLen = SCARD_AUTOALLOCATE;
+
+	status = ret.ReturnCode = SCardStatusA(operation->hCard,
+	                                       call->fmszReaderNamesIsNULL ? NULL : (LPSTR) mszReaderNames,
+	                                       &cchReaderLen, &ret.dwState, &ret.dwProtocol,
+	                                       cbAtrLen ? (BYTE*) &ret.pbAtr : NULL, &cbAtrLen);
+
+	if (status == SCARD_S_SUCCESS)
+	{
+		if (!call->fmszReaderNamesIsNULL)
+			ret.mszReaderNames = (BYTE*) mszReaderNames;
+
+		ret.cBytes = cchReaderLen;
+
+		if (call->cbAtrLen)
+			ret.cbAtrLen = cbAtrLen;
+	}
+
+	smartcard_trace_status_return(smartcard, &ret, FALSE);
+
+	if ((status = smartcard_pack_status_return(smartcard, irp->output, &ret)))
+	{
+		WLog_ERR(TAG, "smartcard_pack_status_return failed with error %"PRId32"", status);
+		return status;
+	}
+
+	if (mszReaderNames)
+	{
+		SCardFreeMemory(operation->hContext, mszReaderNames);
+	}
+
+	return ret.ReturnCode;
+#else
+	WLog_ERR(TAG, "NOT FROM_MASTER: smartcard_StatusA_Call l.1088");
 	LONG packStatus;
 	Status_Return ret = { 0 };
 	DWORD cchReaderLen = 0;
@@ -1169,6 +1261,7 @@ static LONG smartcard_StatusA_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERAT
 	}
 
 	return packStatus == 0 ? ret.ReturnCode : packStatus;
+#endif
 }
 
 static LONG smartcard_StatusW_Decode(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERATION* operation)
@@ -1192,6 +1285,57 @@ static LONG smartcard_StatusW_Decode(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPER
 
 static LONG smartcard_StatusW_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERATION* operation)
 {
+#ifdef FROM_MASTER
+    WLog_ERR(TAG, "FROM_MASTER defined l.1231: smartcard_StatusW_Call");
+
+	LONG status;
+	Status_Return ret;
+	DWORD cchReaderLen = 0;
+	LPWSTR mszReaderNames = NULL;
+	IRP* irp = operation->irp;
+	Status_Call* call = operation->call;
+	DWORD cbAtrLen;
+
+	if (call->cbAtrLen > 32)
+		call->cbAtrLen = 32;
+
+	if (call->fmszReaderNamesIsNULL)
+		cchReaderLen = 0;
+	else
+		cchReaderLen = SCARD_AUTOALLOCATE;
+
+	cbAtrLen = call->cbAtrLen;
+
+	ZeroMemory(ret.pbAtr, 32);
+	status = ret.ReturnCode = SCardStatusW(operation->hCard,
+	                                       call->fmszReaderNamesIsNULL ? NULL : (LPWSTR) mszReaderNames,
+	                                       &cchReaderLen, &ret.dwState, &ret.dwProtocol, (BYTE*) &ret.pbAtr, &cbAtrLen);
+
+	if (status == SCARD_S_SUCCESS)
+	{
+		if (!call->fmszReaderNamesIsNULL)
+			ret.mszReaderNames = (BYTE*) mszReaderNames;
+
+		ret.cBytes = cchReaderLen;
+
+		if (call->cbAtrLen)
+			ret.cbAtrLen = cbAtrLen;
+	}
+
+	smartcard_trace_status_return(smartcard, &ret, TRUE);
+
+	if ((status = smartcard_pack_status_return(smartcard, irp->output, &ret)))
+	{
+		WLog_ERR(TAG, "smartcard_pack_status_return failed with error %"PRId32"", status);
+		return status;
+	}
+
+	if (mszReaderNames)
+		SCardFreeMemory(operation->hContext, mszReaderNames);
+
+	return ret.ReturnCode;
+#else
+        WLog_ERR(TAG, "NOT FROM_MASTER l.1280: smartcard_StatusW_Call");
 	LONG packStatus;
 	Status_Return ret = { 0 };
 	DWORD cchReaderLen = 0;
@@ -1266,6 +1410,7 @@ static LONG smartcard_StatusW_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERAT
 	}
 
 	return packStatus == 0 ? ret.ReturnCode : packStatus;
+#endif
 }
 
 static LONG smartcard_Transmit_Decode(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERATION* operation)
@@ -1296,13 +1441,21 @@ static LONG smartcard_Transmit_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERA
 	ret.cbRecvLength = 0;
 	ret.pbRecvBuffer = NULL;
 
+#ifdef FROM_MASTER
+	if (call->cbRecvLength && !call->fpbRecvBufferIsNULL)
+	{
+		if (call->cbRecvLength >= 66560)
+			call->cbRecvLength = 66560;
+
+		ret.cbRecvLength = call->cbRecvLength;
+#else
 	if (!call->fpbRecvBufferIsNULL)
 	{
 		if (call->cbRecvLength >= 66560)
 			ret.cbRecvLength = 66560;
 		else
 			ret.cbRecvLength = call->cbRecvLength;
-
+#endif
 		ret.pbRecvBuffer = (BYTE*) malloc(ret.cbRecvLength);
 
 		if (!ret.pbRecvBuffer)
@@ -1937,11 +2090,19 @@ LONG smartcard_irp_device_control_call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OP
 			break;
 
 		case SCARD_IOCTL_LISTREADERGROUPSA:
+#ifdef FROM_MASTER
+			callResult = smartcard_ListReaderGroupsA_Call(smartcard, operation);
+#else
 			callResult = SCARD_F_INTERNAL_ERROR;
+#endif 
 			break;
 
 		case SCARD_IOCTL_LISTREADERGROUPSW:
+#ifdef FROM_MASTER
+			callResult = smartcard_ListReaderGroupsW_Call(smartcard, operation);
+#else
 			callResult = SCARD_F_INTERNAL_ERROR;
+#endif 
 			break;
 
 		case SCARD_IOCTL_LISTREADERSA:

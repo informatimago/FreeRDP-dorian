@@ -101,6 +101,7 @@ typedef struct _pkcs11_handle pkcs11_handle;
 
 #define AT_KEYEXCHANGE 1
 #define AT_SIGNATURE   2
+//#define AT_AUTHENTICATE   3
 
 #include "nla.h"
 
