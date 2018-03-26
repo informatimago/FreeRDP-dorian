@@ -348,7 +348,8 @@ static int nla_client_init(rdpNla* nla)
 
 			if (settings->UserPrincipalName != NULL)
 			{
-				settings->Username = _strdup(settings->UserPrincipalName);
+				//settings->Username = _strdup(settings->UserPrincipalName);
+				settings->Username = strndup(settings->UserPrincipalName, strlen(settings->UserPrincipalName) + 1);
 
 				if (settings->Username == NULL)
 				{

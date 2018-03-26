@@ -2967,7 +2967,9 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 			{
 				free(settings->CspName);
 
-				if (!(settings->CspName = _strdup(arg->Value)))
+				//if (!(settings->CspName = _strdup(arg->Value)))
+                                WLog_ERR(TAG, "arg->Value=%s; strlen(arg->Value)=%d", arg->Value, strlen(arg->Value));
+				if (!(settings->CspName = strndup(arg->Value, strlen(arg->Value) + 1)))
 					return COMMAND_LINE_ERROR_MEMORY;
 			}
 			else

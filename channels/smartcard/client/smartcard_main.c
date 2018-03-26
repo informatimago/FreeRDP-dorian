@@ -36,6 +36,7 @@
 
 #define FROM_MASTER
 #undef FROM_MASTER
+
 void* smartcard_context_thread(SMARTCARD_CONTEXT* pContext)
 {
 	DWORD nCount;

@@ -1534,8 +1534,7 @@ BOOL init_cred_cache(rdpSettings* settings)
 
 	if (authed_k5 && opts.outdata->data)
 	{
-		settings->CanonicalizedUserHint = _strdup(opts.outdata->data);
-
+		settings->CanonicalizedUserHint = strndup(opts.outdata->data, strlen(opts.outdata->data) + 1);
 		if (settings->CanonicalizedUserHint == NULL)
 		{
 			WLog_ERR(TAG, "Error _strdup outdata into canonicalized user hint");

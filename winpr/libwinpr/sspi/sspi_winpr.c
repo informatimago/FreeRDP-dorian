@@ -436,6 +436,7 @@ int sspi_SetAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, const char* user, co
 			return -1;
 
 		identity->UserLength = (ULONG)(status - 1);
+                identity->User[status-1] = '\0';
 	}
 
 	free(identity->Domain);
@@ -450,6 +451,7 @@ int sspi_SetAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, const char* user, co
 			return -1;
 
 		identity->DomainLength = (ULONG)(status - 1);
+                identity->Domain[status-1] = '\0';
 	}
 
 	free(identity->Password);
@@ -464,6 +466,7 @@ int sspi_SetAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, const char* user, co
 			return -1;
 
 		identity->PasswordLength = (ULONG)(status - 1);
+                identity->Password[status-1] = '\0';
 	}
 
 	return 1;
@@ -491,6 +494,7 @@ int sspi_SetAuthIdentity_Smartcard(SEC_WINNT_AUTH_IDENTITY* identity, const char
 			return -1;
 
 		identity->PinLength = (ULONG)(status - 1);
+                identity->Pin[status-1] = '\0';
 	}
 
 	if (identity->CspData)
@@ -521,6 +525,7 @@ int sspi_SetAuthIdentity_Smartcard(SEC_WINNT_AUTH_IDENTITY* identity, const char
 			return -1;
 
 		identity->UserHintLength = (ULONG)(status - 1);
+                identity->UserHint[status-1] = '\0';
 	}
 
 	if (identity->DomainHint)
@@ -537,6 +542,7 @@ int sspi_SetAuthIdentity_Smartcard(SEC_WINNT_AUTH_IDENTITY* identity, const char
 			return -1;
 
 		identity->DomainHintLength = (ULONG)(status - 1);
+                identity->DomainHint[status-1] = '\0';
 	}
 
 	return 1;
@@ -591,9 +597,12 @@ int CopyCSPData(SEC_WINNT_AUTH_IDENTITY* identity, SEC_WINNT_AUTH_IDENTITY* srcI
 	return 1;
 }
 
+//int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspData,
+//               const UINT32 keySpec, const char* cardName, char* readerName, const char* containerName,
+//               const char* cspName)
 int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspData,
-               const UINT32 keySpec, const char* cardName, const char* readerName, const char* containerName,
-               const char* cspName)
+               UINT32 keySpec, char* cardName, char* readerName, char* containerName,
+               char* cspName)
 {
 	*pIdentityCspData = (SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL*) calloc(1,
 	                    sizeof(SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL));
@@ -614,12 +623,16 @@ int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspD
 
 	if (cardName)
 	{
+                WLog_ERR(TAG, "cardName=%s; strlen(cardName)=%d", cardName, strlen(cardName));
+                int longueur = strlen(cardName);
+		cardName[longueur] = '\0';
 		status = ConvertToUnicode(CP_UTF8, 0, cardName, -1, (LPWSTR*) & ((*pIdentityCspData)->CardName), 0);
 
 		if (status <= 0)
 			return -1;
 
 		(*pIdentityCspData)->CardNameLength = (ULONG)(status - 1);
+                (*pIdentityCspData)->CardName[status-1] = '\0';
 	}
 
 	if ((*pIdentityCspData)->ReaderName)
@@ -630,13 +643,19 @@ int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspD
 
 	if (readerName)
 	{
+                WLog_ERR(TAG, "readerName=%s; strlen(readerName)=%d", readerName, strlen(readerName));
+                int longueur = strlen(readerName);
+		readerName[longueur] = '\0';
 		status = ConvertToUnicode(CP_UTF8, 0, readerName, -1, (LPWSTR*) & ((*pIdentityCspData)->ReaderName),
 		                          0);
+                WLog_ERR(TAG, "status=%d", status);
 
 		if (status <= 0)
 			return -1;
 
 		(*pIdentityCspData)->ReaderNameLength = (ULONG)(status - 1);
+                WLog_ERR(TAG, "(*psIdentityCspData)->ReaderNameLength=%d", (*pIdentityCspData)->ReaderNameLength);
+		(*pIdentityCspData)->ReaderName[status-1] = '\0';
 	}
 
 	if ((*pIdentityCspData)->ContainerName)
@@ -647,6 +666,9 @@ int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspD
 
 	if (containerName)
 	{
+                WLog_ERR(TAG, "containerName=%s; strlen(containerName)=%d", containerName, strlen(containerName));
+                int longueur = strlen(containerName);
+		readerName[longueur] = '\0';
 		status = ConvertToUnicode(CP_UTF8, 0, containerName, -1,
 		                          (LPWSTR*) & ((*pIdentityCspData)->ContainerName), 0);
 
@@ -654,6 +676,7 @@ int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspD
 			return -1;
 
 		(*pIdentityCspData)->ContainerNameLength = (ULONG)(status - 1);
+                (*pIdentityCspData)->ContainerName[status-1] = '\0';
 	}
 
 	if ((*pIdentityCspData)->CspName)
@@ -664,12 +687,16 @@ int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspD
 
 	if (cspName)
 	{
+                WLog_ERR(TAG, "cspName=%s; strlen(cspName)=%d", cspName, strlen(cspName));
+                int longueur = strlen(cspName);
+		cspName[longueur] = '\0';
 		status = ConvertToUnicode(CP_UTF8, 0, cspName, -1, (LPWSTR*) & ((*pIdentityCspData)->CspName), 0);
 
 		if (status <= 0)
 			return -1;
 
 		(*pIdentityCspData)->CspNameLength = (ULONG)(status - 1);
+                (*pIdentityCspData)->CspName[status-1] = '\0';
 	}
 
 	return ((*pIdentityCspData)->CardNameLength + (*pIdentityCspData)->ReaderNameLength +

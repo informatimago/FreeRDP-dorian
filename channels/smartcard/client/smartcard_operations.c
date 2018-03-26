@@ -1222,9 +1222,11 @@ static LONG smartcard_StatusA_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERAT
 		}
 		else
 		{
-			mszReaderName = calloc(call->cchReaderLen, sizeof(BYTE));
+			mszReaderName = calloc(call->cchReaderLen + 1, sizeof(BYTE));
 			ret.ReturnCode = SCardStatusA(operation->hCard, mszReaderName, &cchReaderLen,
 			                              &ret.dwState, &ret.dwProtocol, (BYTE*) &ret.pbAtr, &ret.cbAtrLen);
+
+			mszReaderName[call->cchReaderLen] = '\0';
 
 			if (ret.ReturnCode == SCARD_S_SUCCESS)
 			{
@@ -1371,9 +1373,11 @@ static LONG smartcard_StatusW_Call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OPERAT
 		}
 		else
 		{
-			mszReaderName = calloc(call->cchReaderLen, sizeof(wchar_t));
+			mszReaderName = calloc(call->cchReaderLen + 1, sizeof(wchar_t));
 			ret.ReturnCode = SCardStatusW(operation->hCard, mszReaderName, &cchReaderLen,
 			                              &ret.dwState, &ret.dwProtocol, (BYTE*) &ret.pbAtr, &ret.cbAtrLen);
+
+                        mszReaderName[call->cchReaderLen] = '\0';
 
 			if (ret.ReturnCode == SCARD_S_SUCCESS)
 			{
