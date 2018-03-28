@@ -21,8 +21,6 @@
 #include "config.h"
 #endif
 
-#ifndef COUCOU
-
 #include <openssl/ui.h>
 #include <err.h>
 
@@ -1557,4 +1555,3 @@ BOOL get_TGT_kerberos(rdpSettings * settings)
 }
 
 
-#endif // COUCOU
