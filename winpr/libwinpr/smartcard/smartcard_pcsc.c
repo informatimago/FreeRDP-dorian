@@ -158,7 +158,7 @@ static wArrayList* g_Readers = NULL;
 static wListDictionary* g_CardHandles = NULL;
 static wListDictionary* g_CardContexts = NULL;
 static wListDictionary* g_MemoryBlocks = NULL;
-static wListDictionary* g_ReadersNames = NULL;
+static wListDictionary* g_ReadersNames = NULL; /* Maps HANDLE* keys (eg. threads) to LPSTR readerNames. */
 
 char SMARTCARD_PNP_NOTIFICATION_A[] = "\\\\?PnP?\\Notification";
 
@@ -590,7 +590,7 @@ static void PCSC_DisconnectCardHandle(SCARDHANDLE hCard)
 	pContext->dwCardHandleCount--;
 }
 
-char* PCSC_GetReaderNameFromAlias(char* nameWinSCard)
+char* PCSC_GetReaderNameFromAlias(const char* nameWinSCard)
 {
 	int index;
 	int count;
@@ -614,7 +614,7 @@ char* PCSC_GetReaderNameFromAlias(char* nameWinSCard)
 	return namePCSC;
 }
 
-BOOL PCSC_AddReaderNameAlias(char* namePCSC, char* nameWinSCard)
+BOOL PCSC_AddReaderNameAlias(const char* namePCSC, const char* nameWinSCard)
 {
 	PCSC_READER* reader;
 
@@ -745,10 +745,9 @@ char* PCSC_ConvertReaderNameToWinSCard(const char* name)
 	return nameWinSCard;
 }
 
-char* PCSC_GetReaderAliasFromName(char* namePCSC)
+char* PCSC_GetReaderAliasFromName(const char* namePCSC)
 {
-	char* nameWinSCard = NULL;
-	nameWinSCard = PCSC_ConvertReaderNameToWinSCard(namePCSC);
+	char* nameWinSCard = PCSC_ConvertReaderNameToWinSCard(namePCSC);
 
 	if (nameWinSCard)
 		PCSC_AddReaderNameAlias(namePCSC, nameWinSCard);
@@ -756,82 +755,101 @@ char* PCSC_GetReaderAliasFromName(char* namePCSC)
 	return nameWinSCard;
 }
 
-int PCSC_RedirectReader(char* readerName)
+enum
 {
-	char* name;
-	ULONG_PTR* readers;
-	int i, nbReaders;
-	nbReaders = ListDictionary_GetKeys(g_ReadersNames, &readers);
+	PCSC_RedirectReader_noSuchReaderName = 0,
+	PCSC_RedirectReader_thereIsAReaderWithNameEmptyOrPrefixedByGivenName = 1,
+	PCSC_RedirectReader_thereIsAReaderWithNoName = 2,
+};
+
+int PCSC_RedirectReader(const char* readerName)
+{
+	ULONG_PTR* readers = 0;
+	int nbReaders = 0;
+	int i = 0;
+
+	if (g_ReadersNames)
+	{
+		nbReaders = ListDictionary_GetKeys(g_ReadersNames, &readers);
+	}
 
 	for (i = 0; i < nbReaders; i++)
 	{
-		name = ListDictionary_GetItemValue(g_ReadersNames, (void*) readers[i]);
+		char *name = ListDictionary_GetItemValue(g_ReadersNames, (void*) readers[i]);
 
 		if (name)
 		{
 			if (strcmp(name, "") == 0)
 			{
 				free(readers);
-				return 1;
+				return PCSC_RedirectReader_thereIsAReaderWithNameEmptyOrPrefixedByGivenName;
 			}
 
 			if (strncmp(readerName, name, strlen(readerName)) == 0)
 			{
 				free(readers);
-				return 1;
+				return PCSC_RedirectReader_thereIsAReaderWithNameEmptyOrPrefixedByGivenName;
 			}
 		}
 		else
 		{
 			free(readers);
-			return 2;
+			return PCSC_RedirectReader_thereIsAReaderWithNoName;
 		}
 	}
 
-	free(readers);
-	return 0;
+	if (readers)
+	{
+		free(readers);
+	}
+
+	return PCSC_RedirectReader_noSuchReaderName;
 }
 
 char* PCSC_ConvertReaderNamesToWinSCard(const char* names, LPDWORD pcchReaders)
 {
-	int ret = 0;
-	int length;
-	char* p, *q;
-	DWORD cchReaders;
-	char* nameWinSCard;
-	char* namesWinSCard;
+        int length = 0;
+	DWORD cchReaders = *pcchReaders;
+	char* nameWinSCard = 0;
+	char* namesWinSCard = 0;
 	BOOL endReaderName = FALSE;
 	BOOL allReaders = FALSE;
-	p = (char*) names;
-	cchReaders = *pcchReaders;
-	namesWinSCard = (char*) calloc(cchReaders, 2);
+	const char *p = names;
+	char *q = 0;
 
-	if (!namesWinSCard)
-		return NULL;
+        if (!names)
+        {
+                return NULL;
+        }
 
-	q = namesWinSCard;
-	p = (char*) names;
+        namesWinSCard = (char*) calloc(cchReaders, 2);
+        if (!namesWinSCard)
+        {
+        	return NULL;
+        }
+        q = namesWinSCard;
 
-	while ( (names!=NULL) && (p - names) < cchReaders)
+	while ((p - names) < cchReaders)
 	{
 		nameWinSCard = PCSC_GetReaderAliasFromName(p);
 
 		if (nameWinSCard)
 		{
-			length = strlen(nameWinSCard);
-			ret = PCSC_RedirectReader(nameWinSCard);
-
-			if (ret == 1)
+                        length = strlen(nameWinSCard);
+			switch (PCSC_RedirectReader(nameWinSCard))
 			{
-				CopyMemory(q, nameWinSCard, length);
-				endReaderName = TRUE;
+			    case PCSC_RedirectReader_thereIsAReaderWithNameEmptyOrPrefixedByGivenName:
+				    CopyMemory(q, nameWinSCard, length);
+				    endReaderName = TRUE;
+				    break;
+			    case PCSC_RedirectReader_thereIsAReaderWithNoName:
+				    CopyMemory(q, nameWinSCard, length);
+				    allReaders = TRUE;
+				    break;
+			    case PCSC_RedirectReader_noSuchReaderName: /* fall thru */
+			    default:
+				    break;
 			}
-			else if (ret == 2)
-			{
-				CopyMemory(q, nameWinSCard, length);
-				allReaders = TRUE;
-			}
-
 			free(nameWinSCard);
 		}
 		else
@@ -1691,7 +1709,7 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChange_Internal(SCARDCONTEXT hContext
 		rgReaderStates[i].dwCurrentState = states[j].dwCurrentState;
 		rgReaderStates[i].cbAtr = states[j].cbAtr;
 		CopyMemory(&(rgReaderStates[i].rgbAtr), &(states[j].rgbAtr), PCSC_MAX_ATR_SIZE);
-#ifdef FROM_MASTER		
+#ifdef FROM_MASTER
 		rgReaderStates[i].dwEventState = states[j].dwEventState;
 #else
 		dwEventState = states[j].dwEventState & ~SCARD_STATE_CHANGED;
