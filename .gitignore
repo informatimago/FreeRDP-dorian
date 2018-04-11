@@ -121,6 +121,9 @@ default.log
 # etags
 TAGS
 
+# cflow
+*.cflow
+
 # generated packages
 *.zip
 *.exe

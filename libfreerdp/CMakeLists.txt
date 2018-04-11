@@ -339,3 +339,6 @@ if(${CMAKE_VERSION} VERSION_GREATER "2.8.10")
 	install(EXPORT FreeRDPTargets DESTINATION ${FREERDP_CMAKE_INSTALL_DIR})
 
 endif()
+
+include(cflow)
+add_cflow_target(${MODULE_NAME})
