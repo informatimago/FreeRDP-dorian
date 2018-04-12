@@ -87,3 +87,6 @@ if(BUILD_TESTING)
 endif()
 
 export_complex_library(LIBNAME ${MODULE_NAME})
+
+include(cflow)
+add_cflow_target(${MODULE_NAME})
