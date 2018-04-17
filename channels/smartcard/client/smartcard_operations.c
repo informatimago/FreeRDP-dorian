@@ -647,7 +647,7 @@ static LONG smartcard_GetStatusChangeA_Call(SMARTCARD_DEVICE* smartcard,
 	smartcard_trace_get_status_change_return(smartcard, &ret, FALSE);
 
 #ifdef FROM_MASTER
-smartcard_pack_get_status_change_return(smartcard, irp->output, &ret);	
+smartcard_pack_get_status_change_return(smartcard, irp->output, &ret);
 #else
 	if ((status = smartcard_pack_get_status_change_return(smartcard, irp->output, &ret)))
 	{
@@ -747,7 +747,7 @@ static LONG smartcard_GetStatusChangeW_Call(SMARTCARD_DEVICE* smartcard,
 	}
 
 	smartcard_trace_get_status_change_return(smartcard, &ret, TRUE);
-	
+
 #ifdef FROM_MASTER
 	smartcard_pack_get_status_change_return(smartcard, irp->output, &ret);
 #else
@@ -2098,7 +2098,7 @@ LONG smartcard_irp_device_control_call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OP
 			callResult = smartcard_ListReaderGroupsA_Call(smartcard, operation);
 #else
 			callResult = SCARD_F_INTERNAL_ERROR;
-#endif 
+#endif
 			break;
 
 		case SCARD_IOCTL_LISTREADERGROUPSW:
@@ -2106,7 +2106,7 @@ LONG smartcard_irp_device_control_call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OP
 			callResult = smartcard_ListReaderGroupsW_Call(smartcard, operation);
 #else
 			callResult = SCARD_F_INTERNAL_ERROR;
-#endif 
+#endif
 			break;
 
 		case SCARD_IOCTL_LISTREADERSA:
@@ -2358,4 +2358,3 @@ LONG smartcard_irp_device_control_call(SMARTCARD_DEVICE* smartcard, SMARTCARD_OP
 	Stream_SetPosition(irp->output, Stream_Length(irp->output));
 	return SCARD_S_SUCCESS;
 }
-
