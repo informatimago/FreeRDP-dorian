@@ -1793,6 +1793,7 @@ LONG smartcard_irp_device_control_decode(SMARTCARD_DEVICE* smartcard,
 		return SCARD_F_INTERNAL_ERROR;
 	}
 
+        WLog_SetLogLevel(WLog_Get(TAG), WLOG_DEBUG); /* PJB */
 	WLog_DBG(TAG, "%s (0x%08"PRIX32") FileId: %"PRIu32" CompletionId: %"PRIu32"",
 	         smartcard_get_ioctl_string(ioControlCode, TRUE),
 	         ioControlCode, irp->FileId, irp->CompletionId);
