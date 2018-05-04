@@ -26,7 +26,7 @@ const certificate_test_t certificate_tests[]
    {CERT_SUBJECT     , "Certificate subject",
     crypto_cert_subject, 
     // {"C = US, ST = OR, L = Portland, O = MyCompany, OU = MyDivision, CN = www.mycompany.com", 0}
-    {"C = FR, O = MINISTERE DES TESTS, OU = PERSONNES, UID = 9999999, GN = TESTJEAN, SN = TESTMARTIN, CN = TESTJEAN TESTMARTIN 9999999, msUPN = testjean.testmartin.9999999@mintest.fr, emailAddress = testjean.testmartin@test.gouv.fr", 0}},
+    {"C = FR, O = MINISTERE DES TESTS, OU = PERSONNES, UID = 9999999, GN = TESTJEAN, SN = TESTMARTIN, CN = TESTJEAN TESTMARTIN 9999999", 0}},
    {CERT_KPN         , "Kerberos principal name",
     0, 
     {0}},
@@ -41,7 +41,7 @@ const certificate_test_t certificate_tests[]
    {CERT_ISSUER      , "Certificate issuer",
     crypto_cert_issuer, 
     // {"C = US, ST = OR, L = Portland, O = MyCompany, OU = MyDivision, CN = www.mycompany.com", 0}
-    {"C = FR, O = MINISTERE DES TESTS, OU = PERSONNES, OU = 9999999, UID = TESTJEAN, GN = TESTMARTIN, SN = TESTJEAN TESTMARTIN 9999999, CN = testjean.testmartin.9999999@mintest.frAB00testjean.testmartin@test.gouv.fr"}}, 
+    {"C = FR, O = MINISTERE DES TESTS, OU = 0002 110014016, CN = ADMINISTRATION CENTRALE 2018", 0}}, 
    {CERT_KEY_ALG     , "Certificate key algorithm",
     0, 
     {"rsaEncryption", 0}}};

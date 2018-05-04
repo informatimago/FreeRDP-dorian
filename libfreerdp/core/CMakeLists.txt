@@ -151,8 +151,6 @@ set(${MODULE_PREFIX}_SRCS
 	peer.h
 	smartcardlogon.h
 	smartcardlogon.c
-	x509_cert_info.h
-	x509_cert_info.c
 	)
 
 set(${MODULE_PREFIX}_SRCS ${${MODULE_PREFIX}_SRCS} ${${MODULE_PREFIX}_GATEWAY_SRCS} ${${MODULE_PREFIX}_PKINIT_SRCS} )

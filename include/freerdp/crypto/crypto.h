@@ -39,6 +39,7 @@
 #include <freerdp/api.h>
 #include <freerdp/freerdp.h>
 #include <freerdp/crypto/certificate.h>
+#include <freerdp/crypto/x509_cert_info.h>
 
 struct crypto_cert_struct
 {

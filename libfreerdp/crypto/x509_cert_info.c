@@ -74,7 +74,7 @@ static char* x509_name_entry_to_utf8_string(X509_NAME* name, int loc)
 #define countof(a) (sizeof (a) / sizeof (a[0]))
 static const char * seps[] =
  // { "C = ", ", ST = ", ", L = ", ", O = ", ", OU = ", ", CN = "};
-{ "C = ", ", O = ", ", OU = ", ", OU = ", ", UID = ", ", GN = ", ", SN = ", ", CN = "};
+{ "C = ", ", O = ", ", OU = ", ", UID = ", ", GN = ", ", SN = ", ", CN = ", ", msUPN = ", ", emailAddress = "};
 
 static char*  x509_name_to_utf8_string(X509_NAME* name)
 {

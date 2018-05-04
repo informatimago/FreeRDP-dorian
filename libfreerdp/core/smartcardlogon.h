@@ -20,7 +20,11 @@
 #ifndef SMARTCARD_LOGON_H
 #define SMARTCARD_LOGON_H
 
-#include "freerdp/freerdp.h"
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/stat.h>
 #include <dlfcn.h>
 
 #include <openssl/bio.h>
@@ -32,15 +36,12 @@
 #include <openssl/opensslv.h>
 #include <openssl/pem.h>
 #include <openssl/bn.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/stat.h>
 
 #include <gssapi/gssapi.h>
 #include <pkcs11-helper-1.0/pkcs11.h>
-#include "x509.h"
+
+#include "freerdp/freerdp.h"
+#include "freerdp/crypto/crypto.h"
 
 #define MAX_KEYS_PER_SLOT 15
 #define NB_ENTRIES_MAX 20
@@ -83,6 +84,19 @@ struct _cert_object
 };
 
 typedef struct _cert_object cert_object;
+
+struct cert_policy_st
+{
+	int ca_policy;
+	int crl_policy;
+	int signature_policy;
+	const char* ca_dir;
+	const char* crl_dir;
+	int ocsp_policy;
+};
+
+typedef struct cert_policy_st cert_policy;
+
 
 struct _pkcs11_handle
 {
@@ -148,7 +162,11 @@ CK_RV pkcs11_login(CK_SESSION_HANDLE session, rdpSettings* settings, char* pin);
 int find_valid_matching_cert(rdpSettings* settings, pkcs11_handle* phdlsc);
 int match_id(rdpSettings* settings, cert_object* cert);
 int get_id_private_key(pkcs11_handle* h, cert_object* cert);
+
+
+
 int crypto_init(cert_policy* policy);
+
 int close_pkcs11_session(pkcs11_handle* h);
 void release_pkcs11_module(pkcs11_handle* h);
 

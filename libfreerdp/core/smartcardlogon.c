@@ -28,7 +28,6 @@
 #include <freerdp/error.h>
 #include <freerdp/log.h>
 
-#include "transport.h"
 #include "smartcardlogon.h"
 
 #define TAG FREERDP_TAG("core.smartcardlogon")
@@ -394,9 +393,11 @@ CK_RV get_slot_protected_authentication_path(rdpSettings* settings, CK_SLOT_ID s
 
 	settings->TokenLabel[i] = '\0';
 	WLog_DBG(TAG, "Token Label: %s", settings->TokenLabel);
-	if((tinfo.flags & CKR_TOKEN_NOT_RECOGNIZED) == CKR_TOKEN_NOT_RECOGNIZED)
+
+	if ((tinfo.flags & CKR_TOKEN_NOT_RECOGNIZED) == CKR_TOKEN_NOT_RECOGNIZED)
 		return CKR_SLOT_ID_INVALID;
-	if((tinfo.flags & CKF_PROTECTED_AUTHENTICATION_PATH) == CKF_PROTECTED_AUTHENTICATION_PATH)
+
+	if ((tinfo.flags & CKF_PROTECTED_AUTHENTICATION_PATH) == CKF_PROTECTED_AUTHENTICATION_PATH)
 		return CKR_OK;
 	else
 		return CKR_NO_EVENT;
@@ -491,7 +492,7 @@ CK_RV init_authentication_pin(rdpNla* nla)
 		goto exit_failure;
 	}
 
-	while(n<p11_num_slots)
+	while (n < p11_num_slots)
 	{
 		WLog_DBG(TAG, "Slot #%lu (0x%lx)", n, p11_slots[n]);
 		rv = p11->C_GetSlotInfo(p11_slots[n], &info);
@@ -504,7 +505,7 @@ CK_RV init_authentication_pin(rdpNla* nla)
 		}
 
 		WLog_DBG(TAG, "Slot #%lu description: %s", n, p11_utf8_to_local(info.slotDescription,
-				sizeof(info.slotDescription)));
+		         sizeof(info.slotDescription)));
 
 		if (!((info.flags & CKF_TOKEN_PRESENT) == CKF_TOKEN_PRESENT))
 		{
@@ -527,7 +528,7 @@ CK_RV init_authentication_pin(rdpNla* nla)
 			instance->settings->PinPadIsPresent = TRUE;
 			break;
 		}
-		else if (ret==CKR_NO_EVENT)
+		else if (ret == CKR_NO_EVENT)
 		{
 			if (get_slot_login_required(p11_slots[n]) == CKR_OK)
 			{
@@ -539,7 +540,8 @@ CK_RV init_authentication_pin(rdpNla* nla)
 		}
 		else
 		{
-			WLog_ERR(TAG, "Token found on slot %d can't be used for smartcardlogon. Try next one...", p11_slots[n]);
+			WLog_ERR(TAG, "Token found on slot %d can't be used for smartcardlogon. Try next one...",
+			         p11_slots[n]);
 		}
 
 		n++;
@@ -914,7 +916,8 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 			{
 				if (try_left == 2)
 				{
-					if (((settings->TokenFlags & FLAGS_TOKEN_USER_PIN_COUNT_LOW) == FLAGS_TOKEN_USER_PIN_COUNT_LOW) == 0)
+					if (((settings->TokenFlags & FLAGS_TOKEN_USER_PIN_COUNT_LOW) == FLAGS_TOKEN_USER_PIN_COUNT_LOW) ==
+					    0)
 					{
 						/* It means that middleware does not set CKF_USER_PIN_COUNT_LOW token flag.
 						 *  If so, that would have already been done previously with the corresponding token flag.
@@ -929,7 +932,8 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 
 				if (try_left == 1)
 				{
-					if (((settings->TokenFlags & FLAGS_TOKEN_USER_PIN_FINAL_TRY) == FLAGS_TOKEN_USER_PIN_FINAL_TRY) == 0)
+					if (((settings->TokenFlags & FLAGS_TOKEN_USER_PIN_FINAL_TRY) == FLAGS_TOKEN_USER_PIN_FINAL_TRY) ==
+					    0)
 					{
 						/* means that middleware does not set CKF_USER_PIN_FINAL_TRY token flag */
 						settings->TokenFlags |= FLAGS_TOKEN_USER_PIN_NOT_IMPLEMENTED;
@@ -1551,16 +1555,16 @@ int get_valid_smartcard_cert(rdpNla* nla)
 		char** name;
 		X509* cert = (X509*) get_X509_certificate(certs[i]);
 		WLog_DBG(TAG, "Certificate #%d:", i + 1);
-		name = cert_info(cert, CERT_CN);
+		name = x509_cert_info(cert, CERT_CN);
 		WLog_DBG(TAG, "Common Name:   %s", name[0]);
 		free(name[0]);
-		name = cert_info(cert, CERT_SUBJECT);
+		name = x509_cert_info(cert, CERT_SUBJECT);
 		WLog_DBG(TAG, "Subject:   %s", name[0]);
 		free(name[0]);
-		name = cert_info(cert, CERT_ISSUER);
+		name = x509_cert_info(cert, CERT_ISSUER);
 		WLog_DBG(TAG, "Issuer:    %s", name[0]);
 		free(name[0]);
-		name = cert_info(cert, CERT_KEY_ALG);
+		name = x509_cert_info(cert, CERT_KEY_ALG);
 		WLog_DBG(TAG, "Algorithm: %s", name[0]);
 		free(name[0]);
 		ret = get_private_key(nla->p11handle, certs[i]);
@@ -1619,7 +1623,7 @@ int get_valid_smartcard_UPN(rdpSettings* settings, X509* x509)
 	}
 
 	/* retrieve UPN */
-	entries_upn = cert_info(x509, CERT_UPN);
+	entries_upn = x509_cert_info(x509, CERT_UPN);
 
 	if (!entries_upn || (entries_upn && !strlen(*entries_upn)))
 	{
