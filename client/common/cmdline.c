@@ -537,7 +537,7 @@ BOOL freerdp_client_add_device_channel(rdpSettings* settings, int count,
 			WLog_ERR(TAG, "strlen(smartcard->Name)=%d", strlen(smartcard->Name));
 			//settings->SmartcardReaderName = _strdup(smartcard->Name);
 			settings->SmartcardReaderName = strndup(smartcard->Name, strlen(smartcard->Name) + 1);
-			WLog_ERR(TAG, "l.536: settings->SmartcardReaderName=%s", settings->SmartcardReaderName); 
+			WLog_ERR(TAG, "l.536: settings->SmartcardReaderName=%s", settings->SmartcardReaderName);
 		}
 
 		if (!freerdp_device_collection_add(settings, (RDPDR_DEVICE*) smartcard))
@@ -790,11 +790,13 @@ static char** freerdp_command_line_parse_comma_separated_values_ex(const char* n
 	{
 		if (name)
 		{
-			p = (char**) calloc(1UL, sizeof(char*));
+			p = (char**) malloc(1 * sizeof(p[0]) +  (1 + strlen(name)) * sizeof (name[0]));
 
 			if (p)
 			{
-				p[0] = name;
+				char *  dst =(char * )& p[1];
+				strcpy(dst, name);
+				p[0] = dst;
 				*count = 1;
 				return p;
 			}
