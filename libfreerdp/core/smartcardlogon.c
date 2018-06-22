@@ -1552,21 +1552,21 @@ int get_valid_smartcard_cert(rdpNla* nla)
 	/* print some info on found certificates */
 	for (i = 0; i < ncerts; i++)
 	{
-		char** name;
+		char* name;
 		X509* cert = (X509*) get_X509_certificate(certs[i]);
 		WLog_DBG(TAG, "Certificate #%d:", i + 1);
-		name = x509_cert_info(cert, CERT_CN);
-		WLog_DBG(TAG, "Common Name:   %s", name[0]);
-		free(name[0]);
-		name = x509_cert_info(cert, CERT_SUBJECT);
-		WLog_DBG(TAG, "Subject:   %s", name[0]);
-		free(name[0]);
-		name = x509_cert_info(cert, CERT_ISSUER);
-		WLog_DBG(TAG, "Issuer:    %s", name[0]);
-		free(name[0]);
-		name = x509_cert_info(cert, CERT_KEY_ALG);
-		WLog_DBG(TAG, "Algorithm: %s", name[0]);
-		free(name[0]);
+		name = x509_cert_info_string(cert, CERT_CN);
+		WLog_DBG(TAG, "Common Name:   %s", name);
+		free(name);
+		name = x509_cert_info_string(cert, CERT_SUBJECT);
+		WLog_DBG(TAG, "Subject:   %s", name);
+		free(name);
+		name = x509_cert_info_string(cert, CERT_ISSUER);
+		WLog_DBG(TAG, "Issuer:    %s", name);
+		free(name);
+		name = x509_cert_info_string(cert, CERT_KEY_ALG);
+		WLog_DBG(TAG, "Algorithm: %s", name);
+		free(name);
 		ret = get_private_key(nla->p11handle, certs[i]);
 
 		if (ret < 0)
@@ -1607,7 +1607,7 @@ get_error:
  */
 int get_valid_smartcard_UPN(rdpSettings* settings, X509* x509)
 {
-	char** entries_upn = NULL;
+	char* entries_upn = NULL;
 
 	if (x509 == NULL)
 	{
@@ -1623,16 +1623,16 @@ int get_valid_smartcard_UPN(rdpSettings* settings, X509* x509)
 	}
 
 	/* retrieve UPN */
-	entries_upn = x509_cert_info(x509, CERT_UPN);
+	entries_upn = x509_cert_info_string(x509, CERT_UPN);
 
-	if (!entries_upn || (entries_upn && !strlen(*entries_upn)))
+	if (!entries_upn || (entries_upn && !strlen(entries_upn)))
 	{
 		WLog_ERR(TAG, "cert_info() failed");
 		return -1;
 	}
 
 	/* set UPN in rdp settings */
-	settings->UserPrincipalName = calloc(strlen(*entries_upn) + 1, sizeof(char));
+	settings->UserPrincipalName = calloc(strlen(entries_upn) + 1, sizeof(char));
 
 	if (settings->UserPrincipalName == NULL)
 	{
@@ -1640,6 +1640,6 @@ int get_valid_smartcard_UPN(rdpSettings* settings, X509* x509)
 		return -1;
 	}
 
-	strncpy(settings->UserPrincipalName, *entries_upn, strlen(*entries_upn) + 1);
+	strncpy(settings->UserPrincipalName, entries_upn, strlen(entries_upn) + 1);
 	return 0;
 }

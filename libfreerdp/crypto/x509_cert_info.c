@@ -74,84 +74,10 @@ static char* x509_name_entry_to_utf8_string(X509_NAME* name, int loc)
 }
 
 
-static const char * seps[] =
-                // { "C = ", ", ST = ", ", L = ", ", O = ", ", OU = ", ", CN = "};
-{ "C = ", ", O = ", ", OU = ", ", UID = ", ", GN = ", ", SN = ", ", CN = ", ", msUPN = ", ", emailAddress = "};
 
 static char*  x509_name_to_utf8_string(X509_NAME* name)
 {
-	int count;
-	struct
-	{
-		char* string;
-		int length;
-	} * temp;
-	int total_length = 0;
-	const char* sep;
-        const char* default_sep = "; ";
-	int seplen;
-	int loc;
-	count = X509_NAME_entry_count(name);
-
-	if (count == 0)
-	{
-		return strdup("");
-	}
-
-	temp = malloc(sizeof(*temp) * count);
-
-	if (!temp)
-	{
-		return 0;
-	}
-
-	/* collect entry strings,  and compute total length */
-	for (loc = 0; loc < count; loc ++)
-	{
-                seplen = seps[loc]?strlen(seps[loc]):strlen(default_sep);
-		temp[loc].string = x509_name_entry_to_utf8_string(name, loc);
-
-		if (temp[loc].string)
-		{
-			temp[loc].length = strlen(temp[loc].string);
-			total_length += seplen + temp[loc].length;
-		}
-		else
-		{
-			temp[loc].length = 0;
-		}
-	}
-
-	char* result = malloc(total_length + 1);
-
-	if (result)
-	{
-                int pos;
-		for (pos = 0, loc = 0; loc < count; loc ++)
-		{
-                        sep = seps[loc]?seps[loc]:default_sep;
-                        seplen = strlen(sep);
-
-			strncpy(result + pos, sep, seplen);
-			pos += seplen;
-
-			if (temp[loc].string)
-			{
-				strncpy(result + pos, temp[loc].string, temp[loc].length);
-				pos += temp[loc].length;
-			}
-		}
-
-		result[pos] = 0;
-	}
-
-	for (loc = 0; loc < count; loc ++)
-	{
-		free(temp[loc].string);
-	}
-
-	free(temp);
-	return result;
+	return crypto_print_name(name);
 }
 
 
@@ -566,3 +492,19 @@ x509_cert_info_t* x509_cert_info(X509* x509, CERT_INFO_TYPE type)
                     return NULL;
 	}
 }
+
+char* x509_cert_info_string(X509* x509, CERT_INFO_TYPE type)
+{
+	x509_cert_info_t* info = x509_cert_info(x509, type);
+	if (info)
+	{
+		if(info->count >= 1)
+		{
+			char *  result = strdup(info->entries[0]);
+			x509_cert_info_free(info);
+			return result;
+		}
+	}
+	return NULL;
+}
+

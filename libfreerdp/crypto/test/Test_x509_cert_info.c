@@ -1,7 +1,15 @@
 #include <freerdp/crypto/crypto.h>
 
-
 #define countof(a)   (sizeof(a)/sizeof(a[0]))
+
+#define FAILURE(format, ...)						\
+	do								\
+	{								\
+		printf("%s:%d: in %s() FAILURE ",			\
+			__FILE__, __LINE__, __FUNCTION__);		\
+		printf(format, ## __VA_ARGS__);				\
+	}while (0)
+
 
 typedef char *  (*get_field_pr)(X509 *);
 typedef struct {
@@ -33,7 +41,7 @@ const certificate_test_t certificate_tests[]
          crypto_cert_subject,
          {"CN = TESTJEAN TESTMARTIN 9999999, C = FR, emailAddress = testjean.testmartin@test.example.com, O = MINISTERE DES TESTS, OU = 0002 110014016, OU = PERSONNES", 0}},
 
-        {DISABLED, CERT_KPN         , "Kerberos principal name",
+	{DISABLED, CERT_KPN         , "Kerberos principal name",
          0,
          {"testjean.testmartin@kpn.test.example.com", 0}},
 
@@ -64,14 +72,14 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
 
         if (!certificate_file)
         {
-                printf("%s: failure: cannot open certificate file '%s'\n", __FUNCTION__, certificate_path);
+                FAILURE("cannot open certificate file '%s'\n", certificate_path);
                 return -1;
         }
 
         certificate = PEM_read_X509(certificate_file, 0, 0, 0);
         if (!certificate)
         {
-                printf("%s: failure: cannot read certificate file '%s'\n", __FUNCTION__, certificate_path);
+                FAILURE("cannot read certificate file '%s'\n", certificate_path);
                 success = -1;
                 goto fail;
         }
@@ -103,8 +111,7 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
                 }
                 else
                 {
-                        printf("%s: failure: cannot get x509_cert_info: %s\n", __FUNCTION__,
-                                certificate_tests[i].field_description);
+                        FAILURE("[%d] cannot get x509_cert_info: %s\n", i, certificate_tests[i].field_description);
                 }
 
                 crypto_result = (certificate_tests[i].get_field
@@ -119,8 +126,7 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
                 }
                 else
                 {
-                        printf("%s: failure: cannot get crypto info: %s\n", __FUNCTION__,
-                                certificate_tests[i].field_description);
+                        FAILURE("[%d] cannot get crypto info: %s\n", i, certificate_tests[i].field_description);
 
                 }
 
@@ -132,8 +138,8 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
                         {
                                 if (1 <= r)
                                 {
-                                        printf("%s: failure for crypto info %s, more expected results than actual: [%d] = '%s'\n",
-                                                __FUNCTION__,
+                                        FAILURE("[%d] for crypto info %s, more expected results than actual: [%d] = '%s'\n",
+						i,
                                                 certificate_tests[i].field_description,
                                                 r, certificate_tests[i].expected_results[r]);
                                         success = -1;
@@ -141,8 +147,8 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
                                 }
                                 if (0 != strcmp(certificate_tests[i].expected_results[r], crypto_result))
                                 {
-                                        printf("%s: failure for crypto info %s,  actual: [%d] -> '%s' expected '%s'\n",
-                                                __FUNCTION__,
+                                        FAILURE("[%d] for crypto info %s,  actual: [%d] -> '%s' expected '%s'\n",
+						i,
                                                 certificate_tests[i].field_description,
                                                 r,
                                                 crypto_result,
@@ -162,8 +168,7 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
                 {
                         if (info->count <= r)
                         {
-                                printf("%s: failure for x509_cert_info %s, more expected results than actual: [%d] = '%s'\n",
-                                        __FUNCTION__,
+                                FAILURE("for x509_cert_info %s, more expected results than actual: [%d] = '%s'\n",
                                         certificate_tests[i].field_description,
                                         r, certificate_tests[i].expected_results[r]);
                                 success = -1;
@@ -171,8 +176,7 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
                         }
                         if (0 != strcmp(certificate_tests[i].expected_results[r], info->entries[r]))
                         {
-                                printf("%s: failure for x509_cert_info %s,  actual: [%d] -> '%s' expected '%s'\n",
-                                        __FUNCTION__,
+                                FAILURE("for x509_cert_info %s,  actual: [%d] -> '%s' expected '%s'\n",
                                         certificate_tests[i].field_description,
                                         r,
                                         info->entries[r],
@@ -182,8 +186,7 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
                 }
                 while(r < info->count)
                 {
-                        printf("%s: failure for x509_cert_info %s, more actual results than expected: [%d] = '%s'\n",
-                                __FUNCTION__,
+                        FAILURE("for x509_cert_info %s, more actual results than expected: [%d] = '%s'\n",
                                 certificate_tests[i].field_description,
                                 r,
                                 info->entries[r]);
@@ -197,15 +200,13 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
                         switch (info->count)
                         {
                             case 0:
-                                    printf("%s: failure for %s, crypto got result: '%s',  but x509_cert_info did not.\n",
-                                            __FUNCTION__,
+                                    FAILURE("for %s, crypto got result: '%s',  but x509_cert_info did not.\n",
                                             certificate_tests[i].field_description,
                                             crypto_result);
                                     success = -1;
                                     break;
                             default:
-                                    printf("%s: failure for %s, x509_cert_info got %d results.\n",
-                                            __FUNCTION__,
+				    FAILURE("for %s, x509_cert_info got %d results.\n",
                                             certificate_tests[i].field_description,
                                             info->count);
                                     success = -1;
@@ -213,8 +214,7 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
                             case 1:
                                     if (0 != strcmp(crypto_result, info->entries[0]))
                                     {
-                                            printf("%s: failure for %s, crypto got result: '%s',  but x509_cert_info got '%s'.\n",
-                                                    __FUNCTION__,
+                                            FAILURE("for %s, crypto got result: '%s',  but x509_cert_info got '%s'.\n",
                                                     certificate_tests[i].field_description,
                                                     crypto_result,
                                                     info->entries[0]);
@@ -227,8 +227,7 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
                 {
                         if (info->count != 0)
                         {
-                                printf("%s: failure for %s, x509_cert_info got %d results starting with '%s',  but crypto got none.\n",
-                                        __FUNCTION__,
+                                FAILURE("for %s, x509_cert_info got %d results starting with '%s',  but crypto got none.\n",
                                         certificate_tests[i].field_description,
                                         info->count, info->entries[0]);
                         }
