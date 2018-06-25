@@ -233,15 +233,19 @@ char* string_concatenate(const char* string, ...)
         return result;
 }
 
-static int nla_client_init_smartcard_logon(rdpNla* nla)
+
+/* set_identity_for_smartcard_logon fills nla->identity,
+   from information obtained from a smartcard.  */
+static int set_identity_for_smartcard_logon(rdpNla* nla)
 {
         rdpSettings* settings = nla->settings;
         nla->credType = settings->CredentialsType;
+
 #if defined(WITH_PKCS11H) && defined(WITH_GSSAPI)
 
         if (get_info_smartcard(nla) != CKR_OK)
         {
-                WLog_ERR(TAG, "Failed to retrieve UPN !");
+                WLog_ERR(TAG, "Failed to retrieve UPN! Is there a smartcard in the reader?");
                 return -1;
         }
 
@@ -254,7 +258,7 @@ static int nla_client_init_smartcard_logon(rdpNla* nla)
 #endif
 
 #else
-        WLog_ERR(TAG, "Enable PKCS11H and GSSAPI features to authenticate via smartcard");
+        WLog_ERR(TAG, "Enable PKCS11H and GSSAPI features to authenticate via Smartcard Logon thru NLA");
         return -1;
 #endif
 
@@ -280,7 +284,9 @@ static int nla_client_init_smartcard_logon(rdpNla* nla)
         {
                 settings->Password = strdup("");
         }
+
         CHECK_MEMORY(settings->Password, -1, "Could not allocate memory for password.");
+
         settings->Username = NULL;
 
         if (settings->UserPrincipalName != NULL)
@@ -291,11 +297,20 @@ static int nla_client_init_smartcard_logon(rdpNla* nla)
                         strlen(settings->UserPrincipalName));
         }
 
-        if (!settings->Domain)
+        /* if (!settings->Domain) */
+        /* { */
+	/* 	WLog_ERR(TAG, "/domain option is  required for Smartcard Logon + NLA"); */
+        /*         return -1; */
+        /* } */
+        if (settings->Domain)
         {
-                return -1;
-        }
-        settings->DomainHint = strdup(settings->Domain); /* They're freed separately! */
+		if (settings->DomainHint)
+		{
+			free(settings->DomainHint);
+		}
+
+		settings->DomainHint = strdup(settings->Domain); /* They're freed separately! */
+	}
 
         if (settings->DomainHint != NULL)
         {
@@ -348,12 +363,51 @@ static int nla_client_init_smartcard_logon(rdpNla* nla)
 	return 0;
 }
 
+static void *  security_package_name(rdpNla* nla)
+{
+	void * package_name = 0;
+#if defined(WITH_PKCS11H) && defined(WITH_GSSAPI)
+	/* Smartcard Logon +  NLA */
+#if defined(WITH_KERBEROS)
+	/* Smartcard Logon +  Kerberos (SSO) */
+	package_name = KERBEROS_SSP_NAME;
+#else
+	package_name = NLA_PKG_NAME;
+#endif
+#else
+	/* Not Smartcard Logon */
+#ifdef WITH_GSSAPI /* KERBEROS SSP */
+	package_name = KERBEROS_SSP_NAME;
+#else /* NTLM SSP */
+	package_name = NLA_PKG_NAME;
+#endif
+#endif
+	return package_name;
+}
+
+static int query_security_package_info(rdpNla* nla)
+{
+	void * package_name = security_package_name(nla);
+
+	nla->status = nla->table->QuerySecurityPackageInfo(package_name, &nla->pPackageInfo);
+
+	if (nla->status != SEC_E_OK)
+	{
+		WLog_ERR(TAG, "QuerySecurityPackageInfo status %s [0x%08"PRIX32"]",
+			GetSecurityStatusString(nla->status), nla->status);
+		return -1;
+	}
+
+	return 0;
+}
+
 
 /**
  * Initialize NTLM/Kerberos SSP authentication module (client).
  * @param credssp
  */
 
+void* sspi_SecureHandleGetUpperPointer(void* handle);
 static int nla_client_init(rdpNla* nla)
 {
 	char* spn;
@@ -411,7 +465,7 @@ static int nla_client_init(rdpNla* nla)
 
 	if (settings->SmartcardLogon)
         {
-                if( nla_client_init_smartcard_logon(nla) < 0)
+                if( set_identity_for_smartcard_logon(nla) < 0)
                 {
                         return -1;
                 }
@@ -460,6 +514,7 @@ static int nla_client_init(rdpNla* nla)
 		}
 	}
 #endif
+
 	tls = nla->transport->tls;
 
 	if (!tls)
@@ -479,9 +534,12 @@ static int nla_client_init(rdpNla* nla)
 	spn = (SEC_CHAR*) malloc(length + 1);
 
 	if (!spn)
+	{
 		return -1;
+	}
 
-	sprintf(spn, "%s%s", TERMSRV_SPN_PREFIX, settings->ServerHostname);
+	/* sprintf(spn, "%s%s", TERMSRV_SPN_PREFIX, settings->ServerHostname); */
+	sprintf(spn, "%s", settings->ServerHostname);
 #ifdef UNICODE
 	nla->ServicePrincipalName = NULL;
 	ConvertToUnicode(CP_UTF8, 0, spn, -1, &nla->ServicePrincipalName, 0);
@@ -489,28 +547,15 @@ static int nla_client_init(rdpNla* nla)
 #else
 	nla->ServicePrincipalName = spn;
 #endif
+
+
+
 	nla->table = InitSecurityInterfaceEx(0);
-#ifdef WITH_GSSAPI /* KERBEROS SSP */
-	nla->status = nla->table->QuerySecurityPackageInfo(KERBEROS_SSP_NAME, &nla->pPackageInfo);
-
-	if (nla->status != SEC_E_OK)
+	if (query_security_package_info(nla) < 0)
 	{
-		WLog_ERR(TAG, "QuerySecurityPackageInfo status %s [0x%08"PRIX32"]",
-		         GetSecurityStatusString(nla->status), nla->status);
 		return -1;
 	}
 
-#else /* NTLM SSP */
-	nla->status = nla->table->QuerySecurityPackageInfo(NLA_PKG_NAME, &nla->pPackageInfo);
-
-	if (nla->status != SEC_E_OK)
-	{
-		WLog_ERR(TAG, "QuerySecurityPackageInfo status %s [0x%08"PRIX32"]",
-		         GetSecurityStatusString(nla->status), nla->status);
-		return -1;
-	}
-
-#endif
 	nla->cbMaxToken = nla->pPackageInfo->cbMaxToken;
 	nla->packageName = nla->pPackageInfo->Name;
 	WLog_DBG(TAG, "%s %"PRIu32" : packageName=%s ; cbMaxToken=%d", __FUNCTION__, __LINE__,
@@ -518,13 +563,13 @@ static int nla_client_init(rdpNla* nla)
 	nla->status = nla->table->AcquireCredentialsHandle(NULL, NLA_PKG_NAME,
 	              SECPKG_CRED_OUTBOUND, NULL, nla->identity, NULL, NULL, &nla->credentials,
 	              &nla->expiration);
-
 	if (nla->status != SEC_E_OK)
 	{
 		WLog_ERR(TAG, "AcquireCredentialsHandle status %s [0x%08"PRIX32"]",
 		         GetSecurityStatusString(nla->status), nla->status);
 		return -1;
 	}
+	WLog_DBG(TAG, "AcquireCredentialsHandle credentials = %s",(char *)sspi_SecureHandleGetUpperPointer(&(nla->credentials)));
 
 	nla->haveContext = FALSE;
 	nla->haveInputBuffer = FALSE;
@@ -581,7 +626,8 @@ int nla_client_begin(rdpNla* nla)
 
 		if (nla->status)
 		{
-			SECURITY_STATUS status = nla->table->QuerySecurityPackageInfo(NTLM_SSP_NAME, &nla->pPackageInfo);
+			SECURITY_STATUS status = nla->table->QuerySecurityPackageInfo(security_package_name(nla) /* NTLM_SSP_NAME */,
+				&nla->pPackageInfo);
 
 			if (status != SEC_E_OK)
 			{
