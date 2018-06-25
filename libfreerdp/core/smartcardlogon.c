@@ -1564,9 +1564,6 @@ int get_valid_smartcard_cert(rdpNla* nla)
 		name = x509_cert_info_string(cert, CERT_ISSUER);
 		WLog_DBG(TAG, "Issuer:    %s", name);
 		free(name);
-		name = x509_cert_info_string(cert, CERT_KEY_ALG);
-		WLog_DBG(TAG, "Algorithm: %s", name);
-		free(name);
 		ret = get_private_key(nla->p11handle, certs[i]);
 
 		if (ret < 0)
