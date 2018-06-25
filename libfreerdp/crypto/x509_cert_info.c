@@ -23,7 +23,14 @@
 
 #include <openssl/ossl_typ.h>
 #include <openssl/x509.h>
+
+#include <winpr/crt.h>
+#include <winpr/crypto.h>
+
+#include <freerdp/log.h>
 #include <freerdp/crypto/crypto.h>
+char* crypto_print_name(X509_NAME* name);
+
 
 #define TAG FREERDP_TAG("core.x509")
 #define countof(a)  (sizeof (a) / sizeof (a[0]))
@@ -177,7 +184,7 @@ fail:
 }
 
 
-typedef X509_NAME* (* get_field_pr)(const X509* x509);
+typedef X509_NAME* (* get_field_pr)(X509* x509);
 static x509_cert_info_t* cert_info_field(X509* x509, get_field_pr get_field, const char* operation)
 {
 	x509_cert_info_t* result;
@@ -466,28 +473,28 @@ x509_cert_info_t* x509_cert_info(X509* x509, CERT_INFO_TYPE type)
 
 	switch (type)
 	{
-            case CERT_CN		:
+            case CERT_CN:
                     return cert_info_cn(x509);
 
-            case CERT_SUBJECT	:
+            case CERT_SUBJECT:
                     return cert_info_subject(x509);
 
-            case CERT_ISSUER	:
+            case CERT_ISSUER:
                     return cert_info_issuer(x509);
 
-            case CERT_KPN		:
+            case CERT_KPN:
                     return cert_info_kpn(x509);
 
             case CERT_EMAIL:
                     return cert_info_email(x509);
 
-            case CERT_UPN		:
+            case CERT_UPN:
                     return cert_info_upn(x509);
 
-            /* case CERT_KEY_ALG	: */
+            /* case CERT_KEY_ALG: */
             /*         return cert_key_alg(x509); */
 
-            default           :
+            default:
                     WLog_DBG(TAG, "Invalid info type requested: %d", type);
                     return NULL;
 	}

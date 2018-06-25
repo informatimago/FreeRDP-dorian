@@ -39,7 +39,7 @@ const certificate_test_t certificate_tests[]
 
         {ENABLED, CERT_SUBJECT     , "Certificate subject",
          crypto_cert_subject,
-         {"CN = TESTJEAN TESTMARTIN 9999999, C = FR, emailAddress = testjean.testmartin@test.example.com, O = MINISTERE DES TESTS, OU = 0002 110014016, OU = PERSONNES", 0}},
+         {"CN = TESTJEAN TESTMARTIN 9999999, C = FR, O = MINISTERE DES TESTS, OU = 0002 110014016, OU = PERSONNES, UID = 9999999, GN = TESTJEAN, SN = TESTMARTIN", 0}},
 
 	{DISABLED, CERT_KPN         , "Kerberos principal name",
          0,
