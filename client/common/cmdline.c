@@ -526,18 +526,12 @@ BOOL freerdp_client_add_device_channel(rdpSettings* settings, int count,
 
 		if (count > 1 && strlen(params[1]))
 		{
-			WLog_ERR(TAG, "strlen(params[1])=%d", strlen(params[1]));
-			//if (!(smartcard->Name = _strdup(params[1])))
-			if (!(smartcard->Name = strndup(params[1], strlen(params[1]) + 1)))
+			if (!(smartcard->Name = strdup(params[1])))
 			{
 				free(smartcard);
 				return FALSE;
 			}
-
-			WLog_ERR(TAG, "strlen(smartcard->Name)=%d", strlen(smartcard->Name));
-			//settings->SmartcardReaderName = _strdup(smartcard->Name);
-			settings->SmartcardReaderName = strndup(smartcard->Name, strlen(smartcard->Name) + 1);
-			WLog_ERR(TAG, "l.536: settings->SmartcardReaderName=%s", settings->SmartcardReaderName);
+			settings->SmartcardReaderName = strdup(smartcard->Name);
 		}
 
 		if (!freerdp_device_collection_add(settings, (RDPDR_DEVICE*) smartcard))
@@ -2969,9 +2963,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 			{
 				free(settings->CspName);
 
-				//if (!(settings->CspName = _strdup(arg->Value)))
-                                WLog_ERR(TAG, "arg->Value=%s; strlen(arg->Value)=%d", arg->Value, strlen(arg->Value));
-				if (!(settings->CspName = strndup(arg->Value, strlen(arg->Value) + 1)))
+				if (!(settings->CspName = strdup(arg->Value)))
 					return COMMAND_LINE_ERROR_MEMORY;
 			}
 			else
