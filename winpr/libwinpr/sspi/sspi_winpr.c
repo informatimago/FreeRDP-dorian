@@ -243,6 +243,91 @@ SSPI_CREDENTIALS* sspi_CredentialsNew()
 	return credentials;
 }
 
+
+void sspi_IdentityPrint(SEC_WINNT_AUTH_IDENTITY* identity)
+{
+	char buffer[1024];
+
+#if 0
+
+#define PRINT_IDENTITY_ITEM(name)										\
+	do													\
+	{													\
+		if (identity->name){										\
+			if(ConvertFromUnicode(CP_UTF8, 0, (void *)identity->name, identity->name##Length,	\
+					(LPSTR*)&buffer, 0, NULL, FALSE) < 1)					\
+			{											\
+				strcpy(buffer, "Cannot convert from Unicode");					\
+			}											\
+		}												\
+		else												\
+		{												\
+			strcpy(buffer, "(null)");								\
+		}												\
+		fprintf(stderr, "\n  :%s \"%s\"", #name, buffer);						\
+	}while(0)
+
+#define PRINT_IDENTITY_ITEM_INT(name)					\
+	fprintf(stderr, "\n  :%s %d", #name, identity->name)
+
+#define PRINT(...)							\
+	fprintf(stderr, __VA_ARGS__)
+
+#else
+
+#define PRINT_IDENTITY_ITEM(name)										\
+	do													\
+	{													\
+		LPSTR pointer = &buffer;									\
+		int status = 0;											\
+		if (identity->name){										\
+			if((status = ConvertFromUnicode(CP_UTF8, 0,						\
+						(void *)identity->name, identity->name##Length,			\
+						&pointer, sizeof(buffer), NULL, FALSE)) < 1)			\
+			{											\
+				strcpy(buffer, "Cannot convert from Unicode");					\
+			}											\
+			else											\
+			{											\
+				buffer[status] = '\0';								\
+			}											\
+		}												\
+		else												\
+		{												\
+			strcpy(buffer, "(null)");								\
+		}												\
+		WLog_DBG(TAG, "  :%s \"%s\"", #name, buffer);							\
+	}while(0)
+
+
+#define PRINT_IDENTITY_ITEM_INT(name)					\
+	WLog_DBG(TAG,  "  :%s %d", #name, identity->name)
+
+#define PRINT(...)							\
+	WLog_DBG(TAG, __VA_ARGS__)
+
+#endif
+
+
+	PRINT("(sspi-identity");
+	PRINT_IDENTITY_ITEM(User);
+	PRINT_IDENTITY_ITEM(Domain);
+	PRINT_IDENTITY_ITEM(Password);
+	PRINT_IDENTITY_ITEM(Pin);
+	PRINT_IDENTITY_ITEM(UserHint);
+	PRINT_IDENTITY_ITEM(DomainHint);
+	if (identity->CspData)
+	{
+		PRINT_IDENTITY_ITEM_INT(CspData->KeySpec);
+		PRINT_IDENTITY_ITEM(CspData->CardName);
+		PRINT_IDENTITY_ITEM(CspData->ReaderName);
+		PRINT_IDENTITY_ITEM(CspData->ContainerName);
+		PRINT_IDENTITY_ITEM(CspData->CspName);
+	}
+	PRINT(")");
+
+}
+
 void sspi_CredentialsFree(SSPI_CREDENTIALS* credentials)
 {
 	size_t userLength = 0;
@@ -468,7 +553,7 @@ int sspi_SetAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, const char* user, co
 		identity->PasswordLength = (ULONG)(status - 1);
                 identity->Password[status-1] = '\0';
 	}
-
+	sspi_IdentityPrint(identity);
 	return 1;
 }
 
@@ -479,6 +564,13 @@ int sspi_SetAuthIdentity_Smartcard(SEC_WINNT_AUTH_IDENTITY* identity, const char
 {
 	int status;
 	identity->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
+
+	/* DEBUG */
+	readerName = "XIRING Leo v2 (8288830623) 00 00";
+	cardName = "IAS-ECC";
+	containerName = "Clé d'authentification1";;
+	userHint = "BOURGUIGNONPA";
+	domainHint = "AC.INT";
 
 	if (identity->Pin)
 		free(identity->Pin);
@@ -544,7 +636,7 @@ int sspi_SetAuthIdentity_Smartcard(SEC_WINNT_AUTH_IDENTITY* identity, const char
 		identity->DomainHintLength = (ULONG)(status - 1);
                 identity->DomainHint[status-1] = '\0';
 	}
-
+	sspi_IdentityPrint(identity);
 	return 1;
 }
 
@@ -597,12 +689,10 @@ int CopyCSPData(SEC_WINNT_AUTH_IDENTITY* identity, SEC_WINNT_AUTH_IDENTITY* srcI
 	return 1;
 }
 
-//int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspData,
-//               const UINT32 keySpec, const char* cardName, char* readerName, const char* containerName,
-//               const char* cspName)
 int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspData,
-               UINT32 keySpec, char* cardName, char* readerName, char* containerName,
-               char* cspName)
+	UINT32 keySpec, const char* cardName, const char* readerName,
+	const char* containerName,
+	const char* cspName)
 {
 	*pIdentityCspData = (SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL*) calloc(1,
 	                    sizeof(SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL));
@@ -623,9 +713,7 @@ int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspD
 
 	if (cardName)
 	{
-                WLog_ERR(TAG, "cardName=%s; strlen(cardName)=%d", cardName, strlen(cardName));
-                int longueur = strlen(cardName);
-		cardName[longueur] = '\0';
+                WLog_DBG(TAG, "cardName=%s; strlen(cardName)=%d", cardName, strlen(cardName));
 		status = ConvertToUnicode(CP_UTF8, 0, cardName, -1, (LPWSTR*) & ((*pIdentityCspData)->CardName), 0);
 
 		if (status <= 0)
@@ -643,18 +731,16 @@ int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspD
 
 	if (readerName)
 	{
-                WLog_ERR(TAG, "readerName=%s; strlen(readerName)=%d", readerName, strlen(readerName));
-                int longueur = strlen(readerName);
-		readerName[longueur] = '\0';
+                WLog_DBG(TAG, "readerName=%s; strlen(readerName)=%d", readerName, strlen(readerName));
 		status = ConvertToUnicode(CP_UTF8, 0, readerName, -1, (LPWSTR*) & ((*pIdentityCspData)->ReaderName),
 		                          0);
-                WLog_ERR(TAG, "status=%d", status);
+                WLog_DBG(TAG, "status=%d", status);
 
 		if (status <= 0)
 			return -1;
 
 		(*pIdentityCspData)->ReaderNameLength = (ULONG)(status - 1);
-                WLog_ERR(TAG, "(*psIdentityCspData)->ReaderNameLength=%d", (*pIdentityCspData)->ReaderNameLength);
+                WLog_DBG(TAG, "(*psIdentityCspData)->ReaderNameLength=%d", (*pIdentityCspData)->ReaderNameLength);
 		(*pIdentityCspData)->ReaderName[status-1] = '\0';
 	}
 
@@ -666,9 +752,7 @@ int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspD
 
 	if (containerName)
 	{
-                WLog_ERR(TAG, "containerName=%s; strlen(containerName)=%d", containerName, strlen(containerName));
-                int longueur = strlen(containerName);
-		readerName[longueur] = '\0';
+                WLog_DBG(TAG, "containerName=%s; strlen(containerName)=%d", containerName, strlen(containerName));
 		status = ConvertToUnicode(CP_UTF8, 0, containerName, -1,
 		                          (LPWSTR*) & ((*pIdentityCspData)->ContainerName), 0);
 
@@ -687,9 +771,7 @@ int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspD
 
 	if (cspName)
 	{
-                WLog_ERR(TAG, "cspName=%s; strlen(cspName)=%d", cspName, strlen(cspName));
-                int longueur = strlen(cspName);
-		cspName[longueur] = '\0';
+                WLog_DBG(TAG, "cspName=%s; strlen(cspName)=%d", cspName, strlen(cspName));
 		status = ConvertToUnicode(CP_UTF8, 0, cspName, -1, (LPWSTR*) & ((*pIdentityCspData)->CspName), 0);
 
 		if (status <= 0)

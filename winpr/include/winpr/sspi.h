@@ -1210,8 +1210,8 @@ WINPR_API int sspi_CopyAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity,
 //						const UINT32 keySpec, const char* cardName, const char* readerName,
 //						const char* containerName, const char* cspName);
 WINPR_API int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** identityCspData,
-						UINT32 keySpec, char* cardName, char* readerName,
-						char* containerName, char* cspName);
+	UINT32 keySpec, const char* cardName, const char* readerName,
+	const char* containerName, const char* cspName);
 
 
 WINPR_API const char* GetSecurityStatusString(SECURITY_STATUS status);
