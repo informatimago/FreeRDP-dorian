@@ -35,16 +35,22 @@ enum _NEGOTIATE_STATE
 };
 typedef enum _NEGOTIATE_STATE NEGOTIATE_STATE;
 
+typedef enum
+{
+	negotiate_credssp,
+	negotiate_kerberos,
+	negotiate_ntlm
+} negotiate_protocol;
+
 struct _NEGOTIATE_CONTEXT
 {
 	NEGOTIATE_STATE state;
 	UINT32 NegotiateFlags;
 	PCtxtHandle auth_ctx;
 	SecBuffer NegoInitMessage;
-
 	CtxtHandle SubContext;
 
-	BOOL kerberos;
+	negotiate_protocol protocol;
 	SecurityFunctionTableA* sspiA;
 	SecurityFunctionTableW* sspiW;
 };

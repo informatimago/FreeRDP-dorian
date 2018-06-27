@@ -105,9 +105,10 @@ typedef SecPkgInfoW* PSecPkgInfoW;
 
 #endif
 
-#define NTLM_SSP_NAME	_T("NTLM")
-#define KERBEROS_SSP_NAME	_T("Kerberos")
-#define NEGO_SSP_NAME	_T("Negotiate")
+#define NTLM_SSP_NAME	    _T("NTLM")
+#define KERBEROS_SSP_NAME   _T("Kerberos")
+#define NEGO_SSP_NAME	    _T("Negotiate")
+#define CRED_SSP_NAME	    _T("CREDSSP")
 
 #define SECPKG_ID_NONE				0xFFFF
 
@@ -685,6 +686,7 @@ enum _SEC_DELEGATION_CREDENTIALS_TYPE
 {
     SEC_PASSWORD_DELEGATION_CRED_TYPE = 1,
     SEC_SMARTCARD_DELEGATION_CRED_TYPE = 2,
+    SEC_REMOTE_GUARD_CRED_TYPE = 6,
 
     SEC_DEFAULT_DELEGATION_CRED_TYPE = SEC_PASSWORD_DELEGATION_CRED_TYPE
 };

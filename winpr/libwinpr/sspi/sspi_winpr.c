@@ -121,7 +121,7 @@ const SecurityFunctionTableA_NAME SecurityFunctionTableA_NAME_LIST[] =
 	{ "NTLM", &NTLM_SecurityFunctionTableA },
 	{ "Kerberos", &KERBEROS_SecurityFunctionTableA },
 	{ "Negotiate", &NEGOTIATE_SecurityFunctionTableA },
-	{ "CREDSSP", &CREDSSP_SecurityFunctionTableA },
+	{ "CREDSSP", &CREDSSP_SecurityFunctionTableA }, /* TODO */
 	{ "Schannel", &SCHANNEL_SecurityFunctionTableA }
 };
 
@@ -246,13 +246,12 @@ SSPI_CREDENTIALS* sspi_CredentialsNew()
 
 void sspi_IdentityPrint(SEC_WINNT_AUTH_IDENTITY* identity)
 {
-	char buffer[1024];
-
 #if 0
 
 #define PRINT_IDENTITY_ITEM(name)										\
 	do													\
 	{													\
+		char buffer[1024];										\
 		if (identity->name){										\
 			if(ConvertFromUnicode(CP_UTF8, 0, (void *)identity->name, identity->name##Length,	\
 					(LPSTR*)&buffer, 0, NULL, FALSE) < 1)					\
@@ -278,7 +277,8 @@ void sspi_IdentityPrint(SEC_WINNT_AUTH_IDENTITY* identity)
 #define PRINT_IDENTITY_ITEM(name)										\
 	do													\
 	{													\
-		LPSTR pointer = &buffer;									\
+		CHAR buffer[1024];										\
+		LPSTR pointer = buffer;										\
 		int status = 0;											\
 		if (identity->name){										\
 			if((status = ConvertFromUnicode(CP_UTF8, 0,						\
@@ -556,6 +556,7 @@ int sspi_SetAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, const char* user, co
 	sspi_IdentityPrint(identity);
 	return 1;
 }
+
 
 int sspi_SetAuthIdentity_Smartcard(SEC_WINNT_AUTH_IDENTITY* identity, const char* pin,
                                    const UINT32 keySpec, const char* cardName,
@@ -979,7 +980,7 @@ SecurityFunctionTableA* sspi_GetSecurityFunctionTableAByNameA(const SEC_CHAR* Na
 
 	for (index = 0; index < (int) cPackages; index++)
 	{
-		if (strcmp(Name, SecurityFunctionTableA_NAME_LIST[index].Name) == 0)
+		if (strcasecmp(Name, SecurityFunctionTableA_NAME_LIST[index].Name) == 0) /* TODO: there's a case discrepancy between internal and external names! cf. credssp.c:31 vs. sspi_winpr.c:124 */
 		{
 			return (SecurityFunctionTableA*) SecurityFunctionTableA_NAME_LIST[index].SecurityFunctionTable;
 		}
