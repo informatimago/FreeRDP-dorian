@@ -82,20 +82,19 @@ void negotiate_SetSubPackage(NEGOTIATE_CONTEXT* context, const char* name)
 	{
 		context->sspiA = (SecurityFunctionTableA*) &KERBEROS_SecurityFunctionTableA;
 		context->sspiW = (SecurityFunctionTableW*) &KERBEROS_SecurityFunctionTableW;
-		context->kerberos = TRUE;
+		context->protocol = negotiate_kerberos;
 	}
 	else if (strcasecmp(name, CRED_SSP_NAME) == 0)
 	{
 		context->sspiA = (SecurityFunctionTableA*) &CREDSSP_SecurityFunctionTableA;
 		context->sspiW = (SecurityFunctionTableW*) &CREDSSP_SecurityFunctionTableW;
-		context->kerberos = TRUE;
+		context->protocol = negotiate_spnego;
 	}
 	else
-
 	{
 		context->sspiA = (SecurityFunctionTableA*) &NTLM_SecurityFunctionTableA;
 		context->sspiW = (SecurityFunctionTableW*) &NTLM_SecurityFunctionTableW;
-		context->kerberos = FALSE;
+		context->protocol = negotiate_ntlm;
 	}
 
 	sspi_SecureHandleSetLowerPointer(&(context->SubContext), NULL);
@@ -108,7 +107,7 @@ NEGOTIATE_CONTEXT* negotiate_ContextNew()
 	context = (NEGOTIATE_CONTEXT*) calloc(1, sizeof(NEGOTIATE_CONTEXT));
 
 	if (!context)
- 		return NULL;
+		return NULL;
 
 	context->NegotiateFlags = 0;
 	context->state = NEGOTIATE_STATE_INITIAL;
@@ -125,7 +124,7 @@ void negotiate_ContextFree(NEGOTIATE_CONTEXT* context)
 
 negotiate_protocol protocol_from_credential(PCredHandle phCredential)
 {
-
+	return negotiate_spnego;
 }
 
 SECURITY_STATUS SEC_ENTRY negotiate_InitializeSecurityContextW(PCredHandle phCredential,

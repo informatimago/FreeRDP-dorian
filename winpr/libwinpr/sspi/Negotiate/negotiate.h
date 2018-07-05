@@ -37,9 +37,9 @@ typedef enum _NEGOTIATE_STATE NEGOTIATE_STATE;
 
 typedef enum
 {
-	negotiate_credssp,
-	negotiate_kerberos,
-	negotiate_ntlm
+    negotiate_spnego,
+    negotiate_kerberos,
+    negotiate_ntlm
 } negotiate_protocol;
 
 struct _NEGOTIATE_CONTEXT
