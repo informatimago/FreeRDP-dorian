@@ -28,7 +28,8 @@
 
 #include "../sspi.h"
 
-static const char* CREDSSP_PACKAGE_NAME = "CredSSP";
+static const char* CREDSSP_PACKAGE_NAME =
+    "CredSSP"; /* TODO: why is it different from the name used in sspi_winpr.c:124 ? */
 
 static SECURITY_STATUS SEC_ENTRY credssp_InitializeSecurityContextW(PCredHandle phCredential,
         PCtxtHandle phContext,

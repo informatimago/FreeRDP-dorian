@@ -37,6 +37,9 @@ extern const SecurityFunctionTableW NTLM_SecurityFunctionTableW;
 extern const SecurityFunctionTableA KERBEROS_SecurityFunctionTableA;
 extern const SecurityFunctionTableW KERBEROS_SecurityFunctionTableW;
 
+extern const SecurityFunctionTableA CREDSSP_SecurityFunctionTableA;
+extern const SecurityFunctionTableW CREDSSP_SecurityFunctionTableW;
+
 #ifdef WITH_GSSAPI
 static BOOL ErrorInitContextKerberos = FALSE;
 #else
@@ -79,13 +82,19 @@ void negotiate_SetSubPackage(NEGOTIATE_CONTEXT* context, const char* name)
 	{
 		context->sspiA = (SecurityFunctionTableA*) &KERBEROS_SecurityFunctionTableA;
 		context->sspiW = (SecurityFunctionTableW*) &KERBEROS_SecurityFunctionTableW;
-		context->kerberos = TRUE;
+		context->protocol = negotiate_kerberos;
+	}
+	else if (strcasecmp(name, CRED_SSP_NAME) == 0)
+	{
+		context->sspiA = (SecurityFunctionTableA*) &CREDSSP_SecurityFunctionTableA;
+		context->sspiW = (SecurityFunctionTableW*) &CREDSSP_SecurityFunctionTableW;
+		context->protocol = negotiate_spnego;
 	}
 	else
 	{
 		context->sspiA = (SecurityFunctionTableA*) &NTLM_SecurityFunctionTableA;
 		context->sspiW = (SecurityFunctionTableW*) &NTLM_SecurityFunctionTableW;
-		context->kerberos = FALSE;
+		context->protocol = negotiate_ntlm;
 	}
 
 	sspi_SecureHandleSetLowerPointer(&(context->SubContext), NULL);
@@ -110,6 +119,12 @@ NEGOTIATE_CONTEXT* negotiate_ContextNew()
 void negotiate_ContextFree(NEGOTIATE_CONTEXT* context)
 {
 	free(context);
+}
+
+
+negotiate_protocol protocol_from_credential(PCredHandle phCredential)
+{
+	return negotiate_spnego;
 }
 
 SECURITY_STATUS SEC_ENTRY negotiate_InitializeSecurityContextW(PCredHandle phCredential,

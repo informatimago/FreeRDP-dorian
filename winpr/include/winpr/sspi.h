@@ -105,9 +105,10 @@ typedef SecPkgInfoW* PSecPkgInfoW;
 
 #endif
 
-#define NTLM_SSP_NAME	_T("NTLM")
-#define KERBEROS_SSP_NAME	_T("Kerberos")
-#define NEGO_SSP_NAME	_T("Negotiate")
+#define NTLM_SSP_NAME	    _T("NTLM")
+#define KERBEROS_SSP_NAME   _T("Kerberos")
+#define NEGO_SSP_NAME	    _T("Negotiate")
+#define CRED_SSP_NAME	    _T("CREDSSP")
 
 #define SECPKG_ID_NONE				0xFFFF
 
@@ -685,6 +686,7 @@ enum _SEC_DELEGATION_CREDENTIALS_TYPE
 {
     SEC_PASSWORD_DELEGATION_CRED_TYPE = 1,
     SEC_SMARTCARD_DELEGATION_CRED_TYPE = 2,
+    SEC_REMOTE_GUARD_CRED_TYPE = 6,
 
     SEC_DEFAULT_DELEGATION_CRED_TYPE = SEC_PASSWORD_DELEGATION_CRED_TYPE
 };
@@ -1200,18 +1202,18 @@ WINPR_API void sspi_SecBufferFree(PSecBuffer SecBuffer);
 WINPR_API int sspi_SetAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, const char* user,
                                    const char* domain, const char* password);
 WINPR_API int sspi_SetAuthIdentity_Smartcard(SEC_WINNT_AUTH_IDENTITY* identity,
-											const char* pin, const UINT32 keySpec,
-											const char* cardName, const char* readerName,
-											const char* containerName, const char* cspName,
-											const char* userHint, const char* domainHint);
+        const char* pin, const UINT32 keySpec,
+        const char* cardName, const char* readerName,
+        const char* containerName, const char* cspName,
+        const char* userHint, const char* domainHint);
 WINPR_API int sspi_CopyAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity,
                                     SEC_WINNT_AUTH_IDENTITY* srcIdentity);
 //WINPR_API int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** identityCspData,
 //						const UINT32 keySpec, const char* cardName, const char* readerName,
 //						const char* containerName, const char* cspName);
 WINPR_API int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** identityCspData,
-	UINT32 keySpec, const char* cardName, const char* readerName,
-	const char* containerName, const char* cspName);
+                         UINT32 keySpec, const char* cardName, const char* readerName,
+                         const char* containerName, const char* cspName);
 
 
 WINPR_API const char* GetSecurityStatusString(SECURITY_STATUS status);
