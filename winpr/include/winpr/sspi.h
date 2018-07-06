@@ -751,6 +751,8 @@ struct _SecBuffer
 	ULONG cbBuffer;
 	ULONG BufferType;
 	void* pvBuffer;
+	ULONG cbBuffer2;
+	BOOL isOurBuffer;
 };
 typedef struct _SecBuffer SecBuffer;
 typedef SecBuffer* PSecBuffer;
@@ -1196,8 +1198,27 @@ typedef PSecurityFunctionTableW(SEC_ENTRY* INIT_SECURITY_INTERFACE_EX_W)(DWORD f
 WINPR_API void sspi_GlobalInit(void);
 WINPR_API void sspi_GlobalFinish(void);
 
+ /*
+ The SecBuffer functions don't allocate or free the SecBuffer,  but the buffer inside the SecBuffer.
+ The SecBuffer structures won't be allocated dynamically usually.
+
+ sspi_SecBufferAlloc allocates the buffer for at least size bytes.  This doesn't change the BufferType.
+ sspi_SecBufferAllocType sspi_SecBufferAllocType  allocates the buffer for at least size bytes, setting a new BufferType.
+ sspi_SecBufferFree erases the buffer,  and then frees, clearing the pointer to it.
+ sspi_SecBufferDeepCopy makes a new copy the buffer of the source into the destination. If the old destination buffer if any is freed.
+ sspi_CheckSecBuffer asserts some checks.
+ sspi_SecBufferLength returns the current buffer length.
+ sspi_SetSecBufferLength sets the buffer length (it must be less or equal to the allocated size).
+ sspi_SecBufferWithBufferNoCopy initializes the buffer with the block passed in argument.  This is block will be cleared and freed when sspi_SecBufferFree is called. Note: this can disable some checks.  The old buffer if any is freed.
+ */
 WINPR_API void* sspi_SecBufferAlloc(PSecBuffer SecBuffer, ULONG size);
+WINPR_API void* sspi_SecBufferAllocType(PSecBuffer SecBuffer, ULONG size, ULONG BufferType);
+WINPR_API void* sspi_SecBufferDeepCopy(PSecBuffer destination, PSecBuffer source);
+WINPR_API void* sspi_SecBufferWithBufferNoCopy(PSecBuffer SecBuffer, void * buffer, ULONG size);
 WINPR_API void sspi_SecBufferFree(PSecBuffer SecBuffer);
+WINPR_API void sspi_CheckSecBuffer(PSecBuffer SecBuffer);
+WINPR_API ULONG sspi_SecBufferLength(PSecBuffer SecBuffer);
+WINPR_API void sspi_SetSecBufferLength(PSecBuffer SecBuffer, ULONG length);
 
 WINPR_API int sspi_SetAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, const char* user,
                                    const char* domain, const char* password);

@@ -591,7 +591,7 @@ static int nla_client_init(rdpNla* nla)
 		}
 	}
 
-	if (settings->SmartcardLogon)
+	if (false /* DEBUG */ || settings->SmartcardLogon)
 	{
 		if (set_identity_for_smartcard_logon(nla) < 0)
 		{
@@ -711,10 +711,9 @@ static int nla_output_buffer_initialize(rdpNla* nla)
 	nla->outputBufferDesc.ulVersion = SECBUFFER_VERSION;
 	nla->outputBufferDesc.cBuffers = 1;
 	nla->outputBufferDesc.pBuffers = &nla->outputBuffer;
-	nla->outputBuffer.BufferType = SECBUFFER_TOKEN;
-	nla->outputBuffer.cbBuffer = nla->cbMaxToken;
-	nla->outputBuffer.pvBuffer = malloc(nla->outputBuffer.cbBuffer);
-	return (nla->outputBuffer.pvBuffer) ? 0 : -1;
+	return (sspi_SecBufferAllocType( & nla->outputBuffer, nla->cbMaxToken, SECBUFFER_TOKEN))
+			? 0
+			: -1;
 }
 
 
@@ -773,7 +772,7 @@ int nla_client_begin(rdpNla* nla)
 		/* Kerberos or NTLM on NLA: TSRequest.negoTokens will contain
 		   the Kerberos or NTLM packets.*/
 	}
-
+	sspi_CheckSecBuffer( & nla->outputBuffer);
 	print_credentials(&nla->credentials);
 	WLog_DBG(TAG, "nla->ServicePrincipalName = %s", nla->ServicePrincipalName);
 	nla->status = nla->table->InitializeSecurityContext(&nla->credentials,
@@ -783,6 +782,7 @@ int nla_client_begin(rdpNla* nla)
 	/* DEBUG HERE! */
 	WLog_VRB(TAG, " InitializeSecurityContext status %s [0x%08"PRIX32"]",
 	         GetSecurityStatusString(nla->status), nla->status);
+	sspi_CheckSecBuffer( & nla->outputBuffer);
 
 	/* Handle kerberos context initialization failure.
 	 * After kerberos failed initialize NTLM context */
@@ -802,8 +802,8 @@ int nla_client_begin(rdpNla* nla)
 				return -1;
 			}
 		}
+		sspi_CheckSecBuffer( & nla->outputBuffer);
 	}
-
 	if ((nla->status == SEC_I_COMPLETE_AND_CONTINUE) || (nla->status == SEC_I_COMPLETE_NEEDED))
 	{
 		if (nla->table->CompleteAuthToken)
@@ -817,6 +817,7 @@ int nla_client_begin(rdpNla* nla)
 				          GetSecurityStatusString(status), status);
 				return -1;
 			}
+			sspi_CheckSecBuffer( & nla->outputBuffer);
 		}
 
 		if (nla->status == SEC_I_COMPLETE_NEEDED)
@@ -831,8 +832,7 @@ int nla_client_begin(rdpNla* nla)
 	if (nla->outputBuffer.cbBuffer < 1)
 		return -1;
 
-	nla->negoToken.pvBuffer = nla->outputBuffer.pvBuffer;
-	nla->negoToken.cbBuffer = nla->outputBuffer.cbBuffer;
+	sspi_SecBufferDeepCopy( & nla->negoToken, & nla->outputBuffer);
 	WLog_DBG(TAG, "Sending Authentication Token");
 	winpr_HexDump(TAG, WLOG_DEBUG, nla->negoToken.pvBuffer, nla->negoToken.cbBuffer);
 
@@ -858,17 +858,14 @@ static int nla_client_recv(rdpNla* nla)
 		nla->inputBufferDesc.ulVersion = SECBUFFER_VERSION;
 		nla->inputBufferDesc.cBuffers = 1;
 		nla->inputBufferDesc.pBuffers = &nla->inputBuffer;
+		sspi_SecBufferDeepCopy( & nla->inputBuffer, & nla->negoToken);
 		nla->inputBuffer.BufferType = SECBUFFER_TOKEN;
-		nla->inputBuffer.pvBuffer = nla->negoToken.pvBuffer;
-		nla->inputBuffer.cbBuffer = nla->negoToken.cbBuffer;
+
 		nla->outputBufferDesc.ulVersion = SECBUFFER_VERSION;
 		nla->outputBufferDesc.cBuffers = 1;
 		nla->outputBufferDesc.pBuffers = &nla->outputBuffer;
-		nla->outputBuffer.BufferType = SECBUFFER_TOKEN;
-		nla->outputBuffer.cbBuffer = nla->cbMaxToken;
-		nla->outputBuffer.pvBuffer = malloc(nla->outputBuffer.cbBuffer);
 
-		if (!nla->outputBuffer.pvBuffer)
+		if (!sspi_SecBufferAllocType( & nla->outputBuffer, nla->cbMaxToken, SECBUFFER_TOKEN))
 			return -1;
 
 		nla->status = nla->table->InitializeSecurityContext(&nla->credentials,
@@ -877,8 +874,7 @@ static int nla_client_recv(rdpNla* nla)
 		              0, &nla->context, &nla->outputBufferDesc, &nla->pfContextAttr, &nla->expiration);
 		WLog_VRB(TAG, "InitializeSecurityContext  %s [0x%08"PRIX32"]",
 		         GetSecurityStatusString(nla->status), nla->status);
-		free(nla->inputBuffer.pvBuffer);
-		nla->inputBuffer.pvBuffer = NULL;
+		sspi_SecBufferFree( & nla->inputBuffer);
 
 		if ((nla->status == SEC_I_COMPLETE_AND_CONTINUE) || (nla->status == SEC_I_COMPLETE_NEEDED))
 		{
@@ -920,8 +916,8 @@ static int nla_client_recv(rdpNla* nla)
 				return -1;
 		}
 
-		nla->negoToken.pvBuffer = nla->outputBuffer.pvBuffer;
-		nla->negoToken.cbBuffer = nla->outputBuffer.cbBuffer;
+		sspi_SecBufferFree( & nla->negoToken);
+		sspi_SecBufferDeepCopy( & nla->negoToken, & nla->outputBuffer);
 		WLog_DBG(TAG, "Sending Authentication Token");
 		winpr_HexDump(TAG, WLOG_DEBUG, nla->negoToken.pvBuffer, nla->negoToken.cbBuffer);
 
@@ -1151,8 +1147,7 @@ static int nla_server_authenticate(rdpNla* nla)
 
 		WLog_DBG(TAG, "Receiving Authentication Token");
 		nla_buffer_print(nla);
-		nla->inputBuffer.pvBuffer = nla->negoToken.pvBuffer;
-		nla->inputBuffer.cbBuffer = nla->negoToken.cbBuffer;
+		sspi_SecBufferDeepCopy( & nla->inputBuffer, & nla->negoToken);
 
 		if (nla->negoToken.cbBuffer < 1)
 		{
@@ -1163,11 +1158,8 @@ static int nla_server_authenticate(rdpNla* nla)
 		nla->outputBufferDesc.ulVersion = SECBUFFER_VERSION;
 		nla->outputBufferDesc.cBuffers = 1;
 		nla->outputBufferDesc.pBuffers = &nla->outputBuffer;
-		nla->outputBuffer.BufferType = SECBUFFER_TOKEN;
-		nla->outputBuffer.cbBuffer = nla->cbMaxToken;
-		nla->outputBuffer.pvBuffer = malloc(nla->outputBuffer.cbBuffer);
 
-		if (!nla->outputBuffer.pvBuffer)
+		if (!sspi_SecBufferAllocType( & nla->outputBuffer, nla->cbMaxToken, SECBUFFER_TOKEN))
 			return -1;
 
 		nla->status = nla->table->AcceptSecurityContext(&nla->credentials,
@@ -1176,8 +1168,7 @@ static int nla_server_authenticate(rdpNla* nla)
 		              &nla->outputBufferDesc, &nla->pfContextAttr, &nla->expiration);
 		WLog_VRB(TAG, "AcceptSecurityContext status %s [0x%08"PRIX32"]",
 		         GetSecurityStatusString(nla->status), nla->status);
-		nla->negoToken.pvBuffer = nla->outputBuffer.pvBuffer;
-		nla->negoToken.cbBuffer = nla->outputBuffer.cbBuffer;
+		sspi_SecBufferDeepCopy( & nla->negoToken, & nla->outputBuffer);
 
 		if ((nla->status == SEC_I_COMPLETE_AND_CONTINUE) || (nla->status == SEC_I_COMPLETE_NEEDED))
 		{
@@ -1267,8 +1258,6 @@ static int nla_server_authenticate(rdpNla* nla)
 			}
 
 			sspi_SecBufferFree(&nla->negoToken);
-			nla->negoToken.pvBuffer = NULL;
-			nla->negoToken.cbBuffer = 0;
 			nla->status = nla_encrypt_public_key_echo(nla);
 
 			if (nla->status != SEC_E_OK)

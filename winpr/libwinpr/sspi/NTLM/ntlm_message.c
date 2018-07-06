@@ -236,13 +236,10 @@ SECURITY_STATUS ntlm_read_NegotiateMessage(NTLM_CONTEXT* context, PSecBuffer buf
 	}
 
 	length = Stream_GetPosition(s);
-	buffer->cbBuffer = length;
-
-	if (!sspi_SecBufferAlloc(&context->NegotiateMessage, length))
+	if (!sspi_SecBufferAllocType(&context->NegotiateMessage, length, buffer->BufferType))
 		return SEC_E_INTERNAL_ERROR;
+	CopyMemory(context->NegotiateMessage.pvBuffer, buffer->pvBuffer, length);
 
-	CopyMemory(context->NegotiateMessage.pvBuffer, buffer->pvBuffer, buffer->cbBuffer);
-	context->NegotiateMessage.BufferType = buffer->BufferType;
 #ifdef WITH_DEBUG_NTLM
 	WLog_DBG(TAG, "NEGOTIATE_MESSAGE (length = %"PRIu32")", context->NegotiateMessage.cbBuffer);
 	winpr_HexDump(TAG, WLOG_DEBUG, context->NegotiateMessage.pvBuffer,
@@ -313,13 +310,10 @@ SECURITY_STATUS ntlm_write_NegotiateMessage(NTLM_CONTEXT* context, PSecBuffer bu
 		ntlm_write_version_info(s, &(message->Version));
 
 	length = Stream_GetPosition(s);
-	buffer->cbBuffer = length;
-
-	if (!sspi_SecBufferAlloc(&context->NegotiateMessage, length))
+	if (!sspi_SecBufferAllocType(&context->NegotiateMessage, length, buffer->BufferType))
 		return SEC_E_INTERNAL_ERROR;
+	CopyMemory(context->NegotiateMessage.pvBuffer, buffer->pvBuffer, length);
 
-	CopyMemory(context->NegotiateMessage.pvBuffer, buffer->pvBuffer, buffer->cbBuffer);
-	context->NegotiateMessage.BufferType = buffer->BufferType;
 #ifdef WITH_DEBUG_NTLM
 	WLog_DBG(TAG, "NEGOTIATE_MESSAGE (length = %d)", length);
 	winpr_HexDump(TAG, WLOG_DEBUG, Stream_Buffer(s), length);

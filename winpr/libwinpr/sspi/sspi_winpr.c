@@ -22,6 +22,8 @@
 #include "config.h"
 #endif
 
+#include <assert.h>
+
 #include <winpr/windows.h>
 
 #include <winpr/crt.h>
@@ -32,6 +34,7 @@
 #include "sspi.h"
 
 #include "sspi_winpr.h"
+
 
 #include "../log.h"
 #define TAG WINPR_TAG("sspi")
@@ -406,17 +409,129 @@ void sspi_CredentialsFree(SSPI_CREDENTIALS* credentials)
 
 void* sspi_SecBufferAlloc(PSecBuffer SecBuffer, ULONG size)
 {
+	return sspi_SecBufferAllocType(SecBuffer, size, SecBuffer->BufferType);
+}
+
+
+#define GUARD 0xDECEA5ED
+inline ULONG * guard_pointer(void * buffer, ULONG size)
+{
+	return (ULONG *)((char *)buffer + sizeof(ULONG) * (1 + (size / sizeof(ULONG))));
+}
+
+inline ULONG size_with_guard(ULONG size)
+{
+	return sizeof (ULONG) * (2 + (size / sizeof (ULONG)));
+}
+void set_guard(PSecBuffer SecBuffer)
+{
+	ULONG * g =guard_pointer(SecBuffer->pvBuffer, SecBuffer->cbBuffer);
+	* g = GUARD;
+	SecBuffer->cbBuffer2 = SecBuffer->cbBuffer;
+}
+void check_guard(PSecBuffer SecBuffer)
+{
+	assert(SecBuffer->cbBuffer <= SecBuffer->cbBuffer2);
+	if (SecBuffer->pvBuffer)
+	{
+		ULONG * g =guard_pointer(SecBuffer->pvBuffer, SecBuffer->cbBuffer2);
+		assert(* g == GUARD);
+	}
+}
+
+void sspi_CheckSecBuffer(PSecBuffer SecBuffer)
+{
+	check_guard(SecBuffer);
+}
+
+
+void* sspi_SecBufferAllocType(PSecBuffer SecBuffer, ULONG size, ULONG BufferType)
+{
 	if (!SecBuffer)
 		return NULL;
 
-	SecBuffer->pvBuffer = calloc(1, size);
-
+	sspi_SecBufferFree(SecBuffer);
+	SecBuffer->pvBuffer = calloc(1, size_with_guard(size));
 	if (!SecBuffer->pvBuffer)
 		return NULL;
 
+	SecBuffer->isOurBuffer = TRUE;
+	SecBuffer->BufferType = BufferType;
 	SecBuffer->cbBuffer = size;
+	set_guard(SecBuffer);
 	return SecBuffer->pvBuffer;
 }
+
+void* sspi_SecBufferWithBufferNoCopy(PSecBuffer SecBuffer, void * buffer, ULONG size)
+{
+	if (!SecBuffer)
+		return NULL;
+
+	sspi_SecBufferFree(SecBuffer);
+	SecBuffer->pvBuffer = buffer;
+	SecBuffer->isOurBuffer = FALSE;
+	SecBuffer->cbBuffer = size;
+	SecBuffer->cbBuffer2 = size;
+	return SecBuffer->pvBuffer;
+}
+
+
+ULONG sspi_SecBufferLength(PSecBuffer SecBuffer)
+{
+	return SecBuffer->cbBuffer;
+}
+
+void sspi_SetSecBufferLength(PSecBuffer SecBuffer, ULONG length)
+{
+	assert(length <= SecBuffer->cbBuffer2);
+	SecBuffer->cbBuffer = length;
+}
+
+void* sspi_SecBufferDeepCopy(PSecBuffer destination, PSecBuffer source)
+{
+	ULONG size;
+	if ((!destination) || (!source))
+	{
+		return NULL;
+	}
+
+	check_guard(destination);
+	check_guard(source);
+	size = source->cbBuffer;
+	sspi_SecBufferFree(destination);
+
+	if (size)
+	{
+		if(!sspi_SecBufferAllocType(destination, size, source->BufferType))
+		{
+			return NULL;
+		}
+
+		memcpy(destination->pvBuffer, source->pvBuffer, size);
+		check_guard(destination);
+	}
+	else
+	{
+		destination->BufferType = source->BufferType;
+		destination->cbBuffer = 0;
+		destination->cbBuffer2 = 0;
+		destination->pvBuffer = 0;
+	}
+
+	return destination->pvBuffer;
+}
+
+void sspi_SecBufferShallowCopy(PSecBuffer destination, PSecBuffer source)
+{
+	check_guard(source);
+	check_guard(destination);
+	destination->cbBuffer = source->cbBuffer;
+	destination->BufferType = source->BufferType;
+	destination->pvBuffer = source->pvBuffer;
+	destination->cbBuffer2 = source->cbBuffer2;
+	check_guard(destination);
+}
+
 
 void sspi_SecBufferFree(PSecBuffer SecBuffer)
 {
@@ -424,11 +539,16 @@ void sspi_SecBufferFree(PSecBuffer SecBuffer)
 		return;
 
 	if (SecBuffer->pvBuffer)
-		memset(SecBuffer->pvBuffer, 0, SecBuffer->cbBuffer);
+	{
+		check_guard(SecBuffer);
+		memset(SecBuffer->pvBuffer, 0, SecBuffer->cbBuffer2);
+	}
 
 	free(SecBuffer->pvBuffer);
 	SecBuffer->pvBuffer = NULL;
 	SecBuffer->cbBuffer = 0;
+	SecBuffer->cbBuffer2 = 0;
+	/* We leave the BufferType to be reused in a following SecBufferAlloc */
 }
 
 SecHandle* sspi_SecureHandleAlloc()
