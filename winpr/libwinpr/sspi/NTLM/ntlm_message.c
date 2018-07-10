@@ -310,9 +310,10 @@ SECURITY_STATUS ntlm_write_NegotiateMessage(NTLM_CONTEXT* context, PSecBuffer bu
 		ntlm_write_version_info(s, &(message->Version));
 
 	length = Stream_GetPosition(s);
+	buffer->cbBuffer = length;
 	if (!sspi_SecBufferAllocType(&context->NegotiateMessage, length, buffer->BufferType))
 		return SEC_E_INTERNAL_ERROR;
-	CopyMemory(context->NegotiateMessage.pvBuffer, buffer->pvBuffer, length);
+	sspi_SecBufferDeepCopy( & context->NegotiateMessage, buffer);
 
 #ifdef WITH_DEBUG_NTLM
 	WLog_DBG(TAG, "NEGOTIATE_MESSAGE (length = %d)", length);

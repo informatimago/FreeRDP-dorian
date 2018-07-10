@@ -1209,7 +1209,7 @@ WINPR_API void sspi_GlobalFinish(void);
  sspi_CheckSecBuffer asserts some checks.
  sspi_SecBufferLength returns the current buffer length.
  sspi_SetSecBufferLength sets the buffer length (it must be less or equal to the allocated size).
- sspi_SecBufferWithBufferNoCopy initializes the buffer with the block passed in argument.  This is block will be cleared and freed when sspi_SecBufferFree is called. Note: this can disable some checks.  The old buffer if any is freed.
+ sspi_SecBufferWithBufferNoCopy initializes the buffer with the block passed in argument.  This block will be cleared and freed when sspi_SecBufferFree is called.  Note: this can disable some checks.  The old buffer if any is freed.
  */
 WINPR_API void* sspi_SecBufferAlloc(PSecBuffer SecBuffer, ULONG size);
 WINPR_API void* sspi_SecBufferAllocType(PSecBuffer SecBuffer, ULONG size, ULONG BufferType);
@@ -1249,6 +1249,15 @@ WINPR_API SecurityFunctionTableA* SEC_ENTRY InitSecurityInterfaceExA(DWORD flags
 #define InitSecurityInterfaceEx InitSecurityInterfaceExA
 #define INIT_SECURITY_INTERFACE_EX INIT_SECURITY_INTERFACE_EX_A
 #endif
+
+
+WINPR_API void warnSecurityStatusError(SECURITY_STATUS status,
+	void* table,
+	SEC_CHAR* Function);
+
+WINPR_API void traceSecurityStatusError(SECURITY_STATUS status,
+	void* table,
+	SEC_CHAR* Function);
 
 #ifdef __cplusplus
 }

@@ -215,9 +215,7 @@ int test_ntlm_client_authenticate(TEST_NTLM_CLIENT* ntlm)
 	ntlm->outputBufferDesc.ulVersion = SECBUFFER_VERSION;
 	ntlm->outputBufferDesc.cBuffers = 1;
 	ntlm->outputBufferDesc.pBuffers = ntlm->outputBuffer;
-	ntlm->outputBuffer[0].BufferType = SECBUFFER_TOKEN;
-	ntlm->outputBuffer[0].cbBuffer = ntlm->cbMaxToken;
-	ntlm->outputBuffer[0].pvBuffer = malloc(ntlm->outputBuffer[0].cbBuffer);
+	sspi_SecBufferAllocType( & ntlm->outputBuffer[0], ntlm->cbMaxToken, SECBUFFER_TOKEN);
 
 	if (!ntlm->outputBuffer[0].pvBuffer)
 		return -1;
@@ -386,9 +384,7 @@ int test_ntlm_server_authenticate(TEST_NTLM_SERVER* ntlm)
 	ntlm->outputBufferDesc.ulVersion = SECBUFFER_VERSION;
 	ntlm->outputBufferDesc.cBuffers = 1;
 	ntlm->outputBufferDesc.pBuffers = &ntlm->outputBuffer[0];
-	ntlm->outputBuffer[0].BufferType = SECBUFFER_TOKEN;
-	ntlm->outputBuffer[0].cbBuffer = ntlm->cbMaxToken;
-	ntlm->outputBuffer[0].pvBuffer = malloc(ntlm->outputBuffer[0].cbBuffer);
+	sspi_SecBufferAllocType( & ntlm->outputBuffer[0], ntlm->cbMaxToken, SECBUFFER_TOKEN);
 
 	if (!ntlm->outputBuffer[0].pvBuffer)
 		return -1;
@@ -547,16 +543,11 @@ int TestNTLM(int argc, char* argv[])
 
 	if (!DynamicTest)
 	{
-		pSecBuffer->cbBuffer = sizeof(TEST_NTLM_NEGOTIATE) - 1;
-		pSecBuffer->pvBuffer = (void*) malloc(pSecBuffer->cbBuffer);
-
-		if (!pSecBuffer->pvBuffer)
+		if(0 == sspi_SecBufferWithBufferNoCopy(pSecBuffer, TEST_NTLM_NEGOTIATE, sizeof(TEST_NTLM_NEGOTIATE) - 1))
 		{
 			printf("Memory allocation failed\n");
 			return -1;
 		}
-
-		CopyMemory(pSecBuffer->pvBuffer, TEST_NTLM_NEGOTIATE, pSecBuffer->cbBuffer);
 	}
 
 	fprintf(stderr, "NTLM_NEGOTIATE (length = %"PRIu32"):\n", pSecBuffer->cbBuffer);
@@ -566,9 +557,8 @@ int TestNTLM(int argc, char* argv[])
 	 * Server -> Challenge Message
 	 */
 	server->haveInputBuffer = TRUE;
+	sspi_SecBufferDeepCopy( & server->inputBuffer[0], pSecBuffer);
 	server->inputBuffer[0].BufferType = SECBUFFER_TOKEN;
-	server->inputBuffer[0].pvBuffer = pSecBuffer->pvBuffer;
-	server->inputBuffer[0].cbBuffer = pSecBuffer->cbBuffer;
 	status = test_ntlm_server_authenticate(server);
 
 	if (status < 0)
@@ -602,16 +592,11 @@ int TestNTLM(int argc, char* argv[])
 	if (!DynamicTest)
 	{
 		SecPkgContext_AuthNtlmMessage AuthNtlmMessage;
-		pSecBuffer->cbBuffer = sizeof(TEST_NTLM_CHALLENGE) - 1;
-		pSecBuffer->pvBuffer = (void*) malloc(pSecBuffer->cbBuffer);
-
-		if (!pSecBuffer->pvBuffer)
+		if(0 == sspi_SecBufferWithBufferNoCopy(pSecBuffer, TEST_NTLM_CHALLENGE, sizeof(TEST_NTLM_CHALLENGE) - 1))
 		{
 			printf("Memory allocation failed\n");
 			return -1;
 		}
-
-		CopyMemory(pSecBuffer->pvBuffer, TEST_NTLM_CHALLENGE, pSecBuffer->cbBuffer);
 		AuthNtlmMessage.type = 2;
 		AuthNtlmMessage.length = pSecBuffer->cbBuffer;
 		AuthNtlmMessage.buffer = (BYTE*) pSecBuffer->pvBuffer;
@@ -626,9 +611,8 @@ int TestNTLM(int argc, char* argv[])
 	 * Client -> Authenticate Message
 	 */
 	client->haveInputBuffer = TRUE;
+	sspi_SecBufferDeepCopy( & server->inputBuffer[0], pSecBuffer);
 	client->inputBuffer[0].BufferType = SECBUFFER_TOKEN;
-	client->inputBuffer[0].pvBuffer = pSecBuffer->pvBuffer;
-	client->inputBuffer[0].cbBuffer = pSecBuffer->cbBuffer;
 	status = test_ntlm_client_authenticate(client);
 
 	if (status < 0)
@@ -641,16 +625,11 @@ int TestNTLM(int argc, char* argv[])
 
 	if (!DynamicTest)
 	{
-		pSecBuffer->cbBuffer = sizeof(TEST_NTLM_AUTHENTICATE) - 1;
-		pSecBuffer->pvBuffer = (void*) malloc(pSecBuffer->cbBuffer);
-
-		if (!pSecBuffer->pvBuffer)
+		if(0 == sspi_SecBufferWithBufferNoCopy(pSecBuffer, TEST_NTLM_AUTHENTICATE, sizeof(TEST_NTLM_AUTHENTICATE) - 1))
 		{
 			printf("Memory allocation failed\n");
 			return -1;
 		}
-
-		CopyMemory(pSecBuffer->pvBuffer, TEST_NTLM_AUTHENTICATE, pSecBuffer->cbBuffer);
 	}
 
 	fprintf(stderr, "NTLM_AUTHENTICATE (length = %"PRIu32"):\n", pSecBuffer->cbBuffer);
@@ -659,9 +638,8 @@ int TestNTLM(int argc, char* argv[])
 	 * Server <- Authenticate Message
 	 */
 	server->haveInputBuffer = TRUE;
+	sspi_SecBufferDeepCopy( & server->inputBuffer[0], pSecBuffer);
 	server->inputBuffer[0].BufferType = SECBUFFER_TOKEN;
-	server->inputBuffer[0].pvBuffer = pSecBuffer->pvBuffer;
-	server->inputBuffer[0].cbBuffer = pSecBuffer->cbBuffer;
 	status = test_ntlm_server_authenticate(server);
 
 	if (status < 0)

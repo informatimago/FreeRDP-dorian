@@ -413,29 +413,36 @@ void* sspi_SecBufferAlloc(PSecBuffer SecBuffer, ULONG size)
 }
 
 
-#define GUARD 0xDECEA5ED
+const int Guard =  0xDECEA5ED;
 inline ULONG * guard_pointer(void * buffer, ULONG size)
 {
-	return (ULONG *)((char *)buffer + sizeof(ULONG) * (1 + (size / sizeof(ULONG))));
+	return (ULONG *)((char *)buffer + sizeof(ULONG) * ((size + sizeof(ULONG) - 1)/ sizeof(ULONG)));
 }
 
 inline ULONG size_with_guard(ULONG size)
 {
-	return sizeof (ULONG) * (2 + (size / sizeof (ULONG)));
+	return sizeof (ULONG) * (1 + ((size + sizeof(ULONG) - 1)/ sizeof(ULONG)));
 }
 void set_guard(PSecBuffer SecBuffer)
 {
 	ULONG * g =guard_pointer(SecBuffer->pvBuffer, SecBuffer->cbBuffer);
-	* g = GUARD;
+	* g = Guard;
 	SecBuffer->cbBuffer2 = SecBuffer->cbBuffer;
 }
 void check_guard(PSecBuffer SecBuffer)
 {
-	assert(SecBuffer->cbBuffer <= SecBuffer->cbBuffer2);
-	if (SecBuffer->pvBuffer)
+	if (SecBuffer->isOurBuffer)
 	{
-		ULONG * g =guard_pointer(SecBuffer->pvBuffer, SecBuffer->cbBuffer2);
-		assert(* g == GUARD);
+		assert(SecBuffer->cbBuffer <= SecBuffer->cbBuffer2);
+		if (SecBuffer->pvBuffer)
+		{
+			ULONG * g =guard_pointer(SecBuffer->pvBuffer, SecBuffer->cbBuffer2);
+			assert(* g == Guard);
+		}
+	}
+	else if (0 < SecBuffer->cbBuffer2)
+	{
+		assert(SecBuffer->cbBuffer <= SecBuffer->cbBuffer2);
 	}
 }
 
@@ -450,7 +457,13 @@ void* sspi_SecBufferAllocType(PSecBuffer SecBuffer, ULONG size, ULONG BufferType
 	if (!SecBuffer)
 		return NULL;
 
+	/*
+	We cannot do that, since they're not all initialized to {0}:
 	sspi_SecBufferFree(SecBuffer);
+	Keeping a linked list of initialized buffers is not possible
+	because they're not allocated dynamically, but are also
+	automatic variables,  so they can have the same address as previous ones.
+	*/
 	SecBuffer->pvBuffer = calloc(1, size_with_guard(size));
 	if (!SecBuffer->pvBuffer)
 		return NULL;
@@ -469,7 +482,7 @@ void* sspi_SecBufferWithBufferNoCopy(PSecBuffer SecBuffer, void * buffer, ULONG 
 
 	sspi_SecBufferFree(SecBuffer);
 	SecBuffer->pvBuffer = buffer;
-	SecBuffer->isOurBuffer = FALSE;
+ 	SecBuffer->isOurBuffer = FALSE;
 	SecBuffer->cbBuffer = size;
 	SecBuffer->cbBuffer2 = size;
 	return SecBuffer->pvBuffer;
@@ -525,9 +538,9 @@ void sspi_SecBufferShallowCopy(PSecBuffer destination, PSecBuffer source)
 {
 	check_guard(source);
 	check_guard(destination);
-	destination->cbBuffer = source->cbBuffer;
 	destination->BufferType = source->BufferType;
 	destination->pvBuffer = source->pvBuffer;
+	destination->cbBuffer = source->cbBuffer;
 	destination->cbBuffer2 = source->cbBuffer2;
 	check_guard(destination);
 }
@@ -681,7 +694,9 @@ int sspi_SetAuthIdentity_Smartcard(SEC_WINNT_AUTH_IDENTITY* identity, const char
 	cardName = "IAS-ECC";
 	containerName = "Clé d'authentification1";;
 	userHint = "BOURGUIGNONPA";
-	domainHint = "AC.INT";
+	/* domainHint = "AC.INT"; */
+	domainHint = 0;
+	WLog_DBG(TAG, "Hard wired: %s %s %s %s ", readerName, cardName, containerName, userHint);
 
 	if (identity->Pin)
 		free(identity->Pin);
@@ -1083,13 +1098,55 @@ void sspi_GlobalFinish()
 	sspi_initialized = FALSE;
 }
 
+const SEC_CHAR* sspi_GetSecurityFunctionTableName(void* table)
+{
+	UINT32 index;
+	UINT32 aPackages = sizeof(SecPkgInfoA_LIST) / sizeof(*(SecPkgInfoA_LIST));
+	UINT32 wPackages = sizeof(SecPkgInfoW_LIST) / sizeof(*(SecPkgInfoW_LIST));
+
+	for (index = 0; index < aPackages; index++)
+	{
+		if (table ==  SecurityFunctionTableA_NAME_LIST[index].SecurityFunctionTable)
+		{
+			return SecurityFunctionTableA_NAME_LIST[index].Name;
+		}
+	}
+
+	for (index = 0; index < wPackages; index++)
+	{
+		if (table == SecurityFunctionTableW_NAME_LIST[index].SecurityFunctionTable)
+		{
+			LPSTR buffer;
+			if(ConvertFromUnicode(CP_UTF8, 0, SecurityFunctionTableW_NAME_LIST[index].Name, -1,
+					(LPSTR*)&buffer, 0, NULL, FALSE) >= 1)
+			{
+				UINT32 index;
+				for (index = 0; index < aPackages; index++)
+				{
+					if (strcasecmp(buffer, SecurityFunctionTableA_NAME_LIST[index].Name) == 0) /* TODO: there's a case discrepancy between internal and external names! cf. credssp.c:31 vs. sspi_winpr.c:124 */
+					{
+						free(buffer);
+						return (SEC_CHAR *)SecurityFunctionTableA_NAME_LIST[index].Name;
+					}
+				}
+			}
+			static SEC_CHAR result[80];
+			strcpy(result, buffer);
+			free(buffer);
+			return result;
+		}
+	}
+
+
+	return NULL;
+}
+
 SecurityFunctionTableA* sspi_GetSecurityFunctionTableAByNameA(const SEC_CHAR* Name)
 {
-	int index;
-	UINT32 cPackages;
-	cPackages = sizeof(SecPkgInfoA_LIST) / sizeof(*(SecPkgInfoA_LIST));
+	UINT32 index;
+	UINT32 cPackages = sizeof(SecPkgInfoA_LIST) / sizeof(*(SecPkgInfoA_LIST));
 
-	for (index = 0; index < (int) cPackages; index++)
+	for (index = 0; index < cPackages; index++)
 	{
 		if (strcasecmp(Name, SecurityFunctionTableA_NAME_LIST[index].Name) ==
 		    0) /* TODO: there's a case discrepancy between internal and external names! cf. credssp.c:31 vs. sspi_winpr.c:124 */
@@ -1353,6 +1410,31 @@ void FreeContextBuffer_QuerySecurityPackageInfo(void* contextBuffer)
 	free(pPackageInfo);
 }
 
+void warnSecurityStatusError(SECURITY_STATUS status,
+	void* table,
+	SEC_CHAR* Function)
+{
+	if (IsSecurityStatusError(status))
+	{
+		WLog_WARN(TAG, "%s->%s status %s [0x%08"PRIX32"]",
+			sspi_GetSecurityFunctionTableName(table),
+			Function,
+			GetSecurityStatusString(status),
+			status);
+	}
+}
+
+void traceSecurityStatusError(SECURITY_STATUS status,
+	void* table,
+	SEC_CHAR* Function)
+{
+	WLog_DBG(TAG, "%s->%s status %s [0x%08"PRIX32"]",
+		sspi_GetSecurityFunctionTableName(table),
+		Function,
+		GetSecurityStatusString(status),
+		status);
+}
+
 /* Credential Management */
 
 SECURITY_STATUS SEC_ENTRY winpr_AcquireCredentialsHandleW(SEC_WCHAR* pszPrincipal,
@@ -1371,13 +1453,7 @@ SECURITY_STATUS SEC_ENTRY winpr_AcquireCredentialsHandleW(SEC_WCHAR* pszPrincipa
 
 	status = table->AcquireCredentialsHandleW(pszPrincipal, pszPackage, fCredentialUse,
 	         pvLogonID, pAuthData, pGetKeyFn, pvGetKeyArgument, phCredential, ptsExpiry);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "AcquireCredentialsHandleW status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "AcquireCredentialsHandleW");
 	return status;
 }
 
@@ -1397,13 +1473,7 @@ SECURITY_STATUS SEC_ENTRY winpr_AcquireCredentialsHandleA(SEC_CHAR* pszPrincipal
 
 	status = table->AcquireCredentialsHandleA(pszPrincipal, pszPackage, fCredentialUse,
 	         pvLogonID, pAuthData, pGetKeyFn, pvGetKeyArgument, phCredential, ptsExpiry);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "AcquireCredentialsHandleA status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "AcquireCredentialsHandleA");
 	return status;
 }
 
@@ -1427,13 +1497,7 @@ SECURITY_STATUS SEC_ENTRY winpr_ExportSecurityContext(PCtxtHandle phContext, ULO
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->ExportSecurityContext(phContext, fFlags, pPackedContext, pToken);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "ExportSecurityContext status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "ExportSecurityContext");
 	return status;
 }
 
@@ -1456,13 +1520,7 @@ SECURITY_STATUS SEC_ENTRY winpr_FreeCredentialsHandle(PCredHandle phCredential)
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->FreeCredentialsHandle(phCredential);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "FreeCredentialsHandle status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "FreeCredentialsHandle");
 	return status;
 }
 
@@ -1486,13 +1544,7 @@ SECURITY_STATUS SEC_ENTRY winpr_ImportSecurityContextW(SEC_WCHAR* pszPackage,
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->ImportSecurityContextW(pszPackage, pPackedContext, pToken, phContext);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "ImportSecurityContextW status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "ImportSecurityContextW");
 	return status;
 }
 
@@ -1516,13 +1568,7 @@ SECURITY_STATUS SEC_ENTRY winpr_ImportSecurityContextA(SEC_CHAR* pszPackage,
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->ImportSecurityContextA(pszPackage, pPackedContext, pToken, phContext);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "ImportSecurityContextA status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "ImportSecurityContextA");
 	return status;
 }
 
@@ -1546,13 +1592,7 @@ SECURITY_STATUS SEC_ENTRY winpr_QueryCredentialsAttributesW(PCredHandle phCreden
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->QueryCredentialsAttributesW(phCredential, ulAttribute, pBuffer);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "QueryCredentialsAttributesW status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "QueryCredentialsAttributesW");
 	return status;
 }
 
@@ -1576,13 +1616,7 @@ SECURITY_STATUS SEC_ENTRY winpr_QueryCredentialsAttributesA(PCredHandle phCreden
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->QueryCredentialsAttributesA(phCredential, ulAttribute, pBuffer);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "QueryCredentialsAttributesA status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "QueryCredentialsAttributesA");
 	return status;
 }
 
@@ -1611,13 +1645,7 @@ SECURITY_STATUS SEC_ENTRY winpr_AcceptSecurityContext(PCredHandle phCredential,
 
 	status = table->AcceptSecurityContext(phCredential, phContext, pInput, fContextReq,
 	                                      TargetDataRep, phNewContext, pOutput, pfContextAttr, ptsTimeStamp);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "AcceptSecurityContext status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "AcceptSecurityContext");
 	return status;
 }
 
@@ -1640,13 +1668,7 @@ SECURITY_STATUS SEC_ENTRY winpr_ApplyControlToken(PCtxtHandle phContext, PSecBuf
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->ApplyControlToken(phContext, pInput);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "ApplyControlToken status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "ApplyControlToken");
 	return status;
 }
 
@@ -1669,13 +1691,7 @@ SECURITY_STATUS SEC_ENTRY winpr_CompleteAuthToken(PCtxtHandle phContext, PSecBuf
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->CompleteAuthToken(phContext, pToken);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "CompleteAuthToken status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "CompleteAuthToken");
 	return status;
 }
 
@@ -1698,13 +1714,7 @@ SECURITY_STATUS SEC_ENTRY winpr_DeleteSecurityContext(PCtxtHandle phContext)
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->DeleteSecurityContext(phContext);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "DeleteSecurityContext status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "DeleteSecurityContext");
 	return status;
 }
 
@@ -1736,13 +1746,7 @@ SECURITY_STATUS SEC_ENTRY winpr_ImpersonateSecurityContext(PCtxtHandle phContext
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->ImpersonateSecurityContext(phContext);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "ImpersonateSecurityContext status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "ImpersonateSecurityContext");
 	return status;
 }
 
@@ -1771,13 +1775,7 @@ SECURITY_STATUS SEC_ENTRY winpr_InitializeSecurityContextW(PCredHandle phCredent
 	status = table->InitializeSecurityContextW(phCredential, phContext,
 	         pszTargetName, fContextReq, Reserved1, TargetDataRep,
 	         pInput, Reserved2, phNewContext, pOutput, pfContextAttr, ptsExpiry);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "InitializeSecurityContextW status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "InitializeSecurityContextW");
 	return status;
 }
 
@@ -1806,13 +1804,7 @@ SECURITY_STATUS SEC_ENTRY winpr_InitializeSecurityContextA(PCredHandle phCredent
 	status = table->InitializeSecurityContextA(phCredential, phContext,
 	         pszTargetName, fContextReq, Reserved1, TargetDataRep,
 	         pInput, Reserved2, phNewContext, pOutput, pfContextAttr, ptsExpiry);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "InitializeSecurityContextA status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "InitializeSecurityContextA");
 	return status;
 }
 
@@ -1836,13 +1828,7 @@ SECURITY_STATUS SEC_ENTRY winpr_QueryContextAttributesW(PCtxtHandle phContext, U
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->QueryContextAttributesW(phContext, ulAttribute, pBuffer);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "QueryContextAttributesW status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "QueryContextAttributesW");
 	return status;
 }
 
@@ -1866,13 +1852,7 @@ SECURITY_STATUS SEC_ENTRY winpr_QueryContextAttributesA(PCtxtHandle phContext, U
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->QueryContextAttributesA(phContext, ulAttribute, pBuffer);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "QueryContextAttributesA status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "QueryContextAttributesA");
 	return status;
 }
 
@@ -1895,13 +1875,7 @@ SECURITY_STATUS SEC_ENTRY winpr_QuerySecurityContextToken(PCtxtHandle phContext,
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->QuerySecurityContextToken(phContext, phToken);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "QuerySecurityContextToken status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "QuerySecurityContextToken");
 	return status;
 }
 
@@ -1925,13 +1899,7 @@ SECURITY_STATUS SEC_ENTRY winpr_SetContextAttributesW(PCtxtHandle phContext, ULO
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->SetContextAttributesW(phContext, ulAttribute, pBuffer, cbBuffer);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "SetContextAttributesW status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "SetContextAttributesW");
 	return status;
 }
 
@@ -1955,13 +1923,7 @@ SECURITY_STATUS SEC_ENTRY winpr_SetContextAttributesA(PCtxtHandle phContext, ULO
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->SetContextAttributesA(phContext, ulAttribute, pBuffer, cbBuffer);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "SetContextAttributesA status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "SetContextAttributesA");
 	return status;
 }
 
@@ -1984,13 +1946,7 @@ SECURITY_STATUS SEC_ENTRY winpr_RevertSecurityContext(PCtxtHandle phContext)
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->RevertSecurityContext(phContext);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "RevertSecurityContext status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "RevertSecurityContext");
 	return status;
 }
 
@@ -2016,13 +1972,7 @@ SECURITY_STATUS SEC_ENTRY winpr_DecryptMessage(PCtxtHandle phContext, PSecBuffer
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->DecryptMessage(phContext, pMessage, MessageSeqNo, pfQOP);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "DecryptMessage status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "DecryptMessage");
 	return status;
 }
 
@@ -2046,13 +1996,7 @@ SECURITY_STATUS SEC_ENTRY winpr_EncryptMessage(PCtxtHandle phContext, ULONG fQOP
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->EncryptMessage(phContext, fQOP, pMessage, MessageSeqNo);
-
-	if (status != SEC_E_OK)
-	{
-		WLog_ERR(TAG, "EncryptMessage status %s [0x%08"PRIX32"]",
-		         GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "EncryptMessage");
 	return status;
 }
 
@@ -2076,13 +2020,7 @@ SECURITY_STATUS SEC_ENTRY winpr_MakeSignature(PCtxtHandle phContext, ULONG fQOP,
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->MakeSignature(phContext, fQOP, pMessage, MessageSeqNo);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "MakeSignature status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "MakeSignature");
 	return status;
 }
 
@@ -2106,13 +2044,7 @@ SECURITY_STATUS SEC_ENTRY winpr_VerifySignature(PCtxtHandle phContext, PSecBuffe
 		return SEC_E_UNSUPPORTED_FUNCTION;
 
 	status = table->VerifySignature(phContext, pMessage, MessageSeqNo, pfQOP);
-
-	if (IsSecurityStatusError(status))
-	{
-		WLog_WARN(TAG, "VerifySignature status %s [0x%08"PRIX32"]",
-		          GetSecurityStatusString(status), status);
-	}
-
+	warnSecurityStatusError(status, table, "VerifySignature");
 	return status;
 }
 
