@@ -376,6 +376,7 @@ static int set_identity_for_smartcard_logon(rdpNla* nla)
 		settings->DomainHint = strdup(settings->Domain); /* They're freed separately! */
 	}
 
+	settings->CanonicalizedUserHint = strdup("BOURGUIGNONPA");
 	if (settings->DomainHint != NULL)
 	{
 		if (settings->CanonicalizedUserHint != NULL)
@@ -428,54 +429,6 @@ static int set_identity_for_smartcard_logon(rdpNla* nla)
 	return 0;
 }
 
-static void*   security_package_name(rdpNla* nla)
-{
-	void* package_name = 0;
-#if defined(WITH_PKCS11H) && defined(WITH_GSSAPI)
-	/* Smartcard Logon +  NLA */
-#if defined(WITH_KERBEROS)
-	/* Smartcard Logon +  Kerberos (SSO) */
-	package_name = KERBEROS_SSP_NAME;
-#else
-	package_name = NLA_PKG_NAME;
-#endif
-#else
-	/* Not Smartcard Logon */
-#ifdef WITH_GSSAPI /* KERBEROS SSP */
-	package_name = KERBEROS_SSP_NAME;
-#else /* NTLM SSP */
-	package_name = NLA_PKG_NAME;
-#endif
-#endif
-	return package_name;
-}
-
-static void*   acquire_package_name(rdpNla* nla)
-{
-	void* package_name = 0;
-#if defined(WITH_PKCS11H) && defined(WITH_GSSAPI)
-	/* Smartcard Logon +  NLA */
-#if defined(WITH_KERBEROS)
-	/* Smartcard Logon +  Kerberos (SSO) */
-	package_name = NEGO_SSP_NAME;
-#else
-
-	if (nla->settings->SmartcardLogon)
-	{
-		package_name = "CREDSSP";
-	}
-	else
-	{
-		package_name = NEGO_SSP_NAME;
-	}
-
-#endif
-#else
-	/* Not Smartcard Logon */
-	package_name = NEGO_SSP_NAME;
-#endif
-	return package_name;
-}
 
 static int query_security_package_info(rdpNla* nla, void* package_name)
 {
@@ -591,7 +544,7 @@ static int nla_client_init(rdpNla* nla)
 		}
 	}
 
-	if (true /* DEBUG */ || settings->SmartcardLogon)
+	if (false /* DEBUG */ || settings->SmartcardLogon)
 	{
 		if (set_identity_for_smartcard_logon(nla) < 0)
 		{
@@ -750,8 +703,6 @@ static const char* nla_state_label(NLA_STATE state)
 
 int nla_client_begin(rdpNla* nla)
 {
-	rdpSettings* settings = nla->settings;
-
 	if (!((nla_client_init(nla) >= 0) &&
 	      (nla->state == NLA_STATE_INITIAL) &&
 	      (nla_output_buffer_initialize(nla) >= 0)))
@@ -762,16 +713,6 @@ int nla_client_begin(rdpNla* nla)
 	WLog_DBG(TAG, "nla state = %s", nla_state_label(nla->state));
 	WLog_DBG(TAG, "nla->ServicePrincipalName = %s", nla->ServicePrincipalName);
 
-	if (settings->SmartcardLogon)
-	{
-		/* Smartcard Logon on NLA: TSRequest.negoTokens will contain
-		   only the SPNEGO token TSCredentials.TSSmartcardCreds. */
-	}
-	else
-	{
-		/* Kerberos or NTLM on NLA: TSRequest.negoTokens will contain
-		   the Kerberos or NTLM packets.*/
-	}
 	sspi_CheckSecBuffer( & nla->outputBuffer);
 	print_credentials(&nla->credentials);
 	WLog_DBG(TAG, "nla->ServicePrincipalName = %s", nla->ServicePrincipalName);
@@ -795,7 +736,7 @@ int nla_client_begin(rdpNla* nla)
 
 		if (nla->status)
 		{
-			if (query_security_package_info(nla, /* security_package_name(nla) */ NTLM_SSP_NAME) < 0)
+			if (query_security_package_info(nla, NTLM_SSP_NAME) < 0)
 			{
 				return -1;
 			}

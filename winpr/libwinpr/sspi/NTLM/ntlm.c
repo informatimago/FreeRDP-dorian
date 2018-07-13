@@ -43,6 +43,21 @@
 
 char* NTLM_PACKAGE_NAME = "NTLM";
 
+const char* GetNtmlStateString(NTLM_STATE value){
+    switch(value){
+    case NTLM_STATE_INITIAL     : return "NTLM_STATE_INITIAL";
+    case NTLM_STATE_NEGOTIATE   : return "NTLM_STATE_NEGOTIATE";
+    case NTLM_STATE_CHALLENGE   : return "NTLM_STATE_CHALLENGE";
+    case NTLM_STATE_AUTHENTICATE: return "NTLM_STATE_AUTHENTICATE";
+    case NTLM_STATE_COMPLETION  : return "NTLM_STATE_COMPLETION";
+    case NTLM_STATE_FINAL       : return "NTLM_STATE_FINAL";
+    default: {
+        static char buffer[63];
+        sprintf(buffer,"Invalid NTLM_STATE value: %d",value);
+        return buffer;
+    }}
+}
+
 int ntlm_SetContextWorkstation(NTLM_CONTEXT* context, char* Workstation)
 {
 	int status;
@@ -426,80 +441,90 @@ SECURITY_STATUS SEC_ENTRY ntlm_AcceptSecurityContext(PCredHandle phCredential,
 		sspi_SecureHandleSetUpperPointer(phNewContext, (void*) NTLM_PACKAGE_NAME);
 	}
 
-	if (context->state == NTLM_STATE_INITIAL)
+	switch (context->state)
 	{
-		context->state = NTLM_STATE_NEGOTIATE;
+		case NTLM_STATE_INITIAL:
+			context->state = NTLM_STATE_NEGOTIATE;
 
-		if (!pInput)
-			return SEC_E_INVALID_TOKEN;
-
-		if (pInput->cBuffers < 1)
-			return SEC_E_INVALID_TOKEN;
-
-		input_buffer = sspi_FindSecBuffer(pInput, SECBUFFER_TOKEN);
-
-		if (!input_buffer)
-			return SEC_E_INVALID_TOKEN;
-
-		if (input_buffer->cbBuffer < 1)
-			return SEC_E_INVALID_TOKEN;
-
-		status = ntlm_read_NegotiateMessage(context, input_buffer);
-
-		if (context->state == NTLM_STATE_CHALLENGE)
-		{
-			if (!pOutput)
+			if (!pInput)
 				return SEC_E_INVALID_TOKEN;
 
-			if (pOutput->cBuffers < 1)
+			if (pInput->cBuffers < 1)
 				return SEC_E_INVALID_TOKEN;
 
-			output_buffer = sspi_FindSecBuffer(pOutput, SECBUFFER_TOKEN);
+			input_buffer = sspi_FindSecBuffer(pInput, SECBUFFER_TOKEN);
 
-			if (!output_buffer->BufferType)
+			if (!input_buffer)
 				return SEC_E_INVALID_TOKEN;
 
-			if (output_buffer->cbBuffer < 1)
-				return SEC_E_INSUFFICIENT_MEMORY;
+			if (input_buffer->cbBuffer < 1)
+				return SEC_E_INVALID_TOKEN;
 
-			return ntlm_write_ChallengeMessage(context, output_buffer);
-		}
+			status = ntlm_read_NegotiateMessage(context, input_buffer);
 
-		return SEC_E_OUT_OF_SEQUENCE;
-	}
-	else if (context->state == NTLM_STATE_AUTHENTICATE)
-	{
-		if (!pInput)
-			return SEC_E_INVALID_TOKEN;
-
-		if (pInput->cBuffers < 1)
-			return SEC_E_INVALID_TOKEN;
-
-		input_buffer = sspi_FindSecBuffer(pInput, SECBUFFER_TOKEN);
-
-		if (!input_buffer)
-			return SEC_E_INVALID_TOKEN;
-
-		if (input_buffer->cbBuffer < 1)
-			return SEC_E_INVALID_TOKEN;
-
-		status = ntlm_read_AuthenticateMessage(context, input_buffer);
-
-		if (pOutput)
-		{
-			ULONG i;
-
-			for (i = 0; i < pOutput->cBuffers; i++)
+			if (context->state == NTLM_STATE_CHALLENGE)
 			{
-				pOutput->pBuffers[i].cbBuffer = 0;
-				pOutput->pBuffers[i].BufferType = SECBUFFER_TOKEN;
+				if (!pOutput)
+					return SEC_E_INVALID_TOKEN;
+
+				if (pOutput->cBuffers < 1)
+					return SEC_E_INVALID_TOKEN;
+
+				output_buffer = sspi_FindSecBuffer(pOutput, SECBUFFER_TOKEN);
+
+				if (!output_buffer->BufferType)
+					return SEC_E_INVALID_TOKEN;
+
+				if (output_buffer->cbBuffer < 1)
+					return SEC_E_INSUFFICIENT_MEMORY;
+
+				return ntlm_write_ChallengeMessage(context, output_buffer);
 			}
-		}
 
-		return status;
+			WLog_ERR(TAG, "%s:%d: %s() SEC_E_OUT_OF_SEQUENCE context->state = %s expected %s",
+				__FILE__, __LINE__, __FUNCTION__,
+				GetNtmlStateString(context->state),
+				GetNtmlStateString(NTLM_STATE_CHALLENGE));
+			return SEC_E_OUT_OF_SEQUENCE;
+
+		case NTLM_STATE_AUTHENTICATE:
+			if (!pInput)
+				return SEC_E_INVALID_TOKEN;
+
+			if (pInput->cBuffers < 1)
+				return SEC_E_INVALID_TOKEN;
+
+			input_buffer = sspi_FindSecBuffer(pInput, SECBUFFER_TOKEN);
+
+			if (!input_buffer)
+				return SEC_E_INVALID_TOKEN;
+
+			if (input_buffer->cbBuffer < 1)
+				return SEC_E_INVALID_TOKEN;
+
+			status = ntlm_read_AuthenticateMessage(context, input_buffer);
+
+			if (pOutput)
+			{
+				ULONG i;
+
+				for (i = 0; i < pOutput->cBuffers; i++)
+				{
+					pOutput->pBuffers[i].cbBuffer = 0;
+					pOutput->pBuffers[i].BufferType = SECBUFFER_TOKEN;
+				}
+			}
+
+			return status;
+
+		default:
+			WLog_ERR(TAG, "%s:%d: %s() SEC_E_OUT_OF_SEQUENCE context->state = %s expected %s or %s",
+				__FILE__, __LINE__, __FUNCTION__,
+				GetNtmlStateString(context->state),
+				GetNtmlStateString(NTLM_STATE_INITIAL),
+				GetNtmlStateString(NTLM_STATE_AUTHENTICATE));
+			return SEC_E_OUT_OF_SEQUENCE;
 	}
-
-	return SEC_E_OUT_OF_SEQUENCE;
 }
 
 SECURITY_STATUS SEC_ENTRY ntlm_ImpersonateSecurityContext(PCtxtHandle phContext)
@@ -598,32 +623,47 @@ SECURITY_STATUS SEC_ENTRY ntlm_InitializeSecurityContextW(PCredHandle phCredenti
 			context->Bindings.Bindings = (SEC_CHANNEL_BINDINGS*) channel_bindings->pvBuffer;
 		}
 
-		if (context->state == NTLM_STATE_CHALLENGE)
+		if (context->state != NTLM_STATE_CHALLENGE)
 		{
-			status = ntlm_read_ChallengeMessage(context, input_buffer);
-
-			if (!pOutput)
-				return SEC_E_INVALID_TOKEN;
-
-			if (pOutput->cBuffers < 1)
-				return SEC_E_INVALID_TOKEN;
-
-			output_buffer = sspi_FindSecBuffer(pOutput, SECBUFFER_TOKEN);
-
-			if (!output_buffer)
-				return SEC_E_INVALID_TOKEN;
-
-			if (output_buffer->cbBuffer < 1)
-				return SEC_E_INSUFFICIENT_MEMORY;
-
-			if (context->state == NTLM_STATE_AUTHENTICATE)
-				return ntlm_write_AuthenticateMessage(context, output_buffer);
+			WLog_ERR(TAG, "%s:%d: %s() SEC_E_OUT_OF_SEQUENCE context->state = %s expected %s",
+				__FILE__, __LINE__, __FUNCTION__,
+				GetNtmlStateString(context->state),
+				GetNtmlStateString(NTLM_STATE_CHALLENGE));
+			return SEC_E_OUT_OF_SEQUENCE;
 		}
 
+		status = ntlm_read_ChallengeMessage(context, input_buffer);
+		if (IsSecurityStatusError(status))
+		{
+			WLog_ERR(TAG, "%s:%d: %s() ntlm_read_ChallengeMessage returned %s",
+				__FILE__, __LINE__, __FUNCTION__,
+				GetSecurityStatusString(status));
+			return status;
+		}
+
+		if (!pOutput)
+			return SEC_E_INVALID_TOKEN;
+
+		if (pOutput->cBuffers < 1)
+			return SEC_E_INVALID_TOKEN;
+
+		output_buffer = sspi_FindSecBuffer(pOutput, SECBUFFER_TOKEN);
+
+		if (!output_buffer)
+			return SEC_E_INVALID_TOKEN;
+
+		if (output_buffer->cbBuffer < 1)
+			return SEC_E_INSUFFICIENT_MEMORY;
+
+		if (context->state == NTLM_STATE_AUTHENTICATE)
+			return ntlm_write_AuthenticateMessage(context, output_buffer);
+
+		WLog_ERR(TAG, "%s:%d: %s() SEC_E_OUT_OF_SEQUENCE context->state = %s expected %s",
+			__FILE__, __LINE__, __FUNCTION__,
+			GetNtmlStateString(context->state),
+			GetNtmlStateString(NTLM_STATE_AUTHENTICATE));
 		return SEC_E_OUT_OF_SEQUENCE;
 	}
-
-	return SEC_E_OUT_OF_SEQUENCE;
 }
 
 /**

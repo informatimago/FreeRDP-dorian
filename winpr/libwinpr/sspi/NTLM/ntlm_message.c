@@ -285,6 +285,7 @@ SECURITY_STATUS ntlm_write_NegotiateMessage(NTLM_CONTEXT* context, PSecBuffer bu
 	message->NegotiateFlags |= NTLMSSP_NEGOTIATE_SIGN;
 	message->NegotiateFlags |= NTLMSSP_REQUEST_TARGET;
 	message->NegotiateFlags |= NTLMSSP_NEGOTIATE_UNICODE;
+	message->NegotiateFlags |= NTLMSSP_NEGOTIATE_ANONYMOUS; /* kludge to test smartcard logon */
 
 	if (context->confidentiality)
 		message->NegotiateFlags |= NTLMSSP_NEGOTIATE_SEAL;
@@ -395,8 +396,7 @@ SECURITY_STATUS ntlm_read_ChallengeMessage(NTLM_CONTEXT* context, PSecBuffer buf
 		if (ntlm_read_message_fields_buffer(s, &(message->TargetInfo)) < 0)
 			return SEC_E_INTERNAL_ERROR;
 
-		context->ChallengeTargetInfo.pvBuffer = message->TargetInfo.Buffer;
-		context->ChallengeTargetInfo.cbBuffer = message->TargetInfo.Len;
+		sspi_SecBufferWithBufferNoCopy( & context->ChallengeTargetInfo, message->TargetInfo.Buffer, message->TargetInfo.Len);
 		AvTimestamp = ntlm_av_pair_get((NTLM_AV_PAIR*) message->TargetInfo.Buffer, MsvAvTimestamp);
 
 		if (AvTimestamp)
@@ -440,18 +440,36 @@ SECURITY_STATUS ntlm_read_ChallengeMessage(NTLM_CONTEXT* context, PSecBuffer buf
 		if (ntlm_construct_authenticate_target_info(context) < 0)
 			return SEC_E_INTERNAL_ERROR;
 
-		sspi_SecBufferFree(&context->ChallengeTargetInfo);
-		context->ChallengeTargetInfo.pvBuffer = context->AuthenticateTargetInfo.pvBuffer;
-		context->ChallengeTargetInfo.cbBuffer = context->AuthenticateTargetInfo.cbBuffer;
+		sspi_SecBufferDeepCopy(&context->ChallengeTargetInfo, & context->AuthenticateTargetInfo);
 	}
 
 	ntlm_generate_timestamp(context); /* Timestamp */
 
-	if (ntlm_compute_lm_v2_response(context) < 0) /* LmChallengeResponse */
-		return SEC_E_INTERNAL_ERROR;
 
-	if (ntlm_compute_ntlm_v2_response(context) < 0) /* NtChallengeResponse */
-		return SEC_E_INTERNAL_ERROR;
+	if ((context->credentials->identity.UserLength == 0)
+		&& (context->credentials->identity.PasswordLength == 0))
+	{
+		WLog_DBG(TAG, "Anonymous ntml v2 response");
+		sspi_SecBufferFree(&(context->NtChallengeResponse));
+
+		WLog_DBG(TAG, "Anonymous lm v2 response");
+
+		if(sspi_SecBufferAlloc( & (context->LmChallengeResponse), 1) < 0)
+		{
+			return SEC_E_INTERNAL_ERROR;
+		}
+
+		((BYTE *)(context->LmChallengeResponse.pvBuffer))[0] = 0;
+	}
+	else
+	{
+		if (ntlm_compute_lm_v2_response(context) < 0) /* LmChallengeResponse */
+			return SEC_E_INTERNAL_ERROR;
+
+		if (ntlm_compute_ntlm_v2_response(context) < 0) /* NtChallengeResponse */
+			return SEC_E_INTERNAL_ERROR;
+	}
+
 
 	ntlm_generate_key_exchange_key(context); /* KeyExchangeKey */
 	ntlm_generate_random_session_key(context); /* RandomSessionKey */
@@ -674,11 +692,12 @@ SECURITY_STATUS ntlm_read_AuthenticateMessage(NTLM_CONTEXT* context, PSecBuffer 
 			return SEC_E_INVALID_TOKEN;
 
 		Stream_Free(snt, FALSE);
-		context->NtChallengeResponse.pvBuffer = message->NtChallengeResponse.Buffer;
-		context->NtChallengeResponse.cbBuffer = message->NtChallengeResponse.Len;
-		sspi_SecBufferFree(&(context->ChallengeTargetInfo));
-		context->ChallengeTargetInfo.pvBuffer = (void*) context->NTLMv2Response.Challenge.AvPairs;
-		context->ChallengeTargetInfo.cbBuffer = message->NtChallengeResponse.Len - (28 + 16);
+		sspi_SecBufferWithBufferNoCopy( & context->NtChallengeResponse,
+			message->NtChallengeResponse.Buffer,
+			message->NtChallengeResponse.Len);
+		sspi_SecBufferWithBufferNoCopy( & context->ChallengeTargetInfo,
+			(void*) context->NTLMv2Response.Challenge.AvPairs,
+			message->NtChallengeResponse.Len - (28 + 16));
 		CopyMemory(context->ClientChallenge, context->NTLMv2Response.Challenge.ClientChallenge, 8);
 		AvFlags = ntlm_av_pair_get(context->NTLMv2Response.Challenge.AvPairs, MsvAvFlags);
 
@@ -817,6 +836,7 @@ SECURITY_STATUS ntlm_write_AuthenticateMessage(NTLM_CONTEXT* context, PSecBuffer
 	message->NegotiateFlags |= NTLMSSP_NEGOTIATE_SIGN;
 	message->NegotiateFlags |= NTLMSSP_REQUEST_TARGET;
 	message->NegotiateFlags |= NTLMSSP_NEGOTIATE_UNICODE;
+	message->NegotiateFlags |= NTLMSSP_NEGOTIATE_ANONYMOUS; /* kludge to test smartcard logon */
 
 	if (message->NegotiateFlags & NTLMSSP_NEGOTIATE_VERSION)
 		ntlm_get_version_info(&(message->Version));

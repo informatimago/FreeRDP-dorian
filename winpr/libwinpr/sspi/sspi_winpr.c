@@ -467,7 +467,7 @@ void* sspi_SecBufferAllocType(PSecBuffer SecBuffer, ULONG size, ULONG BufferType
 	SecBuffer->pvBuffer = calloc(1, size_with_guard(size));
 	if (!SecBuffer->pvBuffer)
 		return NULL;
-
+	ZeroMemory(SecBuffer->pvBuffer, size_with_guard(size));
 	SecBuffer->isOurBuffer = TRUE;
 	SecBuffer->BufferType = BufferType;
 	SecBuffer->cbBuffer = size;
@@ -627,93 +627,163 @@ void sspi_SecureHandleFree(SecHandle* handle)
 	free(handle);
 }
 
+
+
+
+/*
+
+When time for a bigger refactoring is available,
+replace the following STRING_*  macros with a struct!
+
+    typedef struct
+    {
+	    LPWSTR characters;
+	    ULONG length;
+    } wide_string_t;
+
+ */
+
+inline void string_length_shallow_copy(LPWSTR *  destination, ULONG * destinationLength,
+				       LPWSTR source, ULONG sourceLength)
+{
+	(*destination) = source;
+	(*destinationLength) = sourceLength;
+}
+
+#define STRING_SHALLOW_COPY(destination, source)				\
+	string_length_shallow_copy( & destination, & destination ## Length,	\
+		source,  source ## Length)
+
+
+inline void string_length_set_empty(LPWSTR *  destination, ULONG * destinationLength)
+{
+	free(*destination);
+	(*destination) = 0;
+	(*destinationLength) = 0;
+}
+
+#define STRING_SET_EMPTY(destination) string_length_set_empty(destination,  destination ## Length)
+
+
+int string_length_unicode_from_c_string(LPWSTR *  destination, ULONG * destinationLength, const char * source)
+{
+	string_length_set_empty(destination, destinationLength);
+	if (source)
+	{
+		int status = ConvertToUnicode(CP_UTF8, 0, source, -1, destination, 0);
+		if (status <= 0)
+		{
+			return -1;
+		}
+		(*destinationLength) = (ULONG)(status - 1);
+		(*destination)[(*destinationLength)] = 0;
+	}
+	return 0;
+}
+
+#define STRING_UNICODE_FROM_C(destination, source)			\
+	do								\
+	{								\
+		WLog_DBG(TAG, #source "=%s; strlen(" #source ")=%d",	\
+			source, strlen(source));			\
+		if(string_length_unicode_from_c_string(&(destination),	\
+				&(destination ## Length), source) < 0)	\
+		{							\
+			return -1;					\
+		}							\
+	}while (0)
+
+
+int string_length_unicode_copy_from_unicode_string(LPWSTR *  destination, ULONG * destinationLength,
+	LPWSTR  source, ULONG sourceLength)
+{
+	(*destination) = 0;
+	(*destinationLength) = 0;
+	if (0 < sourceLength)
+	{
+		LPWSTR copy = calloc(sourceLength + 1, sizeof(WCHAR));
+
+		if (!copy)
+		{
+			return -1;
+		}
+
+		CopyMemory(copy, source, sourceLength * sizeof(WCHAR));
+		copy[sourceLength] = 0;
+		(*destination) = copy;
+		(*destinationLength) = sourceLength;
+	}
+	return 1;
+}
+
+#define STRING_UNICODE_COPY(destination, source)					\
+	do										\
+	{										\
+		if(string_length_unicode_copy_from_unicode_string(&(destination),	\
+				&(destination ## Length),				\
+				source,  source ## Length) < 0)				\
+		{									\
+			return -1;							\
+		}									\
+	}while (0)
+
+
+#define DECLARE_STRING_UNICODE(name) LPWSTR name; ULONG name ## Length
+
+
 int sspi_SetAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, const char* user, const char* domain,
                          const char* password)
 {
-	int status;
 	identity->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
-	free(identity->User);
-	identity->User = (UINT16*) NULL;
-	identity->UserLength = 0;
-
-	if (user)
-	{
-		status = ConvertToUnicode(CP_UTF8, 0, user, -1, (LPWSTR*) & (identity->User), 0);
-
-		if (status <= 0)
-			return -1;
-
-		identity->UserLength = (ULONG)(status - 1);
-		identity->User[status - 1] = '\0';
-	}
-
-	free(identity->Domain);
-	identity->Domain = (UINT16*) NULL;
-	identity->DomainLength = 0;
-
-	if (domain)
-	{
-		status = ConvertToUnicode(CP_UTF8, 0, domain, -1, (LPWSTR*) & (identity->Domain), 0);
-
-		if (status <= 0)
-			return -1;
-
-		identity->DomainLength = (ULONG)(status - 1);
-		identity->Domain[status - 1] = '\0';
-	}
-
-	free(identity->Password);
-	identity->Password = NULL;
-	identity->PasswordLength = 0;
-
-	if (password)
-	{
-		status = ConvertToUnicode(CP_UTF8, 0, password, -1, (LPWSTR*) & (identity->Password), 0);
-
-		if (status <= 0)
-			return -1;
-
-		identity->PasswordLength = (ULONG)(status - 1);
-		identity->Password[status - 1] = '\0';
-	}
-
+	STRING_UNICODE_FROM_C(identity->User, user);
+	STRING_UNICODE_FROM_C(identity->Domain, domain);
+	STRING_UNICODE_FROM_C(identity->Password, password);
 	sspi_IdentityPrint(identity);
 	return 1;
 }
 
+
+static int setCSPData(SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspData,
+	UINT32 keySpec,
+	const char* cardName,
+	const char* readerName,
+	const char* containerName,
+	const char* cspName)
+{
+	*pIdentityCspData = calloc(1, sizeof(SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL));
+
+	if (*pIdentityCspData == NULL)
+	{
+		WLog_ERR(TAG, "Error allocation identity CspData");
+		return -1;
+	}
+
+	(*pIdentityCspData)->KeySpec = keySpec;
+
+	STRING_UNICODE_FROM_C((*pIdentityCspData)->CardName, cardName);
+	STRING_UNICODE_FROM_C((*pIdentityCspData)->ReaderName, readerName);
+	STRING_UNICODE_FROM_C((*pIdentityCspData)->ContainerName, containerName);
+	STRING_UNICODE_FROM_C((*pIdentityCspData)->CspName, cspName);
+
+	return ((*pIdentityCspData)->CardNameLength + (*pIdentityCspData)->ReaderNameLength +
+	        (*pIdentityCspData)->ContainerNameLength + (*pIdentityCspData)->CspNameLength);
+}
 
 int sspi_SetAuthIdentity_Smartcard(SEC_WINNT_AUTH_IDENTITY* identity, const char* pin,
                                    const UINT32 keySpec, const char* cardName,
                                    const char* readerName, const char* containerName, const char* cspName, const char* userHint,
                                    const char* domainHint)
 {
-	int status;
 	identity->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
 	/* DEBUG */
 	readerName = "XIRING Leo v2 (8288830623) 00 00";
 	cardName = "IAS-ECC";
 	containerName = "Clé d'authentification1";;
 	userHint = "BOURGUIGNONPA";
-	/* domainHint = "AC.INT"; */
-	domainHint = 0;
-	WLog_DBG(TAG, "Hard wired: %s %s %s %s ", readerName, cardName, containerName, userHint);
+	domainHint = "AC.INT";
+	// domainHint = 0;
+	WLog_DBG(TAG, "Hard wired: %s %s %s %s %s", readerName, cardName, containerName, userHint,  domainHint);
 
-	if (identity->Pin)
-		free(identity->Pin);
-
-	identity->Pin = (UINT16*) NULL;
-	identity->PinLength = 0;
-
-	if (pin)
-	{
-		status = ConvertToUnicode(CP_UTF8, 0, pin, -1, (LPWSTR*) & (identity->Pin), 0);
-
-		if (status <= 0)
-			return -1;
-
-		identity->PinLength = (ULONG)(status - 1);
-		identity->Pin[status - 1] = '\0';
-	}
 
 	if (identity->CspData)
 		free(identity->CspData);
@@ -722,46 +792,21 @@ int sspi_SetAuthIdentity_Smartcard(SEC_WINNT_AUTH_IDENTITY* identity, const char
 
 	if (keySpec || cardName || readerName || containerName || cspName)
 	{
-		status = setCSPData(status, &identity->CspData, keySpec, cardName, readerName, containerName,
-		                    cspName);
-
-		if (status <= 0)
+		if (setCSPData(&identity->CspData,
+				keySpec, cardName, readerName, containerName,
+				cspName) <= 0) /* setCSPData returns a total length */
 			return -1;
 	}
 
-	if (identity->UserHint)
-		free(identity->UserHint);
+	/* /\* begin kludge to test smartcard logon with ntml *\/ */
+	/* STRING_UNICODE_FROM_C(identity->User, userHint); */
+	/* STRING_UNICODE_FROM_C(identity->Domain, domainHint); */
+	/* STRING_UNICODE_FROM_C(identity->Password, "Minint-19!"); */
+	/* /\* end kludge *\/ */
 
-	identity->UserHint = (UINT16*) NULL;
-	identity->UserHintLength = 0;
-
-	if (userHint)
-	{
-		status = ConvertToUnicode(CP_UTF8, 0, userHint, -1, (LPWSTR*) & (identity->UserHint), 0);
-
-		if (status <= 0)
-			return -1;
-
-		identity->UserHintLength = (ULONG)(status - 1);
-		identity->UserHint[status - 1] = '\0';
-	}
-
-	if (identity->DomainHint)
-		free(identity->DomainHint);
-
-	identity->DomainHint = (UINT16*) NULL;
-	identity->DomainHintLength = 0;
-
-	if (domainHint)
-	{
-		status = ConvertToUnicode(CP_UTF8, 0, domainHint, -1, (LPWSTR*) & (identity->DomainHint), 0);
-
-		if (status <= 0)
-			return -1;
-
-		identity->DomainHintLength = (ULONG)(status - 1);
-		identity->DomainHint[status - 1] = '\0';
-	}
+	STRING_UNICODE_FROM_C(identity->Pin, pin);
+	STRING_UNICODE_FROM_C(identity->UserHint, userHint);
+	STRING_UNICODE_FROM_C(identity->DomainHint, domainHint);
 
 	sspi_IdentityPrint(identity);
 	return 1;
@@ -781,31 +826,11 @@ int CopyCSPData(SEC_WINNT_AUTH_IDENTITY* identity, SEC_WINNT_AUTH_IDENTITY* srcI
 			return -1;
 		}
 
-		/* [0] keySpec */
 		identity->CspData->KeySpec = srcIdentity->CspData->KeySpec;
-		/* [1] cardName */
-		identity->CspData->CardNameLength = srcIdentity->CspData->CardNameLength;
-
-		if (identity->CspData->CardNameLength > 0)
-			identity->CspData->CardName = srcIdentity->CspData->CardName;
-
-		/* [2] readerName */
-		identity->CspData->ReaderNameLength = srcIdentity->CspData->ReaderNameLength;
-
-		if (identity->CspData->ReaderNameLength > 0)
-			identity->CspData->ReaderName = srcIdentity->CspData->ReaderName;
-
-		/* [3] containerName */
-		identity->CspData->ContainerNameLength = srcIdentity->CspData->ContainerNameLength;
-
-		if (identity->CspData->ContainerNameLength > 0)
-			identity->CspData->ContainerName = srcIdentity->CspData->ContainerName;
-
-		/* [4] cspName */
-		identity->CspData->CspNameLength = srcIdentity->CspData->CspNameLength;
-
-		if (identity->CspData->CspNameLength > 0)
-			identity->CspData->CspName = srcIdentity->CspData->CspName;
+		STRING_SHALLOW_COPY(identity->CspData->CardName, srcIdentity->CspData->CardName);
+		STRING_SHALLOW_COPY(identity->CspData->ReaderName, srcIdentity->CspData->ReaderName);
+		STRING_SHALLOW_COPY(identity->CspData->ContainerName, srcIdentity->CspData->ContainerName);
+		STRING_SHALLOW_COPY(identity->CspData->CspName, srcIdentity->CspData->CspName);
 	}
 	else if (srcIdentity->CspData == NULL)
 	{
@@ -816,108 +841,12 @@ int CopyCSPData(SEC_WINNT_AUTH_IDENTITY* identity, SEC_WINNT_AUTH_IDENTITY* srcI
 	return 1;
 }
 
-int setCSPData(int status, SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL** pIdentityCspData,
-               UINT32 keySpec, const char* cardName, const char* readerName,
-               const char* containerName,
-               const char* cspName)
-{
-	*pIdentityCspData = (SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL*) calloc(1,
-	                    sizeof(SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL));
-
-	if (*pIdentityCspData == NULL)
-	{
-		WLog_ERR(TAG, "Error allocation identity CspData");
-		return -1;
-	}
-
-	(*pIdentityCspData)->KeySpec = keySpec;
-
-	if ((*pIdentityCspData)->CardName)
-		free((*pIdentityCspData)->CardName);
-
-	(*pIdentityCspData)->CardName = (UINT16*) NULL;
-	(*pIdentityCspData)->CardNameLength = 0;
-
-	if (cardName)
-	{
-		WLog_DBG(TAG, "cardName=%s; strlen(cardName)=%d", cardName, strlen(cardName));
-		status = ConvertToUnicode(CP_UTF8, 0, cardName, -1, (LPWSTR*) & ((*pIdentityCspData)->CardName), 0);
-
-		if (status <= 0)
-			return -1;
-
-		(*pIdentityCspData)->CardNameLength = (ULONG)(status - 1);
-		(*pIdentityCspData)->CardName[status - 1] = '\0';
-	}
-
-	if ((*pIdentityCspData)->ReaderName)
-		free((*pIdentityCspData)->ReaderName);
-
-	(*pIdentityCspData)->ReaderName = (UINT16*) NULL;
-	(*pIdentityCspData)->ReaderNameLength = 0;
-
-	if (readerName)
-	{
-		WLog_DBG(TAG, "readerName=%s; strlen(readerName)=%d", readerName, strlen(readerName));
-		status = ConvertToUnicode(CP_UTF8, 0, readerName, -1, (LPWSTR*) & ((*pIdentityCspData)->ReaderName),
-		                          0);
-		WLog_DBG(TAG, "status=%d", status);
-
-		if (status <= 0)
-			return -1;
-
-		(*pIdentityCspData)->ReaderNameLength = (ULONG)(status - 1);
-		WLog_DBG(TAG, "(*psIdentityCspData)->ReaderNameLength=%d", (*pIdentityCspData)->ReaderNameLength);
-		(*pIdentityCspData)->ReaderName[status - 1] = '\0';
-	}
-
-	if ((*pIdentityCspData)->ContainerName)
-		free((*pIdentityCspData)->ContainerName);
-
-	(*pIdentityCspData)->ContainerName = (UINT16*) NULL;
-	(*pIdentityCspData)->ContainerNameLength = 0;
-
-	if (containerName)
-	{
-		WLog_DBG(TAG, "containerName=%s; strlen(containerName)=%d", containerName, strlen(containerName));
-		status = ConvertToUnicode(CP_UTF8, 0, containerName, -1,
-		                          (LPWSTR*) & ((*pIdentityCspData)->ContainerName), 0);
-
-		if (status <= 0)
-			return -1;
-
-		(*pIdentityCspData)->ContainerNameLength = (ULONG)(status - 1);
-		(*pIdentityCspData)->ContainerName[status - 1] = '\0';
-	}
-
-	if ((*pIdentityCspData)->CspName)
-		free((*pIdentityCspData)->CspName);
-
-	(*pIdentityCspData)->CspName = (UINT16*) NULL;
-	(*pIdentityCspData)->CspNameLength = 0;
-
-	if (cspName)
-	{
-		WLog_DBG(TAG, "cspName=%s; strlen(cspName)=%d", cspName, strlen(cspName));
-		status = ConvertToUnicode(CP_UTF8, 0, cspName, -1, (LPWSTR*) & ((*pIdentityCspData)->CspName), 0);
-
-		if (status <= 0)
-			return -1;
-
-		(*pIdentityCspData)->CspNameLength = (ULONG)(status - 1);
-		(*pIdentityCspData)->CspName[status - 1] = '\0';
-	}
-
-	return ((*pIdentityCspData)->CardNameLength + (*pIdentityCspData)->ReaderNameLength +
-	        (*pIdentityCspData)->ContainerNameLength + (*pIdentityCspData)->CspNameLength);
-}
-
 int sspi_CopyAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, SEC_WINNT_AUTH_IDENTITY* srcIdentity)
 {
-	int status;
 
 	if (srcIdentity->Flags == SEC_WINNT_AUTH_IDENTITY_ANSI)
 	{
+		int status;
 		if (srcIdentity->Password)
 		{
 			status = sspi_SetAuthIdentity(identity, (char*) srcIdentity->User,
@@ -944,73 +873,27 @@ int sspi_CopyAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, SEC_WINNT_AUTH_IDEN
 
 	if (srcIdentity->Password)
 	{
-		/* login/password authentication */
-		identity->User = identity->Domain = identity->Password = NULL;
-		identity->UserLength = srcIdentity->UserLength;
+		DECLARE_STRING_UNICODE(tempPassword);
 
-		if (identity->UserLength > 0)
+		STRING_SHALLOW_COPY(tempPassword, srcIdentity->Password);
+		if (tempPasswordLength > 256)
 		{
-			identity->User = (UINT16*) malloc((identity->UserLength + 1) * sizeof(WCHAR));
-
-			if (!identity->User)
-				return -1;
-
-			CopyMemory(identity->User, srcIdentity->User, identity->UserLength * sizeof(WCHAR));
-			identity->User[identity->UserLength] = 0;
+			tempPasswordLength /= SSPI_CREDENTIALS_HASH_LENGTH_FACTOR; /* TODO: WHAT THE FUCK!?!? */
 		}
 
-		identity->DomainLength = srcIdentity->DomainLength;
-
-		if (identity->DomainLength > 0)
-		{
-			identity->Domain = (UINT16*) malloc((identity->DomainLength + 1) * sizeof(WCHAR));
-
-			if (!identity->Domain)
-				return -1;
-
-			CopyMemory(identity->Domain, srcIdentity->Domain, identity->DomainLength * sizeof(WCHAR));
-			identity->Domain[identity->DomainLength] = 0;
-		}
-
-		identity->PasswordLength = srcIdentity->PasswordLength;
-
-		if (identity->PasswordLength > 256)
-			identity->PasswordLength /= SSPI_CREDENTIALS_HASH_LENGTH_FACTOR;
-
-		if (srcIdentity->Password)
-		{
-			identity->Password = (UINT16*) malloc((identity->PasswordLength + 1) * sizeof(WCHAR));
-
-			if (!identity->Password)
-				return -1;
-
-			CopyMemory(identity->Password, srcIdentity->Password, identity->PasswordLength * sizeof(WCHAR));
-			identity->Password[identity->PasswordLength] = 0;
-		}
-
-		/* End of login/password authentication */
+		STRING_UNICODE_COPY(identity->User, srcIdentity->User);
+		STRING_UNICODE_COPY(identity->Domain, srcIdentity->Domain);
+		STRING_UNICODE_COPY(identity->Password, tempPassword);
 	}
 	else if (srcIdentity->CspData)
 	{
-		/* smartcard authentication */
-		/* [0] pin */
-		identity->PinLength = srcIdentity->PinLength;
+		int identityCspDataLength = (sizeof(srcIdentity->CspData->KeySpec)
+			+ srcIdentity->CspData->CardNameLength
+			+ srcIdentity->CspData->ReaderNameLength
+			+ srcIdentity->CspData->ContainerNameLength
+			+ srcIdentity->CspData->CspNameLength);
 
-		if (srcIdentity->Pin)
-		{
-			identity->Pin = (UINT16*) malloc((identity->PinLength + 1) * sizeof(WCHAR));
-
-			if (!identity->Pin)
-				return -1;
-
-			CopyMemory(identity->Pin, srcIdentity->Pin, identity->PinLength * sizeof(WCHAR));
-			identity->Pin[identity->PinLength] = '\0';
-		}
-
-		/* [1] cspData */
-		int identityCspDataLength = sizeof(srcIdentity->CspData->KeySpec) +
-		                            srcIdentity->CspData->CardNameLength + srcIdentity->CspData->ReaderNameLength
-		                            + srcIdentity->CspData->ContainerNameLength + srcIdentity->CspData->CspNameLength;
+		STRING_UNICODE_COPY(identity->Pin, srcIdentity->Pin);
 
 		if (identityCspDataLength != 0)
 		{
@@ -1023,37 +906,14 @@ int sspi_CopyAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, SEC_WINNT_AUTH_IDEN
 			}
 		}
 
-		/* [2] userHint */
-		identity->UserHint = identity->DomainHint = NULL;
-		identity->UserHintLength = srcIdentity->UserHintLength;
+		/* /\* begin kludge to test smartcard logon with ntml *\/ */
+		/* STRING_UNICODE_COPY(identity->User, srcIdentity->User); */
+		/* STRING_UNICODE_COPY(identity->Domain, srcIdentity->Domain); */
+		/* STRING_UNICODE_COPY(identity->Password, srcIdentity->Password); */
+		/* /\* end kludge *\/ */
 
-		if (identity->UserHintLength > 0)
-		{
-			identity->UserHint = (UINT16*) malloc((identity->UserHintLength + 1) * sizeof(WCHAR));
-
-			if (!identity->UserHint)
-				return -1;
-
-			CopyMemory(identity->UserHint, srcIdentity->UserHint, identity->UserHintLength * sizeof(WCHAR));
-			identity->UserHint[identity->UserHintLength] = '\0';
-		}
-
-		/* [3] domainHint */
-		identity->DomainHintLength = srcIdentity->DomainHintLength;
-
-		if (identity->DomainHintLength > 0)
-		{
-			identity->DomainHint = (UINT16*) malloc((identity->DomainHintLength + 1) * sizeof(WCHAR));
-
-			if (!identity->DomainHint)
-				return -1;
-
-			CopyMemory(identity->DomainHint, srcIdentity->DomainHint,
-			           identity->DomainHintLength * sizeof(WCHAR));
-			identity->DomainHint[identity->DomainHintLength] = '\0';
-		}
-
-		/* End of smartcard authentication */
+		STRING_UNICODE_COPY(identity->UserHint, srcIdentity->UserHint);
+		STRING_UNICODE_COPY(identity->DomainHint, srcIdentity->DomainHint);
 	}
 
 	return 1;

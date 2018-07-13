@@ -97,6 +97,26 @@ struct _TEST_NTLM_CLIENT
 };
 typedef struct _TEST_NTLM_CLIENT TEST_NTLM_CLIENT;
 
+
+#define FAILURE(what)							\
+	do								\
+	{								\
+		fprintf(stderr, "%s:%d: FAILURE in %s() %s\n",		\
+			__FILE__, __LINE__, __FUNCTION__, what);	\
+		return -1;						\
+	}while (0)
+
+#define FAILURE_STATUS(what, status)								\
+	do											\
+	{											\
+		fprintf(stderr, "%s:%d: FAILURE in %s() %s status: %s (0x%08"PRIX32")\n",	\
+			__FILE__, __LINE__, __FUNCTION__, what,					\
+			GetSecurityStatusString(status), status);				\
+		return -1;									\
+	}while (0)
+
+
+
 int test_ntlm_client_init(TEST_NTLM_CLIENT* ntlm, const char* user, const char* domain,
                           const char* password)
 {
@@ -106,11 +126,10 @@ int test_ntlm_client_init(TEST_NTLM_CLIENT* ntlm, const char* user, const char* 
 	sspi_SetAuthIdentity(&(ntlm->identity), user, domain, password);
 	status = ntlm->table->QuerySecurityPackageInfo(NTLM_PACKAGE_NAME, &ntlm->pPackageInfo);
 
+
 	if (status != SEC_E_OK)
 	{
-		fprintf(stderr, "QuerySecurityPackageInfo status: %s (0x%08"PRIX32")\n",
-		        GetSecurityStatusString(status), status);
-		return -1;
+		FAILURE_STATUS("QuerySecurityPackageInfo", status);
 	}
 
 	ntlm->cbMaxToken = ntlm->pPackageInfo->cbMaxToken;
@@ -119,9 +138,7 @@ int test_ntlm_client_init(TEST_NTLM_CLIENT* ntlm, const char* user, const char* 
 
 	if (status != SEC_E_OK)
 	{
-		fprintf(stderr, "AcquireCredentialsHandle status: %s (0x%08"PRIX32")\n",
-		        GetSecurityStatusString(status), status);
-		return -1;
+		FAILURE_STATUS("AcquireCredentialsHandle", status);
 	}
 
 	ntlm->haveContext = FALSE;
@@ -485,8 +502,7 @@ int TestNTLM(int argc, char* argv[])
 
 	if (status < 0)
 	{
-		printf("test_ntlm_client_init failure\n");
-		return -1;
+		FAILURE("test_ntlm_client_init failure");
 	}
 
 	/**
@@ -496,16 +512,14 @@ int TestNTLM(int argc, char* argv[])
 
 	if (!server)
 	{
-		printf("Memory allocation failed\n");
-		return -1;
+		FAILURE("Memory allocation failed");
 	}
 
 	status = test_ntlm_server_init(server);
 
 	if (status < 0)
 	{
-		printf("test_ntlm_server_init failure\n");
-		return -1;
+		FAILURE("test_ntlm_server_init failed");
 	}
 
 	/**
@@ -515,8 +529,7 @@ int TestNTLM(int argc, char* argv[])
 
 	if (status < 0)
 	{
-		printf("test_ntlm_client_authenticate failure\n");
-		return -1;
+		FAILURE("test_ntlm_client_authenticate failed");
 	}
 
 	if (!DynamicTest)
@@ -545,12 +558,11 @@ int TestNTLM(int argc, char* argv[])
 	{
 		if(0 == sspi_SecBufferWithBufferNoCopy(pSecBuffer, TEST_NTLM_NEGOTIATE, sizeof(TEST_NTLM_NEGOTIATE) - 1))
 		{
-			printf("Memory allocation failed\n");
-			return -1;
+			FAILURE("Memory allocation failed");
 		}
 	}
 
-	fprintf(stderr, "NTLM_NEGOTIATE (length = %"PRIu32"):\n", pSecBuffer->cbBuffer);
+	fprintf(stderr, "%-32s (length = %5"PRIu32"):  Client <---- Server\n", "NTLM_NEGOTIATE", pSecBuffer->cbBuffer);
 	winpr_HexDump("sspi.test", WLOG_DEBUG, (BYTE*) pSecBuffer->pvBuffer, pSecBuffer->cbBuffer);
 	/**
 	 * Server <- Negotiate Message
@@ -558,13 +570,13 @@ int TestNTLM(int argc, char* argv[])
 	 */
 	server->haveInputBuffer = TRUE;
 	sspi_SecBufferDeepCopy( & server->inputBuffer[0], pSecBuffer);
+	winpr_HexDump("after sspi_SecBufferDeepCopy", WLOG_DEBUG, (BYTE*) server->inputBuffer[0].pvBuffer, server->inputBuffer[0].cbBuffer);
 	server->inputBuffer[0].BufferType = SECBUFFER_TOKEN;
 	status = test_ntlm_server_authenticate(server);
 
 	if (status < 0)
 	{
-		printf("test_ntlm_server_authenticate failure\n");
-		return -1;
+		FAILURE("test_ntlm_server_authenticate failed");
 	}
 
 	if (!DynamicTest)
@@ -594,8 +606,7 @@ int TestNTLM(int argc, char* argv[])
 		SecPkgContext_AuthNtlmMessage AuthNtlmMessage;
 		if(0 == sspi_SecBufferWithBufferNoCopy(pSecBuffer, TEST_NTLM_CHALLENGE, sizeof(TEST_NTLM_CHALLENGE) - 1))
 		{
-			printf("Memory allocation failed\n");
-			return -1;
+			FAILURE("Memory allocation failed");
 		}
 		AuthNtlmMessage.type = 2;
 		AuthNtlmMessage.length = pSecBuffer->cbBuffer;
@@ -604,21 +615,20 @@ int TestNTLM(int argc, char* argv[])
 		                                    &AuthNtlmMessage, sizeof(SecPkgContext_AuthNtlmMessage));
 	}
 
-	fprintf(stderr, "NTLM_CHALLENGE (length = %"PRIu32"):\n", pSecBuffer->cbBuffer);
+	fprintf(stderr, "%-32s (length = %5"PRIu32"):  Client <---- Server\n", "NTLM_CHALLENGE", pSecBuffer->cbBuffer);
 	winpr_HexDump("sspi.test", WLOG_DEBUG, (BYTE*) pSecBuffer->pvBuffer, pSecBuffer->cbBuffer);
 	/**
 	 * Client <- Challenge Message
 	 * Client -> Authenticate Message
 	 */
 	client->haveInputBuffer = TRUE;
-	sspi_SecBufferDeepCopy( & server->inputBuffer[0], pSecBuffer);
+	sspi_SecBufferDeepCopy( & client->inputBuffer[0], pSecBuffer);
+	winpr_HexDump("after sspi_SecBufferDeepCopy input ", WLOG_DEBUG, (BYTE*) client->inputBuffer[0].pvBuffer, client->inputBuffer[0].cbBuffer);
 	client->inputBuffer[0].BufferType = SECBUFFER_TOKEN;
 	status = test_ntlm_client_authenticate(client);
-
 	if (status < 0)
 	{
-		printf("test_ntlm_client_authenticate failure\n");
-		return -1;
+		FAILURE("test_ntlm_client_authenticate failed");
 	}
 
 	pSecBuffer = &(client->outputBuffer[0]);
@@ -627,12 +637,11 @@ int TestNTLM(int argc, char* argv[])
 	{
 		if(0 == sspi_SecBufferWithBufferNoCopy(pSecBuffer, TEST_NTLM_AUTHENTICATE, sizeof(TEST_NTLM_AUTHENTICATE) - 1))
 		{
-			printf("Memory allocation failed\n");
-			return -1;
+			FAILURE("Memory allocation failed");
 		}
 	}
 
-	fprintf(stderr, "NTLM_AUTHENTICATE (length = %"PRIu32"):\n", pSecBuffer->cbBuffer);
+	fprintf(stderr, "%-32s (length = %5"PRIu32"):  Client ---->  Server\n", "NTLM_AUTHENTICATE", pSecBuffer->cbBuffer);
 	winpr_HexDump("sspi.test", WLOG_DEBUG, (BYTE*) pSecBuffer->pvBuffer, pSecBuffer->cbBuffer);
 	/**
 	 * Server <- Authenticate Message
@@ -640,12 +649,12 @@ int TestNTLM(int argc, char* argv[])
 	server->haveInputBuffer = TRUE;
 	sspi_SecBufferDeepCopy( & server->inputBuffer[0], pSecBuffer);
 	server->inputBuffer[0].BufferType = SECBUFFER_TOKEN;
+	winpr_HexDump("after sspi_SecBufferDeepCopy", WLOG_DEBUG, (BYTE*) server->inputBuffer[0].pvBuffer, server->inputBuffer[0].cbBuffer);
 	status = test_ntlm_server_authenticate(server);
 
 	if (status < 0)
 	{
-		printf("test_ntlm_server_authenticate failure\n");
-		return -1;
+		FAILURE("test_ntlm_client_authenticate failed");
 	}
 
 	/**

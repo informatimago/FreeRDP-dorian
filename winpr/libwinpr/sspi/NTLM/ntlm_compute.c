@@ -343,8 +343,6 @@ int ntlm_compute_lm_v2_response(NTLM_CONTEXT* context)
 	{
 		if (!sspi_SecBufferAlloc(&context->LmChallengeResponse, 24))
 			return -1;
-
-		ZeroMemory(context->LmChallengeResponse.pvBuffer, 24);
 		return 1;
 	}
 

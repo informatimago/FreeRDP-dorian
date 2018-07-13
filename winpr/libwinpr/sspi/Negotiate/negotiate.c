@@ -41,7 +41,7 @@ extern const SecurityFunctionTableA CREDSSP_SecurityFunctionTableA;
 extern const SecurityFunctionTableW CREDSSP_SecurityFunctionTableW;
 
 #ifdef WITH_GSSAPI
- /* static BOOL ErrorInitContextKerberos = FALSE; */
+ // static BOOL ErrorInitContextKerberos = FALSE;
 static BOOL ErrorInitContextKerberos = TRUE;
 #else
 static BOOL ErrorInitContextKerberos = TRUE;
