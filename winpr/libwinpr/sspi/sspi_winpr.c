@@ -278,7 +278,7 @@ void sspi_IdentityPrint(SEC_WINNT_AUTH_IDENTITY* identity)
 #define PRINT_IDENTITY_ITEM(name)										\
 	do													\
 	{													\
-		LPSTR pointer = &buffer;									\
+		LPSTR pointer = (LPSTR)&buffer;									\
 		int status = 0;											\
 		if (identity->name){										\
 			if((status = ConvertFromUnicode(CP_UTF8, 0,						\
