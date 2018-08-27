@@ -245,13 +245,16 @@ static int nla_client_init_smartcard_logon(rdpNla* nla)
                 return -1;
         }
 
-#if defined(WITH_KERBEROS)
+/* #if defined(WITH_KERBEROS) */
+	WLog_INFO(TAG, "WITH_KERBEROS");
         if (get_TGT_kerberos(settings) == FALSE)
         {
                 WLog_ERR(TAG, "Failed to get TGT from KDC !");
                 return -1;
         }
-#endif
+/* #else */
+/* 	WLog_INFO(TAG, "NOT WITH_KERBEROS"); */
+/* #endif */
 
 #else
         WLog_ERR(TAG, "Enable PKCS11H and GSSAPI features to authenticate via smartcard");
@@ -293,6 +296,7 @@ static int nla_client_init_smartcard_logon(rdpNla* nla)
 
         if (!settings->Domain)
         {
+		WLog_ERR(TAG, "Missing domain.");
                 return -1;
         }
         settings->DomainHint = strdup(settings->Domain); /* They're freed separately! */
@@ -307,11 +311,14 @@ static int nla_client_init_smartcard_logon(rdpNla* nla)
                 }
                 else
                 {
-                        WLog_ERR(TAG, "User Hint NOT canonicalized");
+                        WLog_ERR(TAG, "Missing Canonicalized User Hint (Domain Hint = %s,  UPN = %s).",
+				settings->DomainHint, settings->UserPrincipalName);
                         return -1;
                 }
         }
 
+	WLog_INFO(TAG, "Canonicalized User Hint = %s,  Domain Hint = %s,  UPN = %s",
+		settings->CanonicalizedUserHint, settings->DomainHint, settings->UserPrincipalName);
         CHECK_MEMORY((settings->ContainerName = string_concatenate(PREFIX_CONTAINER_NAME, settings->IdCertificate, 0)),
                 -1, "Could not allocate memory for container name.");
 
@@ -413,6 +420,7 @@ static int nla_client_init(rdpNla* nla)
         {
                 if( nla_client_init_smartcard_logon(nla) < 0)
                 {
+			WLog_ERR(TAG, "Could not initialize Smartcard Logon.");
                         return -1;
                 }
         }
@@ -422,6 +430,7 @@ static int nla_client_init(rdpNla* nla)
 		{
 			if (sspi_SetAuthIdentity(nla->identity, settings->Username, settings->Domain,
 			                         settings->Password) < 0)
+				WLog_ERR(TAG, "Could not set authentication identity.");
 				return -1;
 		}
 		else
@@ -479,7 +488,10 @@ static int nla_client_init(rdpNla* nla)
 	spn = (SEC_CHAR*) malloc(length + 1);
 
 	if (!spn)
+	{
+		WLog_ERR(TAG, "Could not allocate SPN.");
 		return -1;
+	}
 
 	sprintf(spn, "%s%s", TERMSRV_SPN_PREFIX, settings->ServerHostname);
 #ifdef UNICODE
@@ -546,10 +558,18 @@ static int nla_client_init(rdpNla* nla)
 int nla_client_begin(rdpNla* nla)
 {
 	if (nla_client_init(nla) < 1)
+	{
+		WLog_ERR(TAG, "Could not initiate NLA client.");
 		return -1;
+	}
+
 
 	if (nla->state != NLA_STATE_INITIAL)
+	{
+		WLog_ERR(TAG, "Invalid initial NLA state.");
 		return -1;
+	}
+
 
 	nla->outputBufferDesc.ulVersion = SECBUFFER_VERSION;
 	nla->outputBufferDesc.cBuffers = 1;
@@ -559,7 +579,11 @@ int nla_client_begin(rdpNla* nla)
 	nla->outputBuffer.pvBuffer = malloc(nla->outputBuffer.cbBuffer);
 
 	if (!nla->outputBuffer.pvBuffer)
+	{
+		WLog_ERR(TAG, "Could not allocate buffers.");
 		return -1;
+	}
+
 
 	nla->status = nla->table->InitializeSecurityContext(&nla->credentials,
 	              NULL, nla->ServicePrincipalName, nla->fContextReq, 0,
@@ -617,10 +641,18 @@ int nla_client_begin(rdpNla* nla)
 	}
 
 	if (nla->status != SEC_I_CONTINUE_NEEDED)
+	{
+		WLog_ERR(TAG, "Invalid NLA status (%d); expected SEC_I_CONTINUE_NEEDED.", nla->status);
 		return -1;
+	}
+
 
 	if (nla->outputBuffer.cbBuffer < 1)
+	{
+		WLog_ERR(TAG, "NLA output buffer is empty.");
 		return -1;
+	}
+
 
 	nla->negoToken.pvBuffer = nla->outputBuffer.pvBuffer;
 	nla->negoToken.cbBuffer = nla->outputBuffer.cbBuffer;
@@ -629,6 +661,7 @@ int nla_client_begin(rdpNla* nla)
 
 	if (!nla_send(nla))
 	{
+		WLog_ERR(TAG, "Could not send NLA packet.");
 		nla_buffer_free(nla);
 		return -1;
 	}
