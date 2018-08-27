@@ -336,6 +336,7 @@ BOOL transport_connect_nla(rdpTransport* transport)
 
 	if (nla_client_begin(rdp->nla) < 0)
 	{
+		WLog_ERR(TAG, "Could not begin NLA session.");
 		if (!freerdp_get_last_error(context))
 			freerdp_set_last_error(context, FREERDP_ERROR_AUTHENTICATION_FAILED);
 
