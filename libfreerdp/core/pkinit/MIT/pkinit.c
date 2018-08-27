@@ -1086,7 +1086,7 @@ cleanup:
 	if (options)
 		krb5_get_init_creds_opt_free(k5->ctx, options);
 
-	if (!my_creds && (my_creds->client == k5->me))
+	if (my_creds && (my_creds->client == k5->me))
 	{
 		my_creds->client = 0;
 	}
@@ -1128,9 +1128,11 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 	int i = 0;
 	int anchors_init = 1;
 	krb5_ccache defcache = NULL;
-	krb5_principal defcache_princ = NULL, princ = NULL;
+	krb5_principal defcache_princ = NULL;
 	const char* deftype = NULL;
-	char* defrealm = NULL, *name = NULL;
+	char* defrealm = NULL;
+	krb5_principal princ = NULL;
+	char* name = NULL;
 	char* pkinit_identity = settings->PkinitIdentity;
 	char* list_pkinit_anchors = settings->PkinitAnchors;
 	char** domain = &settings->Domain;
@@ -1373,6 +1375,8 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 	free(k5->name);
 	code = krb5_unparse_name(k5->ctx, k5->me, &k5->name);
 
+ /* PJB: k5->me done ==> k5->name */
+
 	if (code)
 	{
 		WLog_ERR(TAG, "%s : Error %d when unparsing name", progname, code);
@@ -1476,18 +1480,25 @@ BOOL init_cred_cache(rdpSettings* settings)
 	opts.principal_name = calloc(strlen(settings->UserPrincipalName) + 1, sizeof(char));
 
 	if (opts.principal_name == NULL)
+	{
+		WLog_ERR(TAG, "Could not allocate principal name.");
 		return FALSE;
+	}
+
 
 	strncpy(opts.principal_name, settings->UserPrincipalName, strlen(settings->UserPrincipalName) + 1);
 
 	/* if /d:domain is specified in command line, set it as Kerberos default realm */
 	if (settings->Domain)
 	{
+		WLog_DBG(TAG, "opts.principal_name = %s", opts.principal_name);
+		WLog_DBG(TAG, "settings->Domain    = %s", settings->Domain);
 		opts.principal_name = realloc(opts.principal_name,
 		                              strlen(settings->UserPrincipalName) + 1 + strlen(settings->Domain) + 1);
 
 		if (opts.principal_name == NULL)
 		{
+			WLog_ERR(TAG, "Could not reallocate principal name.");
 			free(opts.principal_name);
 			return FALSE;
 		}
@@ -1495,6 +1506,7 @@ BOOL init_cred_cache(rdpSettings* settings)
 		strncat(opts.principal_name, "@", 1);
 		strncat(opts.principal_name, settings->Domain, strlen(settings->Domain));
 		opts.principal_name[strlen(settings->UserPrincipalName) + 1 + strlen(settings->Domain)] = '\0';
+		WLog_DBG(TAG, "opts.principal_name = %s", opts.principal_name);
 	}
 
 	char* pstr = NULL;
@@ -1517,13 +1529,14 @@ BOOL init_cred_cache(rdpSettings* settings)
 
 		if (response == NULL)
 		{
-			WLog_ERR(TAG, "Error allocation data responder");
+			WLog_ERR(TAG, "Error allocation data responder.");
 			free(opts.principal_name);
 			return FALSE;
 		}
 
 		if (init_responder_data(settings, response))
 		{
+			WLog_ERR(TAG, "Error initializing responder data.");
 			free(opts.principal_name);
 			return FALSE;
 		}
@@ -1537,12 +1550,17 @@ BOOL init_cred_cache(rdpSettings* settings)
 		settings->CanonicalizedUserHint = strndup(opts.outdata->data, strlen(opts.outdata->data) + 1);
 		if (settings->CanonicalizedUserHint == NULL)
 		{
-			WLog_ERR(TAG, "Error _strdup outdata into canonicalized user hint");
+			WLog_ERR(TAG, "Error _strdup outdata into canonicalized user hint.");
 			authed_k5 = 0;
 		}
 
 		krb5_free_data(k5.ctx, opts.outdata);
 	}
+	else
+	{
+		WLog_ERR(TAG, "authed_k5 but no opts.outdata->data! No canonicalized user hint!");
+	}
+
 
 	if (authed_k5)
 		WLog_INFO(TAG, "Authenticated to Kerberos v5 via smartcard");
