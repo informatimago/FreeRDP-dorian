@@ -35,6 +35,10 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <ctype.h>
+
+#include </home/pjb/src/public/FreeRDP-devtools/krb5/print.h>
+#include </home/pjb/src/public/FreeRDP-devtools/krb5/print.c>
 
 #define TAG FREERDP_TAG("core.pkinit")
 
@@ -116,19 +120,19 @@ static char* progname = "pkinit";
 
 #ifndef HAVE_PWD_H
 #include <pwd.h>
-static
-char* get_name_from_os()
+static char* get_name_from_os()
 {
 	struct passwd* pw;
 
 	if ((pw = getpwuid((int) getuid())))
-		return pw->pw_name;
+	{
+		return strdup(pw->pw_name);
+	}
 
 	return 0;
 }
 #else /* HAVE_PWD_H */
-static
-char* get_name_from_os()
+static char* get_name_from_os()
 {
 	return 0;
 }
@@ -150,15 +154,17 @@ static void extended_com_err_fn(const char* myprog, errcode_t code,
 
 BOOL set_pkinit_identity(rdpSettings* settings)
 {
-	unsigned int size_PkinitIdentity = strlen(PREFIX_X509_USER_IDENTITY) + strlen(
-	                                       PREFIX_PKINIT_PKCS11) + strlen(settings->Pkcs11Module) +
-	                                   strlen(PREFIX_PKINIT_SLOT_ID) +
-	                                   strlen(settings->SlotID) +
-	                                   strlen(PREFIX_PKINIT_TOKEN_LABEL) +
-	                                   strlen(settings->TokenLabel) +
-	                                   strlen(PREFIX_PKINIT_CERT_ID) +
-	                                   (unsigned int)(settings->IdCertificateLength * 2);
-	settings->PkinitIdentity = calloc(size_PkinitIdentity + 1, sizeof(char));
+	unsigned int size_PkinitIdentity =
+			strlen(PREFIX_X509_USER_IDENTITY)
+			+ strlen(PREFIX_PKINIT_PKCS11)
+			+ strlen(settings->Pkcs11Module)
+			+ strlen(PREFIX_PKINIT_SLOT_ID)
+			+ strlen(settings->SlotID)
+			+ strlen(PREFIX_PKINIT_TOKEN_LABEL)
+			+ strlen(settings->TokenLabel)
+			+ strlen(PREFIX_PKINIT_CERT_ID)
+			+ (unsigned int)(settings->IdCertificateLength * 2);
+	settings->PkinitIdentity = malloc(size_PkinitIdentity + 1);
 
 	if (!settings->PkinitIdentity)
 	{
@@ -166,16 +172,15 @@ BOOL set_pkinit_identity(rdpSettings* settings)
 		return FALSE;
 	}
 
-	strncat(settings->PkinitIdentity, PREFIX_X509_USER_IDENTITY, strlen(PREFIX_X509_USER_IDENTITY));
-	strncat(settings->PkinitIdentity, PREFIX_PKINIT_PKCS11, strlen(PREFIX_PKINIT_PKCS11));
-	strncat(settings->PkinitIdentity, settings->Pkcs11Module, strlen(settings->Pkcs11Module));
-	strncat(settings->PkinitIdentity, PREFIX_PKINIT_SLOT_ID, strlen(PREFIX_PKINIT_SLOT_ID));
-	strncat(settings->PkinitIdentity, settings->SlotID, strlen(settings->SlotID));
-	strncat(settings->PkinitIdentity, PREFIX_PKINIT_TOKEN_LABEL, strlen(PREFIX_PKINIT_TOKEN_LABEL));
-	strncat(settings->PkinitIdentity, settings->TokenLabel, strlen(settings->TokenLabel));
-	strncat(settings->PkinitIdentity, PREFIX_PKINIT_CERT_ID, strlen(PREFIX_PKINIT_CERT_ID));
-	strncat(settings->PkinitIdentity, (char*) settings->IdCertificate,
-	        (unsigned int)(settings->IdCertificateLength * 2));
+	strcat(settings->PkinitIdentity, PREFIX_X509_USER_IDENTITY);
+	strcat(settings->PkinitIdentity, PREFIX_PKINIT_PKCS11);
+	strcat(settings->PkinitIdentity, settings->Pkcs11Module);
+	strcat(settings->PkinitIdentity, PREFIX_PKINIT_SLOT_ID);
+	strcat(settings->PkinitIdentity, settings->SlotID);
+	strcat(settings->PkinitIdentity, PREFIX_PKINIT_TOKEN_LABEL);
+	strcat(settings->PkinitIdentity, settings->TokenLabel);
+	strcat(settings->PkinitIdentity, PREFIX_PKINIT_CERT_ID);
+	strncat(settings->PkinitIdentity, (char*) settings->IdCertificate, (unsigned int)(settings->IdCertificateLength * 2));
 	settings->PkinitIdentity[size_PkinitIdentity] = '\0';
 	WLog_DBG(TAG, "pkinit_identities = %s", settings->PkinitIdentity);
 	return TRUE;
@@ -185,7 +190,7 @@ BOOL set_pkinit_identity(rdpSettings* settings)
 BOOL parse_pkinit_anchors(struct k_opts* opts, char* list_pkinit_anchors)
 {
 	WLog_DBG(TAG, "pkinit anchors : %s", list_pkinit_anchors);
-	int i = 0, j = 0, k = 0, nb_anchors = 0;
+	int i = 0, j = 0, nb_anchors = 0;
 	opts->pkinit_anchors = (pkinit_anchors**) calloc(1, sizeof(pkinit_anchors*));
 
 	if (opts->pkinit_anchors == NULL)
@@ -349,19 +354,35 @@ char** integer_to_string_token_flags_responder(INT32 tokenFlags)
 }
 
 
-int init_responder_data(rdpSettings* settings, responder_data response)
+void free_responder_data(responder_data* response)
+{
+	if ((*response)!= NULL)
+	{
+		free((*response)->challenge);
+		(*response)->challenge = NULL;
+		free((*response)->pkinit_answer);
+		(*response)->pkinit_answer = NULL;
+		free((*response));
+		(*response) = NULL;
+	}
+}
+
+BOOL init_responder_data(rdpSettings* settings, responder_data response)
 {
 	/* Check that a particular question has a specific challenge */
 	size_t challenge_size = 0;
-	challenge_size = strlen(PREFIX_PKINIT_CHALLENGE) + strlen(PREFIX_PKINIT_PKCS11_FORMAT_CHALLENGE) +
-	                 strlen(settings->Pkcs11Module) + strlen(PREFIX_PKINIT_SLOT_ID)
-	                 + strlen(settings->SlotID)
-	                 + strlen(PREFIX_PKINIT_TOKEN_LABEL)
-	                 + strlen(settings->TokenLabel)
-	                 + strlen(SUFFIX_PKINIT_TOKEN_LABEL)
-	                 + 1 /* always 1 : possible values of TokenFlags range from "1" to "7" */
-	                 + strlen(SUFFIX_PKINIT_FORMAT_CHALLENGE);
-	response->challenge = calloc(challenge_size + 1, sizeof(char));
+	size_t size_pkinit_answer = 0;
+	challenge_size = strlen(PREFIX_PKINIT_CHALLENGE)
+			+ strlen(PREFIX_PKINIT_PKCS11_FORMAT_CHALLENGE)
+			+ strlen(settings->Pkcs11Module)
+			+ strlen(PREFIX_PKINIT_SLOT_ID)
+			+ strlen(settings->SlotID)
+			+ strlen(PREFIX_PKINIT_TOKEN_LABEL)
+			+ strlen(settings->TokenLabel)
+			+ strlen(SUFFIX_PKINIT_TOKEN_LABEL)
+			+ 1 /* always 1 : possible values of TokenFlags range from "1" to "7" */
+			+ strlen(SUFFIX_PKINIT_FORMAT_CHALLENGE);
+	response->challenge = malloc(challenge_size + 1);
 
 	if (response->challenge == NULL)
 	{
@@ -369,25 +390,28 @@ int init_responder_data(rdpSettings* settings, responder_data response)
 		goto get_error;
 	}
 
-	strncat(response->challenge, PREFIX_PKINIT_CHALLENGE, strlen(PREFIX_PKINIT_CHALLENGE));
-	strncat(response->challenge, PREFIX_PKINIT_PKCS11_FORMAT_CHALLENGE,
-	        strlen(PREFIX_PKINIT_PKCS11_FORMAT_CHALLENGE));
-	strncat(response->challenge, settings->Pkcs11Module, strlen(settings->Pkcs11Module));
-	strncat(response->challenge, PREFIX_PKINIT_SLOT_ID, strlen(PREFIX_PKINIT_SLOT_ID));
-	strncat(response->challenge, settings->SlotID, strlen(settings->SlotID));
-	strncat(response->challenge, PREFIX_PKINIT_TOKEN_LABEL, strlen(PREFIX_PKINIT_TOKEN_LABEL));
-	strncat(response->challenge, settings->TokenLabel, strlen(settings->TokenLabel));
-	strncat(response->challenge, SUFFIX_PKINIT_TOKEN_LABEL, strlen(SUFFIX_PKINIT_TOKEN_LABEL));
+	strcat(response->challenge, PREFIX_PKINIT_CHALLENGE);
+	strcat(response->challenge, PREFIX_PKINIT_PKCS11_FORMAT_CHALLENGE);
+	strcat(response->challenge, settings->Pkcs11Module);
+	strcat(response->challenge, PREFIX_PKINIT_SLOT_ID);
+	strcat(response->challenge, settings->SlotID);
+	strcat(response->challenge, PREFIX_PKINIT_TOKEN_LABEL);
+	strcat(response->challenge, settings->TokenLabel);
+	strcat(response->challenge, SUFFIX_PKINIT_TOKEN_LABEL);
 	strncat(response->challenge, *integer_to_string_token_flags_responder(settings->TokenFlags), 1);
-	strncat(response->challenge, SUFFIX_PKINIT_FORMAT_CHALLENGE,
-	        strlen(SUFFIX_PKINIT_FORMAT_CHALLENGE));
+	strcat(response->challenge, SUFFIX_PKINIT_FORMAT_CHALLENGE);
 	response->challenge[ challenge_size ] = '\0';
 	/* Set a PKINIT answer for a specific PKINIT identity. */
-	size_t size_pkinit_answer = strlen(PREFIX_PKINIT_PKCS11) + strlen(settings->Pkcs11Module) + strlen(
-	                                PREFIX_PKINIT_SLOT_ID)
-	                            + strlen(settings->SlotID) + strlen(PREFIX_PKINIT_TOKEN_LABEL) + strlen(settings->TokenLabel)
-	                            + strlen(PREFIX_PKINIT_TOKEN_LABEL) + 1 + strlen(settings->Pin);
-	response->pkinit_answer = calloc(size_pkinit_answer + 1, sizeof(char));
+	size_pkinit_answer = strlen(PREFIX_PKINIT_PKCS11)
+			+ strlen(settings->Pkcs11Module)
+			+ strlen(PREFIX_PKINIT_SLOT_ID)
+			+ strlen(settings->SlotID)
+			+ strlen(PREFIX_PKINIT_TOKEN_LABEL)
+			+ strlen(settings->TokenLabel)
+			+ strlen(PREFIX_PKINIT_TOKEN_LABEL)
+			+ 1
+			+ strlen(settings->Pin);
+	response->pkinit_answer = malloc(size_pkinit_answer + 1);
 
 	if (response->pkinit_answer == NULL)
 	{
@@ -405,12 +429,10 @@ int init_responder_data(rdpSettings* settings, responder_data response)
 	strncat(response->pkinit_answer, settings->Pin, strlen(settings->Pin));
 	response->pkinit_answer[ size_pkinit_answer ] = '\0';
 	WLog_DBG(TAG, "pkinit_identities = %s", response->pkinit_answer);
-	return 0;
+	return TRUE;
 get_error:
-	free(response->challenge);
-	free(response->pkinit_answer);
-	free(response);
-	return -1;
+	free_responder_data(&response);
+	return FALSE;
 }
 
 
@@ -476,6 +498,8 @@ responder(krb5_context ctx, void* rawdata, krb5_responder_context rctx)
 	krb5_responder_otp_challenge* ochl;
 	unsigned int i, n;
 	data->called = TRUE;
+
+	WLog_INFO(TAG, "PKINIT responder");
 
 	if (strncmp(*krb5_responder_list_questions(ctx, rctx), "pkinit", 6))
 	{
@@ -803,18 +827,58 @@ responder(krb5_context ctx, void* rawdata, krb5_responder_context rctx)
 }
 
 
+
+const char * k5_error_message(struct k5_data *  k5, int code)
+{
+	switch (code)
+	{
+		case KRB5KRB_AP_ERR_BAD_INTEGRITY:
+			return "Password incorrect";
+		case KRB5KDC_ERR_KEY_EXP:
+			return "Password has expired";
+		case KRB5KDC_ERR_PREAUTH_FAILED:
+			return "Preauthentication failed";
+		case KRB5KDC_ERR_POLICY:
+			return "KDC policy rejects request";
+		case KRB5KDC_ERR_BADOPTION:
+			return "KDC can't fulfill requested option";
+		case KRB5KDC_ERR_CLIENT_REVOKED:
+			return "Client's credentials have been revoked";
+		case KRB5KDC_ERR_SERVICE_REVOKED:
+			return "Credentials for server have been revoked";
+		case KRB5KDC_ERR_CANNOT_POSTDATE:
+			return "Ticket is ineligible for postdating";
+		case KRB5_RCACHE_BADVNO:
+			return "Unsupported replay cache format version number";
+		case KRB5_KDCREP_MODIFIED:
+			return "KDC reply did not match expectations";
+		case KRB5KRB_AP_ERR_TKT_NYV:
+			return "Ticket not yet valid";
+		case KRB5KRB_AP_ERR_SKEW:
+			return "Clock skew too great";
+		default:
+			return krb5_get_error_message(k5->ctx, code);
+	}
+}
+
 int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
              rdpSettings* settings)
 {
-	int notix = 1, i = 0;
+	int notix = 1;
+	int i = 0;
 	krb5_creds* my_creds = NULL;
 	krb5_error_code code = 0;
 	krb5_get_init_creds_opt* options = NULL;
 	BOOL pinPadMode = settings->PinPadIsPresent;
 	BOOL loginRequired = settings->PinLoginRequired;
-	my_creds = calloc(1, sizeof(krb5_creds));
+	char* doing = 0;
 
-	if (!my_creds) goto cleanup;
+	my_creds = calloc(1, sizeof(* my_creds));
+
+	if (!my_creds)
+	{
+		goto cleanup;
+	}
 
 	code = krb5_get_init_creds_opt_alloc(k5->ctx, &options);
 
@@ -823,10 +887,6 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 		goto cleanup;
 	}
 
-	/*
-		From this point on, we can goto cleanup because my_creds is
-	    initialized.
-	 */
 	if (opts->lifetime)
 		krb5_get_init_creds_opt_set_tkt_life(options, opts->lifetime);
 
@@ -890,20 +950,20 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 
 	if (k5->in_cc)
 	{
-		code = krb5_get_init_creds_opt_set_in_ccache(k5->ctx, options,
-		        k5->in_cc);
+		code = krb5_get_init_creds_opt_set_in_ccache(k5->ctx, options, k5->in_cc);
 
 		if (code)
+		{
 			goto cleanup;
+		}
 	}
 
-	code = krb5_get_init_creds_opt_set_out_ccache(k5->ctx, options,
-	        k5->out_cc);
+	code = krb5_get_init_creds_opt_set_out_ccache(k5->ctx, options, k5->out_cc);
 
 	if (code)
+	{
 		goto cleanup;
-
-	char* doing = 0;
+	}
 
 	if (pinPadMode && !loginRequired)
 	{
@@ -928,11 +988,14 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 	switch (opts->action)
 	{
 		case INIT_CREDS_PINPAD:
-			code = krb5_get_init_creds_password(k5->ctx, my_creds, k5->me,
-			                                    0, 0, 0,
-			                                    opts->starttime,
-			                                    opts->service_name,
-			                                    options);
+			code = krb5_get_init_creds_password(k5->ctx, my_creds,
+				/* client principal: */ k5->me,
+				/* password: */ 0,
+				/* prompter: */ 0,
+				/* promter_data: */ 0,
+				opts->starttime,
+				opts->service_name,
+				options);
 			break;
 
 		case INIT_CREDS_KEYBOARD:
@@ -945,11 +1008,14 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 				goto cleanup;
 			}
 
-			code = krb5_get_init_creds_password(k5->ctx, my_creds, k5->me,
-			                                    NULL, NULL, NULL,
-			                                    opts->starttime,
-			                                    opts->service_name,
-			                                    options);
+			code = krb5_get_init_creds_password(k5->ctx, my_creds,
+				/* client principal: */ k5->me,
+				/* password: */ 0,
+				/* prompter: */ 0,
+				/* promter_data: */ 0,
+				opts->starttime,
+				opts->service_name,
+				options);
 
 			if (!response->called)
 			{
@@ -962,50 +1028,7 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 
 	if (code)
 	{
-		switch (code)
-		{
-			case KRB5KRB_AP_ERR_BAD_INTEGRITY:
-				WLog_ERR(TAG, "%s: Password incorrect while %s", progname, doing);
-				break;
-
-			case KRB5KDC_ERR_KEY_EXP:
-				WLog_ERR(TAG, "%s: Password has expired while %s", progname, doing);
-				break;
-
-			case KRB5KDC_ERR_PREAUTH_FAILED:
-				WLog_ERR(TAG, "%s: Preauthentication failed while %s", progname, doing);
-				break;
-
-			case KRB5KDC_ERR_POLICY:
-				WLog_ERR(TAG, "%s: KDC policy rejects request while %s", progname, doing);
-				break;
-
-			case KRB5KDC_ERR_BADOPTION:
-				WLog_ERR(TAG, "%s: KDC can't fulfill requested option while %s", progname, doing);
-				break;
-
-			case KRB5KDC_ERR_CLIENT_REVOKED:
-				WLog_ERR(TAG, "%s: Client's credentials have been revoked while %s", progname, doing);
-				break;
-
-			case KRB5KDC_ERR_SERVICE_REVOKED:
-				WLog_ERR(TAG, "%s: Credentials for server have been revoked while %s", progname, doing);
-				break;
-
-			case KRB5KDC_ERR_CANNOT_POSTDATE:
-				WLog_ERR(TAG, "%s: Ticket is ineligible for postdating while %s", progname, doing);
-				break;
-
-			case KRB5_RCACHE_BADVNO:
-				WLog_ERR(TAG, "%s: Unsupported replay cache format version number while %s", progname, doing);
-				break;
-
-			default:
-				WLog_ERR(TAG, "%s : Error %d while %s : %s",
-				         progname, code, doing, krb5_get_error_message(k5->ctx, code));
-				break;
-		}
-
+		WLog_ERR(TAG, "%s: %s while %s", progname, k5_error_message(k5, code), doing);
 		goto cleanup;
 	}
 
@@ -1017,30 +1040,8 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 
 		if (code)
 		{
-			switch (code)
-			{
-				case KRB5KDC_ERR_BADOPTION:
-					WLog_ERR(TAG, "%s: KDC can't fulfill requested option while validating credentials", progname);
-					break;
-
-				case KRB5_KDCREP_MODIFIED:
-					WLog_ERR(TAG, "%s: KDC reply did not match expectations while validating credentials", progname);
-					break;
-
-				case KRB5KRB_AP_ERR_TKT_NYV:
-					WLog_ERR(TAG, "%s: Ticket not yet valid", progname);
-					break;
-
-				case KRB5KRB_AP_ERR_SKEW:
-					WLog_ERR(TAG, "%s: Clock skew too great", progname);
-					break;
-
-				default:
-					WLog_ERR(TAG, "%s : Error %d while validating credentials : %s",
-					         progname, code, krb5_get_error_message(k5->ctx, code));
-					break;
-			}
-
+			WLog_ERR(TAG, "%s : Error %d while validating credentials : %s",
+				progname, code, k5_error_message(k5, code));
 			goto cleanup;
 		}
 
@@ -1084,16 +1085,21 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 cleanup:
 
 	if (options)
-		krb5_get_init_creds_opt_free(k5->ctx, options);
-
-	if (my_creds && (my_creds->client == k5->me))
 	{
-		my_creds->client = 0;
+		krb5_get_init_creds_opt_free(k5->ctx, options);
 	}
 
-	krb5_free_cred_contents(k5->ctx, my_creds);
-	free(my_creds);
-	my_creds = NULL;
+	if (my_creds)
+	{
+		if (my_creds->client == k5->me)
+		{
+			my_creds->client = 0;
+		}
+
+		krb5_free_cred_contents(k5->ctx, my_creds);
+		free(my_creds);
+		my_creds = NULL;
+	}
 
 	if (opts->pa_opts != NULL)
 	{
@@ -1120,22 +1126,248 @@ cleanup:
 }
 
 
-int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
+
+static BOOL split_name_from_realm_in_principal_name(char * name, char ** domain)
+{
+	/* get back domain in settings if not specified in command line */
+	/*  TODO: WHY DO WE CUT IT OFF k5->name IN THAT CASE??? */
+	if (*domain == NULL)
+	{
+		char* find_domain = strrchr(name, '@');
+
+		if (find_domain != NULL)
+		{
+			*find_domain++ = '\0';
+			*domain = strdup(find_domain);
+
+			if (!(*domain))
+			{
+				WLog_ERR(TAG, "Error allocation domain");
+				return FALSE;
+			}
+		}
+		else
+		{
+			WLog_ERR(TAG, "Error getting back domain");
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+static BOOL resolve_output_cache(struct k_opts* opts, struct k5_data* k5)
+{
+	int code = krb5_cc_resolve(k5->ctx, opts->k5_out_cache_name, &k5->out_cc);
+	if (code != 0)
+	{
+		WLog_ERR(TAG, "%s : Error %d resolving ccache %s", progname, code, opts->k5_out_cache_name);
+		return FALSE;
+	}
+
+	WLog_DBG(TAG, "%s : Using specified cache: %s", progname, opts->k5_out_cache_name);
+	return TRUE;
+}
+
+typedef struct
+{
+	krb5_ccache cache;
+	krb5_principal principal;
+	const char* type;
+	char* realm;
+} default_cache_t;
+
+static BOOL resolve_default_cache(struct k_opts* opts, struct k5_data* k5,
+	default_cache_t * defcache)
+{
+
+	/* Resolve the default ccache and get its type and default principal
+	* (if it is initialized). */
+	int code = krb5_cc_default(k5->ctx, & (defcache->cache));
+
+	if (code)
+	{
+		WLog_ERR(TAG, "%s : Error %d while getting default ccache", progname, code);
+		return FALSE;
+	}
+
+	defcache->type = krb5_cc_get_type(k5->ctx, defcache->cache);
+
+	if (krb5_cc_get_principal(k5->ctx, defcache->cache, &(defcache->principal)) != 0)
+	{
+		defcache->principal = NULL;
+	}
+
+	WLog_DBG(TAG, "%s : Using default cache", progname);
+	return TRUE;
+}
+
+static BOOL use_principal_name(struct k_opts* opts, struct k5_data* k5, int flags,
+	char * principal_name, krb5_principal *  principal)
+{
+	/* Use the specified principal name. */
+	int code = krb5_parse_name_flags(k5->ctx, principal_name, flags, principal);
+
+	if (code)
+	{
+		WLog_ERR(TAG, "%s : Error %d when parsing name %s", progname, code, principal_name);
+		return FALSE;
+	}
+
+	/* { */
+	/* 	char * sprincipal = sprint_krb5_principal(* principal); */
+	/* 	WLog_DBG(TAG, "%s : Using principal name: %s principal: %s", progname,  principal_name, sprincipal); */
+	/* 	free(sprincipal); */
+	/* } */
+	return TRUE;
+}
+
+
+#define LENGTH_AND_STRING(string) strlen(string), string
+static BOOL use_anonymous_principal(struct k_opts* opts, struct k5_data* k5, int flags, default_cache_t * defcache,
+	char * principal_name, krb5_principal *  principal)
+{
+
+	int code = krb5_get_default_realm(k5->ctx, &(defcache->realm));
+
+	if (code)
+	{
+		WLog_ERR(TAG, "%s : Error %d while getting default realm", progname, code);
+		return FALSE;
+	}
+
+	code = krb5_build_principal_ext(k5->ctx, principal,
+		LENGTH_AND_STRING(defcache->realm),
+		LENGTH_AND_STRING(KRB5_WELLKNOWN_NAMESTR),
+		LENGTH_AND_STRING(KRB5_ANONYMOUS_PRINCSTR),
+		0);
+
+	krb5_free_default_realm(k5->ctx, defcache->realm);
+	defcache->realm = NULL;
+
+	if (code)
+	{
+		WLog_ERR(TAG, "%s : Error %d while building principal", progname, code);
+		return FALSE;
+	}
+
+	/* { */
+	/* 	char * sprincipal = sprint_krb5_principal(* principal); */
+	/* 	WLog_DBG(TAG, "%s : Using principal name: %s principal: %s", progname,  principal_name, sprincipal); */
+	/* 	free(sprincipal); */
+	/* } */
+	return TRUE;
+}
+
+static BOOL use_cached_principal(struct k_opts* opts, struct k5_data* k5, int flags,
+	krb5_principal *  principal)
+{
+	krb5_principal result;
+
+	if (krb5_cc_get_principal(k5->ctx, k5->out_cc, & result) == 0)
+	{
+		(*principal) = result;
+	}
+
+	/* { */
+	/* 	char * sprincipal = sprint_krb5_principal(* principal); */
+	/* 	WLog_DBG(TAG, "%s : Using cached principal: %s", progname, sprincipal); */
+	/* 	free(sprincipal); */
+	/* } */
+	return TRUE;
+}
+
+static BOOL use_default_principal(struct k_opts* opts, struct k5_data* k5, int flags, default_cache_t * defcache,
+	krb5_principal *  principal)
+{
+	/* Use the default cache's principal, and use the default cache as the output cache. */
+	k5->out_cc = defcache->cache;
+	defcache->cache = NULL;
+	(*principal) = defcache->principal;
+	defcache->principal = NULL;
+	/* { */
+	/* 	char * sprincipal = sprint_krb5_principal(* principal); */
+	/* 	WLog_DBG(TAG, "%s : Using default principal: %s", progname, sprincipal); */
+	/* 	free(sprincipal); */
+	/* } */
+	return TRUE;
+}
+
+static BOOL use_local_username(struct k_opts* opts, struct k5_data* k5, int flags,
+	krb5_principal *  principal)
+{
+	char * name = get_name_from_os();
+
+	if (name == NULL)
+	{
+		WLog_ERR(TAG, "%s : Unable to identify user", progname);
+		return FALSE;
+	}
+
+	int code = krb5_parse_name_flags(k5->ctx, name, flags, principal);
+
+	if (code)
+	{
+		WLog_ERR(TAG, "%s : Error %d when parsing name %s", progname, code, name);
+		free(name);
+		return FALSE;
+	}
+
+	/* { */
+	/* 	char * sprincipal = sprint_krb5_principal(* principal); */
+	/* 	WLog_DBG(TAG, "%s : Using local user name: %s principal: %s", progname, name, sprincipal); */
+	/* 	free(sprincipal); */
+	/* } */
+
+	free(name);
+	return TRUE;
+}
+
+static BOOL regenerate_cache(struct k_opts* opts, struct k5_data* k5, default_cache_t * defcache)
+{
+	/* Use an existing cache for the client principal if we can. */
+	int code = krb5_cc_cache_match(k5->ctx, k5->me, &k5->out_cc);
+
+	if ((code != 0) && (code != KRB5_CC_NOTFOUND))
+	{
+		WLog_ERR(TAG, "%s : Error %d while searching for ccache for %s", progname, code, k5->name);
+		return FALSE;
+	}
+
+	if (code == 0)
+	{
+		WLog_DBG(TAG, "Using existing cache: %s", krb5_cc_get_name(k5->ctx, k5->out_cc));
+		k5->switch_to_cache = 1;
+	}
+	else if (defcache->principal != NULL)
+	{
+		/* Create a new cache to avoid overwriting the initialized default
+		* cache. */
+		code = krb5_cc_new_unique(k5->ctx, defcache->type, NULL, &k5->out_cc);
+
+		if (code)
+		{
+			WLog_ERR(TAG, "%s : Error %d while generating new ccache", progname, code);
+			return FALSE;
+		}
+
+		WLog_DBG(TAG, "Using new cache: %s", krb5_cc_get_name(k5->ctx, k5->out_cc));
+		k5->switch_to_cache = 1;
+	}
+	return TRUE;
+}
+
+
+BOOL k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 {
 	krb5_error_code code = 0;
-	int success = 0;
+	BOOL success = FALSE;
 	int id_init = 0;
 	int i = 0;
 	int anchors_init = 1;
-	krb5_ccache defcache = NULL;
-	krb5_principal defcache_princ = NULL;
-	const char* deftype = NULL;
-	char* defrealm = NULL;
-	krb5_principal princ = NULL;
-	char* name = NULL;
+	default_cache_t defcache = {NULL, NULL, NULL, NULL};
 	char* pkinit_identity = settings->PkinitIdentity;
 	char* list_pkinit_anchors = settings->PkinitAnchors;
-	char** domain = &settings->Domain;
+	memset(k5, 0, sizeof(* k5));
 	/* set opts */
 	opts->lifetime = settings->LifeTime;
 	opts->rlife = settings->RenewableLifeTime;
@@ -1143,8 +1375,6 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 	opts->not_forwardable = 0;
 	opts->canonicalize = 1; /* Canonicalized UPN is required for credentials delegation (CredSSP) */
 	int flags = opts->enterprise ? KRB5_PRINCIPAL_PARSE_ENTERPRISE : 0;
-	/* set k5 string principal name */
-	k5->name = opts->principal_name;
 	/* set pkinit identities */
 	id_init = add_preauth_opt(opts, pkinit_identity);
 
@@ -1162,7 +1392,7 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 	}
 	else
 	{
-		if (parse_pkinit_anchors(opts, list_pkinit_anchors) == false)
+		if (parse_pkinit_anchors(opts, list_pkinit_anchors) == FALSE)
 		{
 			WLog_ERR(TAG, "%s : Fail to get pkinit anchors", progname);
 			goto cleanup;
@@ -1199,159 +1429,73 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 		int ret = krb5_set_trace_callback(k5->ctx, &trace_callback, NULL);
 
 		if (ret == KRB5_TRACE_NOSUPP)
+		{
 			WLog_ERR(TAG, "%s : KRB5_TRACE_NOSUPP", __FUNCTION__);
+		}
 	}
 
+	WLog_DBG(TAG, "Cache selection");
 	if (opts->k5_out_cache_name)
 	{
-		code = krb5_cc_resolve(k5->ctx, opts->k5_out_cache_name, &k5->out_cc);
-
-		if (code != 0)
-		{
-			WLog_ERR(TAG, "%s : Error %d resolving ccache %s",
-			         progname, code, opts->k5_out_cache_name);
-			goto cleanup;
-		}
-
-		WLog_DBG(TAG, "%s : Using specified cache: %s",
-		         progname, opts->k5_out_cache_name);
+		success = resolve_output_cache(opts, k5);
 	}
 	else
 	{
-		/* Resolve the default ccache and get its type and default principal
-		 * (if it is initialized). */
-		code = krb5_cc_default(k5->ctx, &defcache);
-
-		if (code)
-		{
-			WLog_ERR(TAG, "%s : Error %d while getting default ccache", progname, code);
-			goto cleanup;
-		}
-
-		deftype = krb5_cc_get_type(k5->ctx, defcache);
-
-		if (krb5_cc_get_principal(k5->ctx, defcache, &defcache_princ) != 0)
-			defcache_princ = NULL;
+		success = resolve_default_cache(opts, k5, & defcache);
 	}
 
-	/* Choose a client principal name. */
-	if (k5->name != NULL)
+	if (!success)
 	{
-		/* Use the specified principal name. */
-		code = krb5_parse_name_flags(k5->ctx, k5->name, flags,
-		                             &k5->me);
+		goto cleanup;
+	}
 
-		if (code)
-		{
-			WLog_ERR(TAG, "%s : %d : Error %d when parsing name %s",
-			         progname, __LINE__, code, k5->name);
-			goto cleanup;
-		}
+
+	/* Choose a client principal name. */
+	success = TRUE;
+	if (opts->principal_name != NULL)
+	{
+		success = use_principal_name(opts, k5, flags, opts->principal_name, & k5->me);
 	}
 	else if (opts->anonymous)
 	{
-		/* Use the anonymous principal for the local realm. */
-		code = krb5_get_default_realm(k5->ctx, &defrealm);
-
-		if (code)
-		{
-			WLog_ERR(TAG, "%s : Error %d while getting default realm", progname, code);
-			goto cleanup;
-		}
-
-		code = krb5_build_principal_ext(k5->ctx, &k5->me,
-		                                strlen(defrealm), defrealm,
-		                                strlen(KRB5_WELLKNOWN_NAMESTR),
-		                                KRB5_WELLKNOWN_NAMESTR,
-		                                strlen(KRB5_ANONYMOUS_PRINCSTR),
-		                                KRB5_ANONYMOUS_PRINCSTR,
-		                                0);
-		krb5_free_default_realm(k5->ctx, defrealm);
-
-		if (code)
-		{
-			WLog_ERR(TAG, "%s : Error %d while building principal", progname, code);
-			goto cleanup;
-		}
+		success = use_anonymous_principal(opts, k5, flags, & defcache, opts->principal_name, & k5->me);
 	}
 	else if (k5->out_cc != NULL)
 	{
-		/* If the output ccache is initialized, use its principal. */
-		if (krb5_cc_get_principal(k5->ctx, k5->out_cc, &princ) == 0)
-			k5->me = princ;
+		success = use_cached_principal(opts, k5, flags, & k5->me);
 	}
-	else if (defcache_princ != NULL)
+	else if (defcache.principal != NULL)
 	{
-		/* Use the default cache's principal, and use the default cache as the
-		 * output cache. */
-		k5->out_cc = defcache;
-		defcache = NULL;
-		k5->me = defcache_princ;
-		defcache_princ = NULL;
+		success = use_default_principal(opts, k5, flags, & defcache, & k5->me);
+	}
+
+	if (!success)
+	{
+		goto cleanup;
 	}
 
 	/* If we still haven't chosen, use the local username. */
 	if (k5->me == NULL)
 	{
-		name = get_name_from_os();
-
-		if (name == NULL)
+		if (!(success = use_local_username(opts, k5, flags, & k5->me)))
 		{
-			WLog_ERR(TAG, "Unable to identify user");
-			goto cleanup;
-		}
-
-		code = krb5_parse_name_flags(k5->ctx, name, flags, &k5->me);
-
-		if (code)
-		{
-			WLog_ERR(TAG, "%s : %d : Error %d when parsing name %s",
-			         progname, __LINE__, code, name);
 			goto cleanup;
 		}
 	}
 
-	if (k5->out_cc == NULL && krb5_cc_support_switch(k5->ctx, deftype))
+	if (k5->out_cc == NULL && krb5_cc_support_switch(k5->ctx, defcache.type))
 	{
-		/* Use an existing cache for the client principal if we can. */
-		code = krb5_cc_cache_match(k5->ctx, k5->me, &k5->out_cc);
-
-		if (code != 0 && code != KRB5_CC_NOTFOUND)
+		if(!(success = regenerate_cache(opts, k5, & defcache)))
 		{
-			WLog_ERR(TAG, "%s : Error %d while searching for ccache for %s",
-			         progname, code, k5->name);
 			goto cleanup;
-		}
-
-		if (code == 0)
-		{
-			WLog_DBG(TAG, "Using existing cache: %s",
-			         krb5_cc_get_name(k5->ctx, k5->out_cc));
-			k5->switch_to_cache = 1;
-		}
-		else if (defcache_princ != NULL)
-		{
-			/* Create a new cache to avoid overwriting the initialized default
-			 * cache. */
-			code = krb5_cc_new_unique(k5->ctx, deftype, NULL, &k5->out_cc);
-
-			if (code)
-			{
-				WLog_ERR(TAG, "%s : Error %d while generating new ccache", progname, code);
-				goto cleanup;
-			}
-
-			WLog_DBG(TAG, "Using new cache: %s",
-			         krb5_cc_get_name(k5->ctx, k5->out_cc));
-			k5->switch_to_cache = 1;
 		}
 	}
 
 	/* Use the default cache if we haven't picked one yet. */
 	if (k5->out_cc == NULL)
 	{
-		k5->out_cc = defcache;
-		defcache = NULL;
+		k5->out_cc = defcache.cache;
+		defcache.cache = NULL;
 		WLog_DBG(TAG, "Using default cache: %s",
 		         krb5_cc_get_name(k5->ctx, k5->out_cc));
 	}
@@ -1371,11 +1515,10 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 		         opts->k5_in_cache_name);
 	}
 
-	/* free before krb5_unparse_name change its address */
-	free(k5->name);
-	code = krb5_unparse_name(k5->ctx, k5->me, &k5->name);
 
- /* PJB: k5->me done ==> k5->name */
+	free(k5->name);
+	/* free before krb5_unparse_name change its address */
+	code = krb5_unparse_name(k5->ctx, k5->me, &k5->name);
 
 	if (code)
 	{
@@ -1383,37 +1526,22 @@ int k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 		goto cleanup;
 	}
 
-	WLog_DBG(TAG, "Using principal: %s", k5->name);
+ /* PJB: k5->me done ==> k5->name */
 
-	/* get back domain in settings if not specified in command line */
-	if (*domain == NULL)
+	WLog_DBG(TAG, "Using principal name    : %s", k5->name);
+
+	if (split_name_from_realm_in_principal_name(k5->name, & settings->Domain))
 	{
-		char* find_domain = strrchr(k5->name, '@');
-
-		if (find_domain != NULL)
-		{
-			*find_domain++ = '\0';
-			*domain = calloc(strlen(find_domain) + 1, sizeof(char));
-
-			if (!(*domain))
-			{
-				WLog_ERR(TAG, "Error allocation domain");
-				goto cleanup;
-			}
-
-			strncpy(*domain, find_domain, strlen(find_domain) + 1);
-		}
-		else
-		{
-			WLog_ERR(TAG, "Error getting back domain");
-			goto cleanup;
-		}
-
-		WLog_DBG(TAG, "Domain / Kerberos realm : %s", *domain);
+		WLog_DBG(TAG, "Split principal name    : %s", k5->name);
+		WLog_DBG(TAG, "Domain / Kerberos realm : %s", settings->Domain);
+	}
+	else
+	{
+		goto cleanup;
 	}
 
-	success = 1;
-	return success;
+	success = TRUE;
+
 cleanup:
 
 	if (opts->pa_opts != NULL)
@@ -1438,10 +1566,10 @@ cleanup:
 	free(opts->pkinit_anchors);
 	opts->pkinit_anchors = NULL;
 
-	if (defcache != NULL)
-		krb5_cc_close(k5->ctx, defcache);
+	if (defcache.cache != NULL)
+		krb5_cc_close(k5->ctx, defcache.cache);
 
-	krb5_free_principal(k5->ctx, defcache_princ);
+	krb5_free_principal(k5->ctx, defcache.principal);
 	return success;
 }
 
@@ -1468,90 +1596,97 @@ void k5_end(struct k5_data* k5)
 }
 
 
-BOOL init_cred_cache(rdpSettings* settings)
+BOOL initialize_credential_cache(rdpSettings* settings, struct k_opts *  opts)
 {
-	struct k_opts opts;
-	struct k5_data k5;
-	int authed_k5 = 0;
-	responder_data response = NULL;
-	memset(&opts, 0, sizeof(opts));
-	memset(&k5, 0, sizeof(k5));
-	set_com_err_hook(extended_com_err_fn);
-	opts.principal_name = calloc(strlen(settings->UserPrincipalName) + 1, sizeof(char));
+	BOOL at = (NULL != strchr(settings->UserPrincipalName, '@'));
+	memset(opts, 0, sizeof(* opts));
+	opts->principal_name = strdup(settings->UserPrincipalName);
 
-	if (opts.principal_name == NULL)
+	if (opts->principal_name == NULL)
 	{
 		WLog_ERR(TAG, "Could not allocate principal name.");
 		return FALSE;
 	}
 
-
-	strncpy(opts.principal_name, settings->UserPrincipalName, strlen(settings->UserPrincipalName) + 1);
+	if (at)
+	{
+		opts->enterprise = KRB5_PRINCIPAL_PARSE_ENTERPRISE;
+	}
 
 	/* if /d:domain is specified in command line, set it as Kerberos default realm */
-	if (settings->Domain)
+	if (!at && settings->Domain)
 	{
-		WLog_DBG(TAG, "opts.principal_name = %s", opts.principal_name);
-		WLog_DBG(TAG, "settings->Domain    = %s", settings->Domain);
-		opts.principal_name = realloc(opts.principal_name,
-		                              strlen(settings->UserPrincipalName) + 1 + strlen(settings->Domain) + 1);
+		WLog_DBG(TAG, "opts->principal_name = %s", opts->principal_name);
+		WLog_DBG(TAG, "settings->Domain     = %s", settings->Domain);
+		opts->principal_name = realloc(opts->principal_name, strlen(opts->principal_name) + 1 + strlen(settings->Domain) + 1);
 
-		if (opts.principal_name == NULL)
+		if (opts->principal_name == NULL)
 		{
 			WLog_ERR(TAG, "Could not reallocate principal name.");
-			free(opts.principal_name);
+			free(opts->principal_name);
 			return FALSE;
 		}
 
-		strncat(opts.principal_name, "@", 1);
-		strncat(opts.principal_name, settings->Domain, strlen(settings->Domain));
-		opts.principal_name[strlen(settings->UserPrincipalName) + 1 + strlen(settings->Domain)] = '\0';
-		WLog_DBG(TAG, "opts.principal_name = %s", opts.principal_name);
+		strcat(opts->principal_name, "@");
+		strcat(opts->principal_name, settings->Domain);
+		WLog_DBG(TAG, "opts->principal_name = %s", opts->principal_name);
 	}
 
-	char* pstr = NULL;
-	pstr = strchr(settings->UserPrincipalName, '@');
-
-	if (pstr != NULL)
-	{
-		opts.enterprise = KRB5_PRINCIPAL_PARSE_ENTERPRISE;
-	}
 
 	/* Start time is the time when ticket (TGT) issued by the KDC become valid.
 	 * It needs to be different from 0 to request a postdated ticket.
 	 * And thus, enable validation of credentials by the KDC, that can only validate postdated ticket */
-	opts.starttime = settings->StartTime;
+	opts->starttime = settings->StartTime;
 
-	/* set data responder callback if no PINPAD present */
-	if (strncmp(settings->Pin, "NULL", 4))
+	return TRUE;
+}
+
+BOOL new_responder_data(rdpSettings* settings, responder_data *  response)
+{
+	(*response) = malloc(sizeof(**response));
+
+	if ((*response) == NULL)
 	{
-		response = calloc(1, sizeof(ty_responder_data));
-
-		if (response == NULL)
-		{
-			WLog_ERR(TAG, "Error allocation data responder.");
-			free(opts.principal_name);
-			return FALSE;
-		}
-
-		if (init_responder_data(settings, response))
-		{
-			WLog_ERR(TAG, "Error initializing responder data.");
-			free(opts.principal_name);
-			return FALSE;
-		}
+		WLog_ERR(TAG, "Error allocation responder data.");
+		return FALSE;
 	}
 
-	if (k5_begin(&opts, &k5, settings))
-		authed_k5 = k5_kinit(&opts, &k5, response, settings);
+	if (!init_responder_data(settings, *response))
+	{
+		free_responder_data(response);
+		return FALSE;
+	}
+	return TRUE;
+}
 
+
+
+/** pkinit_acquire_krb5_TGT is used to acquire credentials via Kerberos.
+ *  This function is actually called in get_TGT_kerberos().
+ *  @param krb_settings - pointer to the kerberos_settings structure
+ *  @return TRUE if valid TGT acquired, FALSE otherwise
+ */
+BOOL pkinit_acquire_krb5_TGT(rdpSettings* settings)
+{
+	struct k_opts  opts;
+	struct k5_data  k5;
+	responder_data  response = 0;
+	BOOL authed_k5 = FALSE;
+	set_com_err_hook(extended_com_err_fn);
+	if (set_pkinit_identity(settings)
+		&& initialize_credential_cache(settings, & opts)
+		/* set data responder callback if no PINPAD present: */
+		&& (0 == strncmp(settings->Pin, "NULL", 4) || new_responder_data(settings, &response))
+		&& k5_begin(&opts, &k5, settings)){
+		authed_k5 = k5_kinit(&opts, &k5, response, settings);
+	}
 	if (authed_k5 && opts.outdata->data)
 	{
-		settings->CanonicalizedUserHint = strndup(opts.outdata->data, strlen(opts.outdata->data) + 1);
+		settings->CanonicalizedUserHint = strdup(opts.outdata->data);
 		if (settings->CanonicalizedUserHint == NULL)
 		{
-			WLog_ERR(TAG, "Error _strdup outdata into canonicalized user hint.");
-			authed_k5 = 0;
+			WLog_ERR(TAG, "Error cannot strdup outdata into canonicalized user hint.");
+			authed_k5 = FALSE;
 		}
 
 		krb5_free_data(k5.ctx, opts.outdata);
@@ -1561,50 +1696,21 @@ BOOL init_cred_cache(rdpSettings* settings)
 		WLog_ERR(TAG, "authed_k5 but no opts.outdata->data! No canonicalized user hint!");
 	}
 
+	k5_end(&k5);
+	free_responder_data(&response);
+	free(opts.principal_name);
+	opts.principal_name = 0;
 
 	if (authed_k5)
-		WLog_INFO(TAG, "Authenticated to Kerberos v5 via smartcard");
-
-	/* free */
-	k5_end(&k5);
-
-	if (response)
 	{
-		free(response->challenge);
-		free(response->pkinit_answer);
-		free(response);
+		WLog_INFO(TAG, "Authenticated to Kerberos v5 via smartcard");
 	}
-
-	if (!authed_k5)
+	else
 	{
 		WLog_ERR(TAG, "Credentials cache initialization failed !");
-		return FALSE;
 	}
 
-	return TRUE;
-}
-
-/** pkinit_acquire_krb5_TGT is used to acquire credentials via Kerberos.
- *  This function is actually called in get_TGT_kerberos().
- *  @param krb_settings - pointer to the kerberos_settings structure
- *  @return TRUE if valid TGT acquired, FALSE otherwise
- */
-BOOL pkinit_acquire_krb5_TGT(rdpSettings* settings)
-{
-	WLog_DBG(TAG, "PKINIT starting...");
-
-	if (!set_pkinit_identity(settings))
-	{
-		WLog_ERR(TAG, "%s %d : Error while setting pkinit_identity", __FUNCTION__,  __LINE__);
-		return FALSE;
-	}
-
-	BOOL ret_pkinit = init_cred_cache(settings);
-
-	if (ret_pkinit == FALSE)
-		return FALSE;
-
-	return TRUE;
+	return authed_k5;
 }
 
 /** get_TGT_kerberos is used to get TGT from KDC.
@@ -1614,10 +1720,11 @@ BOOL pkinit_acquire_krb5_TGT(rdpSettings* settings)
  */
 BOOL get_TGT_kerberos(rdpSettings* settings)
 {
-	if (pkinit_acquire_krb5_TGT(settings) == FALSE)
+	if (!pkinit_acquire_krb5_TGT(settings))
+	{
 		return FALSE;
-	else
-		WLog_DBG(TAG, "PKINIT : successfully acquired TGT");
+	}
 
+	WLog_DBG(TAG, "Successfully acquired Kerberos TGT");
 	return TRUE;
 }
