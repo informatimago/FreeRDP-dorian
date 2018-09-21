@@ -273,11 +273,11 @@ static int nla_client_init_smartcard_logon(rdpNla* nla)
                 * Contrary to /pin option in command line or with getpass() which are less secure,
                 * because the PIN code is communicated (at the present) in clear and transit via the code.
                 */
-                settings->Password = string_concatenate(PREFIX_PIN_GLOBAL, "0000", 0);
+                settings->Password = string_concatenate(PREFIX_PIN_GLOBAL, "0000", NULL);
         }
         else if (settings->Pin)
         {
-                settings->Password = string_concatenate(PREFIX_PIN_GLOBAL, settings->Pin, 0);
+                settings->Password = string_concatenate(PREFIX_PIN_GLOBAL, settings->Pin, NULL);
         }
         else
         {
@@ -319,7 +319,7 @@ static int nla_client_init_smartcard_logon(rdpNla* nla)
 
 	WLog_INFO(TAG, "Canonicalized User Hint = %s,  Domain Hint = %s,  UPN = %s",
 		settings->CanonicalizedUserHint, settings->DomainHint, settings->UserPrincipalName);
-        CHECK_MEMORY((settings->ContainerName = string_concatenate(PREFIX_CONTAINER_NAME, settings->IdCertificate, 0)),
+        CHECK_MEMORY((settings->ContainerName = string_concatenate(PREFIX_CONTAINER_NAME, settings->IdCertificate, NULL)),
                 -1, "Could not allocate memory for container name.");
 
         if ((settings->CspName == NULL) || (settings->CspName != NULL && strlen(settings->CspName) == 0))

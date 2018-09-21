@@ -1007,3 +1007,5 @@ FOREACH(var ${res})
 ENDFOREACH()
 string(REPLACE ";" " " FREERDP_BUILD_CONFIG "${FREERDP_BUILD_CONFIG_LIST}")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/buildflags.h.in ${CMAKE_CURRENT_BINARY_DIR}/buildflags.h)
+
+set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -lmcheck")

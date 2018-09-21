@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <freerdp/error.h>
 
+#include "krb5.h"
 #include "pkinit.h"
 
 #include <sys/types.h>
@@ -39,6 +40,7 @@
 
 #include </home/pjb/src/public/FreeRDP-devtools/krb5/print.h>
 #include </home/pjb/src/public/FreeRDP-devtools/krb5/print.c>
+//  char* string_concatenate(const char* string, ...);
 
 #define TAG FREERDP_TAG("core.pkinit")
 
@@ -48,7 +50,7 @@ static const char* PREFIX_X509_USER_IDENTITY = "X509_user_identity=";
 static const char* PREFIX_PKINIT_PKCS11 = "PKCS11:module_name=";
 static const char* PREFIX_PKINIT_CERT_ID = ":certid=";
 
-static const char* PREFIX_PKINIT_CHALLENGE = "pkinit";  /* "KRB5_RESPONDER_QUESTION_PKINIT" */
+static const char* PREFIX_PKINIT_CHALLENGE = KRB5_RESPONDER_QUESTION_PKINIT;
 static const char* PREFIX_PKINIT_PKCS11_FORMAT_CHALLENGE = "={\"PKCS11:module_name=";
 static const char* PREFIX_PKINIT_SLOT_ID = ":slotid=";
 static const char* PREFIX_PKINIT_TOKEN_LABEL = ":token=";
@@ -154,17 +156,16 @@ static void extended_com_err_fn(const char* myprog, errcode_t code,
 
 BOOL set_pkinit_identity(rdpSettings* settings)
 {
-	unsigned int size_PkinitIdentity =
-			strlen(PREFIX_X509_USER_IDENTITY)
-			+ strlen(PREFIX_PKINIT_PKCS11)
-			+ strlen(settings->Pkcs11Module)
-			+ strlen(PREFIX_PKINIT_SLOT_ID)
-			+ strlen(settings->SlotID)
-			+ strlen(PREFIX_PKINIT_TOKEN_LABEL)
-			+ strlen(settings->TokenLabel)
-			+ strlen(PREFIX_PKINIT_CERT_ID)
-			+ (unsigned int)(settings->IdCertificateLength * 2);
-	settings->PkinitIdentity = malloc(size_PkinitIdentity + 1);
+	settings->PkinitIdentity = string_concatenate(PREFIX_X509_USER_IDENTITY,
+		PREFIX_PKINIT_PKCS11,
+		settings->Pkcs11Module,
+		PREFIX_PKINIT_SLOT_ID,
+		settings->SlotID,
+		PREFIX_PKINIT_TOKEN_LABEL,
+		settings->TokenLabel,
+		PREFIX_PKINIT_CERT_ID,
+		settings->IdCertificate,
+		NULL);
 
 	if (!settings->PkinitIdentity)
 	{
@@ -172,16 +173,6 @@ BOOL set_pkinit_identity(rdpSettings* settings)
 		return FALSE;
 	}
 
-	strcat(settings->PkinitIdentity, PREFIX_X509_USER_IDENTITY);
-	strcat(settings->PkinitIdentity, PREFIX_PKINIT_PKCS11);
-	strcat(settings->PkinitIdentity, settings->Pkcs11Module);
-	strcat(settings->PkinitIdentity, PREFIX_PKINIT_SLOT_ID);
-	strcat(settings->PkinitIdentity, settings->SlotID);
-	strcat(settings->PkinitIdentity, PREFIX_PKINIT_TOKEN_LABEL);
-	strcat(settings->PkinitIdentity, settings->TokenLabel);
-	strcat(settings->PkinitIdentity, PREFIX_PKINIT_CERT_ID);
-	strncat(settings->PkinitIdentity, (char*) settings->IdCertificate, (unsigned int)(settings->IdCertificateLength * 2));
-	settings->PkinitIdentity[size_PkinitIdentity] = '\0';
 	WLog_DBG(TAG, "pkinit_identities = %s", settings->PkinitIdentity);
 	return TRUE;
 }
@@ -285,72 +276,15 @@ get_error:
 }
 
 
-char** integer_to_string_token_flags_responder(INT32 tokenFlags)
+static const char* integer_to_string_token_flags_responder(INT32 tokenFlags)
 {
-	/* when not specified or not applicable token flags set to 0 */
-	static char* token_flags_pkinit_formatted = NULL;
-
+	static char token_flags_pkinit_formatted[2];
 	/* Kerberos responder pkinit flags not applicable or no PIN error while logging */
-	if (tokenFlags == 0)
-	{
-		token_flags_pkinit_formatted = "0";
-	}
-
-	if ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) ==
-	    KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW)
-	{
-		token_flags_pkinit_formatted = "1"; /* (1 << 0) = 1 */
-	}
-
-	if ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) ==
-	    KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY)
-	{
-		token_flags_pkinit_formatted = "2"; /* (1 << 1) = 2 */
-	}
-
-	if (((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) ==
-	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) &&
-	    ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) ==
-	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY))
-	{
-		token_flags_pkinit_formatted = "3"; /* (1 << 0) & (1 << 1) = 3 */
-	}
-
-	if ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED) ==
-	    KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED)
-	{
-		token_flags_pkinit_formatted = "4"; /* (1 << 2) = 4 */
-	}
-
-	if (((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) ==
-	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) &&
-	    ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED) ==
-	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED))
-	{
-		token_flags_pkinit_formatted = "5"; /* (1 << 0) & (1 << 2) = 5 */
-	}
-
-	if (((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) ==
-	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) &&
-	    ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED) ==
-	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED))
-	{
-		token_flags_pkinit_formatted = "6"; /* (1 << 1) & (1 << 2) = 6 */
-	}
-
-	if (((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) ==
-	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW) &&
-	    ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY) ==
-	     KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY)
-	    && ((tokenFlags & KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED) ==
-	        KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED))
-	{
-		token_flags_pkinit_formatted = "7"; /* (1 << 0) & (1 << 1) & (1 << 2) = 7 */
-	}
-
+	token_flags_pkinit_formatted[0] = '0' + (tokenFlags & 7);
+	token_flags_pkinit_formatted[1] = 0;
 	WLog_DBG(TAG, "%s %d : formatted pkinit token flags = %s", __FILENAME__, __LINE__,
 	         token_flags_pkinit_formatted);
-	return &token_flags_pkinit_formatted;
+	return token_flags_pkinit_formatted;
 }
 
 
@@ -367,22 +301,22 @@ void free_responder_data(responder_data* response)
 	}
 }
 
+
+
 BOOL init_responder_data(rdpSettings* settings, responder_data response)
 {
 	/* Check that a particular question has a specific challenge */
-	size_t challenge_size = 0;
-	size_t size_pkinit_answer = 0;
-	challenge_size = strlen(PREFIX_PKINIT_CHALLENGE)
-			+ strlen(PREFIX_PKINIT_PKCS11_FORMAT_CHALLENGE)
-			+ strlen(settings->Pkcs11Module)
-			+ strlen(PREFIX_PKINIT_SLOT_ID)
-			+ strlen(settings->SlotID)
-			+ strlen(PREFIX_PKINIT_TOKEN_LABEL)
-			+ strlen(settings->TokenLabel)
-			+ strlen(SUFFIX_PKINIT_TOKEN_LABEL)
-			+ 1 /* always 1 : possible values of TokenFlags range from "1" to "7" */
-			+ strlen(SUFFIX_PKINIT_FORMAT_CHALLENGE);
-	response->challenge = malloc(challenge_size + 1);
+	response->challenge = string_concatenate(PREFIX_PKINIT_CHALLENGE,
+		PREFIX_PKINIT_PKCS11_FORMAT_CHALLENGE,
+		settings->Pkcs11Module,
+		PREFIX_PKINIT_SLOT_ID,
+		settings->SlotID,
+		PREFIX_PKINIT_TOKEN_LABEL,
+		settings->TokenLabel,
+		SUFFIX_PKINIT_TOKEN_LABEL,
+		integer_to_string_token_flags_responder(settings->TokenFlags),
+		SUFFIX_PKINIT_FORMAT_CHALLENGE,
+		NULL);
 
 	if (response->challenge == NULL)
 	{
@@ -390,28 +324,16 @@ BOOL init_responder_data(rdpSettings* settings, responder_data response)
 		goto get_error;
 	}
 
-	strcat(response->challenge, PREFIX_PKINIT_CHALLENGE);
-	strcat(response->challenge, PREFIX_PKINIT_PKCS11_FORMAT_CHALLENGE);
-	strcat(response->challenge, settings->Pkcs11Module);
-	strcat(response->challenge, PREFIX_PKINIT_SLOT_ID);
-	strcat(response->challenge, settings->SlotID);
-	strcat(response->challenge, PREFIX_PKINIT_TOKEN_LABEL);
-	strcat(response->challenge, settings->TokenLabel);
-	strcat(response->challenge, SUFFIX_PKINIT_TOKEN_LABEL);
-	strncat(response->challenge, *integer_to_string_token_flags_responder(settings->TokenFlags), 1);
-	strcat(response->challenge, SUFFIX_PKINIT_FORMAT_CHALLENGE);
-	response->challenge[ challenge_size ] = '\0';
 	/* Set a PKINIT answer for a specific PKINIT identity. */
-	size_pkinit_answer = strlen(PREFIX_PKINIT_PKCS11)
-			+ strlen(settings->Pkcs11Module)
-			+ strlen(PREFIX_PKINIT_SLOT_ID)
-			+ strlen(settings->SlotID)
-			+ strlen(PREFIX_PKINIT_TOKEN_LABEL)
-			+ strlen(settings->TokenLabel)
-			+ strlen(PREFIX_PKINIT_TOKEN_LABEL)
-			+ 1
-			+ strlen(settings->Pin);
-	response->pkinit_answer = malloc(size_pkinit_answer + 1);
+	response->pkinit_answer = string_concatenate(PREFIX_PKINIT_PKCS11,
+		settings->Pkcs11Module,
+		PREFIX_PKINIT_SLOT_ID,
+		settings->SlotID,
+		PREFIX_PKINIT_TOKEN_LABEL,
+		settings->TokenLabel,
+		"=",
+		settings->Pin,
+		NULL);
 
 	if (response->pkinit_answer == NULL)
 	{
@@ -419,15 +341,6 @@ BOOL init_responder_data(rdpSettings* settings, responder_data response)
 		goto get_error;
 	}
 
-	strncat(response->pkinit_answer, PREFIX_PKINIT_PKCS11, strlen(PREFIX_PKINIT_PKCS11));
-	strncat(response->pkinit_answer, settings->Pkcs11Module, strlen(settings->Pkcs11Module));
-	strncat(response->pkinit_answer, PREFIX_PKINIT_SLOT_ID, strlen(PREFIX_PKINIT_SLOT_ID));
-	strncat(response->pkinit_answer, settings->SlotID, strlen(settings->SlotID));
-	strncat(response->pkinit_answer, PREFIX_PKINIT_TOKEN_LABEL, strlen(PREFIX_PKINIT_TOKEN_LABEL));
-	strncat(response->pkinit_answer, settings->TokenLabel, strlen(settings->TokenLabel));
-	strncat(response->pkinit_answer, "=", 1);
-	strncat(response->pkinit_answer, settings->Pin, strlen(settings->Pin));
-	response->pkinit_answer[ size_pkinit_answer ] = '\0';
 	WLog_DBG(TAG, "pkinit_identities = %s", response->pkinit_answer);
 	return TRUE;
 get_error:
@@ -483,8 +396,32 @@ int add_preauth_opt(struct k_opts* opts, char* av)
 }
 
 
-static krb5_error_code
-responder(krb5_context ctx, void* rawdata, krb5_responder_context rctx)
+
+static BOOL string_list_contains(const char *const * list, const char * string)
+{
+	int i;
+	for (i = 0;list[i];i ++ )
+	{
+		if (0 == strcmp(list[i], string))
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+static krb5_error_code responder_dump_questions(krb5_context context, void *data, krb5_responder_context rctx)
+{
+	const char *const * questions = krb5_responder_list_questions(context, rctx);
+	int i;
+	for (i = 0;questions[i];i ++ )
+	{
+		printf("question: %s\n", questions[i]);
+	}
+	return KRB5KRB_ERR_GENERIC;
+}
+
+static krb5_error_code responder(krb5_context ctx, void* rawdata, krb5_responder_context rctx)
 {
 	krb5_error_code err;
 	char* key, *value, *pin, *encoded1, *encoded2;
@@ -500,8 +437,17 @@ responder(krb5_context ctx, void* rawdata, krb5_responder_context rctx)
 	data->called = TRUE;
 
 	WLog_INFO(TAG, "PKINIT responder");
+	responder_dump_questions(ctx, rawdata, rctx);
 
-	if (strncmp(*krb5_responder_list_questions(ctx, rctx), "pkinit", 6))
+	if (!rawdata)
+	{
+		WLog_ERR(TAG, "No responder data for responder");
+		return 0;
+	}
+
+	WLog_INFO(TAG, "*krb5_responder_list_questions(ctx, rctx) = %s", *krb5_responder_list_questions(ctx, rctx));
+
+	if (!string_list_contains(krb5_responder_list_questions(ctx, rctx), "pkinit"))
 	{
 		WLog_ERR(TAG, "No PKINIT question available");
 		return 0;
@@ -826,8 +772,6 @@ responder(krb5_context ctx, void* rawdata, krb5_responder_context rctx)
 	return 0;
 }
 
-
-
 const char * k5_error_message(struct k5_data *  k5, int code)
 {
 	switch (code)
@@ -861,6 +805,172 @@ const char * k5_error_message(struct k5_data *  k5, int code)
 	}
 }
 
+
+
+const char * k5_prompt_type_label(krb5_prompt_type type)
+{
+	switch (type)
+	{
+		case KRB5_PROMPT_TYPE_PASSWORD:            return "KRB5_PROMPT_TYPE_PASSWORD";
+		case KRB5_PROMPT_TYPE_NEW_PASSWORD:        return "KRB5_PROMPT_TYPE_NEW_PASSWORD";
+		case KRB5_PROMPT_TYPE_NEW_PASSWORD_AGAIN:  return "KRB5_PROMPT_TYPE_NEW_PASSWORD_AGAIN";
+		case KRB5_PROMPT_TYPE_PREAUTH:             return "KRB5_PROMPT_TYPE_PREAUTH";
+		default:                                   return "unknown";
+	}
+}
+
+static krb5_error_code prompter_dump(krb5_context context, void *data, const char *name, const char *banner, int num_prompts, krb5_prompt prompts[])
+{
+	int i;
+	// ck_token_flags_label
+	// printf("context->prompt_type = (%d) %s\n", context->prompt_type, k5_prompt_type_label(context->prompt_type));
+        printf("data                 = %p\n", data);
+        printf("name        	     = %s\n", name);
+        printf("banner      	     = %s\n", banner);
+        printf("num_prompts 	     = %d\n", num_prompts);
+        for (i = 0;i < num_prompts;i ++ )
+	{
+		printf("prompts[%d]           = [%s] %s\n", i, (prompts[i].hidden?"hidden":"visible"), prompts[i].prompt);
+		if (prompts[i].reply)
+		{
+			if((prompts[i].reply->length) && (prompts[i].reply->data))
+			{
+				prompts[i].reply->data[0] = 0;
+			}
+		}
+	}
+	return 0;
+	return KRB5KRB_ERR_GENERIC;
+}
+
+static void opts_log_pa_opts(struct k_opts * opts, const char *where)
+{
+	int i;
+	WLog_DBG(TAG, "in %-30s Num PA Options = %d", where, opts->num_pa_opts);
+	for (i = 0; i < opts->num_pa_opts; i++)
+	{
+		WLog_DBG(TAG, "in %-30s PA Option %s = %s ", where,  opts->pa_opts[i].attr, opts->pa_opts[i].value);
+	}
+}
+
+static int opts_convert_to_options(krb5_context ctx, struct k_opts* opts, krb5_get_init_creds_opt** options)
+{
+	int i;
+	int code = krb5_get_init_creds_opt_alloc(ctx, options);
+
+	if (code)
+	{
+		goto cleanup;
+	}
+
+	if (opts->lifetime)
+		krb5_get_init_creds_opt_set_tkt_life(*options, opts->lifetime);
+
+	if (opts->rlife)
+		krb5_get_init_creds_opt_set_renew_life(*options, opts->rlife);
+
+	if (opts->forwardable)
+		krb5_get_init_creds_opt_set_forwardable(*options, 1);
+
+	if (opts->not_forwardable)
+		krb5_get_init_creds_opt_set_forwardable(*options, 0);
+
+	if (opts->proxiable)
+		krb5_get_init_creds_opt_set_proxiable(*options, 1);
+
+	if (opts->not_proxiable)
+		krb5_get_init_creds_opt_set_proxiable(*options, 0);
+
+	if (opts->canonicalize)
+		krb5_get_init_creds_opt_set_canonicalize(*options, 1);
+
+	if (opts->anonymous)
+		krb5_get_init_creds_opt_set_anonymous(*options, 1);
+
+	if (opts->addresses)
+	{
+		krb5_address** addresses = NULL;
+		code = krb5_os_localaddr(ctx, &addresses);
+
+		if (code != 0)
+		{
+			WLog_ERR(TAG, "%s : Error %d getting local addresses", progname, code);
+			goto cleanup;
+		}
+
+		krb5_get_init_creds_opt_set_address_list(*options, addresses);
+	}
+
+	if (opts->no_addresses)
+		krb5_get_init_creds_opt_set_address_list(*options, NULL);
+
+	if (opts->armor_ccache)
+		krb5_get_init_creds_opt_set_fast_ccache_name(ctx, *options, opts->armor_ccache);
+
+	for (i = 0; i < opts->num_pa_opts; i++)
+	{
+		code = krb5_get_init_creds_opt_set_pa(ctx, *options,
+			opts->pa_opts[i].attr,
+			opts->pa_opts[i].value);
+
+		if (code != 0)
+		{
+			WLog_ERR(TAG, "%s : Error %d while setting '%s'='%s'",
+				progname, code, opts->pa_opts[i].attr, opts->pa_opts[i].value);
+			goto cleanup;
+		}
+	}
+
+
+	/*  Seems to be useless,  since krb actually stores PAs into hidden fields beyond the public struct declaration. */
+	(*options)->preauth_list_length = 1;
+	(*options)->preauth_list = malloc((*options)->preauth_list_length * sizeof ((*options)->preauth_list));
+	*((*options)->preauth_list) = 16;
+
+	opts_log_pa_opts(opts, __FUNCTION__);
+	return 0;
+cleanup:
+	opts_log_pa_opts(opts, __FUNCTION__);
+	return code;
+}
+
+
+static struct k_opts * opts_new()
+{
+	return calloc(1, sizeof (struct k_opts));
+}
+
+static void opts_free(struct k_opts * opts)
+{
+	int i;
+
+	if (opts->pa_opts != NULL)
+	{
+		free(opts->pa_opts);
+		opts->pa_opts = NULL;
+	}
+
+	opts->num_pa_opts = 0;
+
+	if (opts->pkinit_anchors != NULL)
+	{
+		for (i = opts->nb_anchors; i > 0 ; i--)
+		{
+			free(opts->pkinit_anchors[i - 1]->anchor);
+			opts->pkinit_anchors[i - 1]->anchor = NULL;
+			free(opts->pkinit_anchors[i - 1]);
+			opts->pkinit_anchors[i - 1] = NULL;
+		}
+	}
+
+	free(opts->pkinit_anchors);
+	opts->pkinit_anchors = NULL;
+	free(opts->principal_name);
+	opts->principal_name = NULL;
+	free(opts);
+}
+
+
 int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
              rdpSettings* settings)
 {
@@ -880,72 +990,11 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 		goto cleanup;
 	}
 
-	code = krb5_get_init_creds_opt_alloc(k5->ctx, &options);
+	code = opts_convert_to_options(k5->ctx, opts, & options);
 
 	if (code)
 	{
 		goto cleanup;
-	}
-
-	if (opts->lifetime)
-		krb5_get_init_creds_opt_set_tkt_life(options, opts->lifetime);
-
-	if (opts->rlife)
-		krb5_get_init_creds_opt_set_renew_life(options, opts->rlife);
-
-	if (opts->forwardable)
-		krb5_get_init_creds_opt_set_forwardable(options, 1);
-
-	if (opts->not_forwardable)
-		krb5_get_init_creds_opt_set_forwardable(options, 0);
-
-	if (opts->proxiable)
-		krb5_get_init_creds_opt_set_proxiable(options, 1);
-
-	if (opts->not_proxiable)
-		krb5_get_init_creds_opt_set_proxiable(options, 0);
-
-	if (opts->canonicalize)
-		krb5_get_init_creds_opt_set_canonicalize(options, 1);
-
-	if (opts->anonymous)
-		krb5_get_init_creds_opt_set_anonymous(options, 1);
-
-	if (opts->addresses)
-	{
-		krb5_address** addresses = NULL;
-		code = krb5_os_localaddr(k5->ctx, &addresses);
-
-		if (code != 0)
-		{
-			WLog_ERR(TAG, "%s : Error %d getting local addresses", progname, code);
-			goto cleanup;
-		}
-
-		krb5_get_init_creds_opt_set_address_list(options, addresses);
-	}
-
-	if (opts->no_addresses)
-		krb5_get_init_creds_opt_set_address_list(options, NULL);
-
-	if (opts->armor_ccache)
-		krb5_get_init_creds_opt_set_fast_ccache_name(k5->ctx, options, opts->armor_ccache);
-
-	for (i = 0; i < opts->num_pa_opts; i++)
-	{
-		code = krb5_get_init_creds_opt_set_pa(k5->ctx, options,
-		                                      opts->pa_opts[i].attr,
-		                                      opts->pa_opts[i].value);
-
-		if (code != 0)
-		{
-			WLog_ERR(TAG, "%s : Error %d while setting '%s'='%s'",
-			         progname, code, opts->pa_opts[i].attr, opts->pa_opts[i].value);
-			goto cleanup;
-		}
-
-		WLog_DBG(TAG, "PA Option %s = %s ", opts->pa_opts[i].attr,
-		         opts->pa_opts[i].value);
 	}
 
 	if (k5->in_cc)
@@ -959,10 +1008,15 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 	}
 
 	code = krb5_get_init_creds_opt_set_out_ccache(k5->ctx, options, k5->out_cc);
-
 	if (code)
 	{
 		goto cleanup;
+	}
+
+	{
+		char * soptions = sprint_krb5_get_init_creds_opt(options);
+		WLog_DBG(TAG, "%s : options: %s", progname, soptions);
+		free(soptions);
 	}
 
 	if (pinPadMode && !loginRequired)
@@ -988,10 +1042,20 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 	switch (opts->action)
 	{
 		case INIT_CREDS_PINPAD:
-			code = krb5_get_init_creds_password(k5->ctx, my_creds,
+
+			code = krb5_get_init_creds_opt_set_responder(k5->ctx, options, responder /* responder_dump_questions */ , response);
+
+			if (code)
+			{
+				WLog_ERR(TAG, "%s : Error while setting responder: %s", progname, error_message(code));
+				goto cleanup;
+			}
+
+			code = krb5_get_init_creds_password(k5->ctx,
+				my_creds,
 				/* client principal: */ k5->me,
 				/* password: */ 0,
-				/* prompter: */ 0,
+				/* prompter: */ prompter_dump,
 				/* promter_data: */ 0,
 				opts->starttime,
 				opts->service_name,
@@ -1000,7 +1064,7 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 
 		case INIT_CREDS_KEYBOARD:
 			code = krb5_get_init_creds_opt_set_responder(k5->ctx, options,
-			        responder, response);
+			        responder_dump_questions, response);
 
 			if (code)
 			{
@@ -1008,7 +1072,8 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 				goto cleanup;
 			}
 
-			code = krb5_get_init_creds_password(k5->ctx, my_creds,
+			code = krb5_get_init_creds_password(k5->ctx,
+				my_creds,
 				/* client principal: */ k5->me,
 				/* password: */ 0,
 				/* prompter: */ 0,
@@ -1125,8 +1190,6 @@ cleanup:
 	return notix ? 0 : 1; /* return 0 if error, 1 otherwise */
 }
 
-
-
 static BOOL split_name_from_realm_in_principal_name(char * name, char ** domain)
 {
 	/* get back domain in settings if not specified in command line */
@@ -1213,11 +1276,11 @@ static BOOL use_principal_name(struct k_opts* opts, struct k5_data* k5, int flag
 		return FALSE;
 	}
 
-	/* { */
-	/* 	char * sprincipal = sprint_krb5_principal(* principal); */
-	/* 	WLog_DBG(TAG, "%s : Using principal name: %s principal: %s", progname,  principal_name, sprincipal); */
-	/* 	free(sprincipal); */
-	/* } */
+	{
+		char * sprincipal = sprint_krb5_principal(* principal);
+		WLog_DBG(TAG, "%s : Using principal name: %s principal: %s", progname,  principal_name, sprincipal);
+		free(sprincipal);
+	}
 	return TRUE;
 }
 
@@ -1250,11 +1313,11 @@ static BOOL use_anonymous_principal(struct k_opts* opts, struct k5_data* k5, int
 		return FALSE;
 	}
 
-	/* { */
-	/* 	char * sprincipal = sprint_krb5_principal(* principal); */
-	/* 	WLog_DBG(TAG, "%s : Using principal name: %s principal: %s", progname,  principal_name, sprincipal); */
-	/* 	free(sprincipal); */
-	/* } */
+	{
+		char * sprincipal = sprint_krb5_principal(* principal);
+		WLog_DBG(TAG, "%s : Using principal name: %s principal: %s", progname,  principal_name, sprincipal);
+		free(sprincipal);
+	}
 	return TRUE;
 }
 
@@ -1268,11 +1331,11 @@ static BOOL use_cached_principal(struct k_opts* opts, struct k5_data* k5, int fl
 		(*principal) = result;
 	}
 
-	/* { */
-	/* 	char * sprincipal = sprint_krb5_principal(* principal); */
-	/* 	WLog_DBG(TAG, "%s : Using cached principal: %s", progname, sprincipal); */
-	/* 	free(sprincipal); */
-	/* } */
+	{
+		char * sprincipal = sprint_krb5_principal(* principal);
+		WLog_DBG(TAG, "%s : Using cached principal: %s", progname, sprincipal);
+		free(sprincipal);
+	}
 	return TRUE;
 }
 
@@ -1361,7 +1424,6 @@ BOOL k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 {
 	krb5_error_code code = 0;
 	BOOL success = FALSE;
-	int id_init = 0;
 	int i = 0;
 	int anchors_init = 1;
 	default_cache_t defcache = {NULL, NULL, NULL, NULL};
@@ -1376,9 +1438,7 @@ BOOL k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 	opts->canonicalize = 1; /* Canonicalized UPN is required for credentials delegation (CredSSP) */
 	int flags = opts->enterprise ? KRB5_PRINCIPAL_PARSE_ENTERPRISE : 0;
 	/* set pkinit identities */
-	id_init = add_preauth_opt(opts, pkinit_identity);
-
-	if (id_init != 0)
+	if (add_preauth_opt(opts, pkinit_identity))
 	{
 		WLog_ERR(TAG, "%s : Error while setting pkinit identities", progname);
 		goto cleanup;
@@ -1388,7 +1448,7 @@ BOOL k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 	if (list_pkinit_anchors == NULL || (list_pkinit_anchors != NULL &&
 	                                    (strlen(list_pkinit_anchors) == 0)))
 	{
-		WLog_WARN(TAG, "%s : /pkinit-anchors missing. Retrieve anchors via krb5.conf", progname);
+		WLog_WARN(TAG, "%s : /pkinit-anchors missing.  Will retrieve anchors via krb5.conf", progname);
 	}
 	else
 	{
@@ -1544,28 +1604,6 @@ BOOL k5_begin(struct k_opts* opts, struct k5_data* k5, rdpSettings* settings)
 
 cleanup:
 
-	if (opts->pa_opts != NULL)
-	{
-		free(opts->pa_opts);
-		opts->pa_opts = NULL;
-	}
-
-	opts->num_pa_opts = 0;
-
-	if (opts->pkinit_anchors != NULL)
-	{
-		for (i = opts->nb_anchors; i > 0 ; i--)
-		{
-			free(opts->pkinit_anchors[i - 1]->anchor);
-			opts->pkinit_anchors[i - 1]->anchor = NULL;
-			free(opts->pkinit_anchors[i - 1]);
-			opts->pkinit_anchors[i - 1] = NULL;
-		}
-	}
-
-	free(opts->pkinit_anchors);
-	opts->pkinit_anchors = NULL;
-
 	if (defcache.cache != NULL)
 		krb5_cc_close(k5->ctx, defcache.cache);
 
@@ -1643,7 +1681,7 @@ BOOL initialize_credential_cache(rdpSettings* settings, struct k_opts *  opts)
 
 BOOL new_responder_data(rdpSettings* settings, responder_data *  response)
 {
-	(*response) = malloc(sizeof(**response));
+	(*response) = calloc(1, sizeof(**response));
 
 	if ((*response) == NULL)
 	{
@@ -1668,38 +1706,40 @@ BOOL new_responder_data(rdpSettings* settings, responder_data *  response)
  */
 BOOL pkinit_acquire_krb5_TGT(rdpSettings* settings)
 {
-	struct k_opts  opts;
+	struct k_opts *  opts = opts_new();
 	struct k5_data  k5;
 	responder_data  response = 0;
 	BOOL authed_k5 = FALSE;
 	set_com_err_hook(extended_com_err_fn);
 	if (set_pkinit_identity(settings)
-		&& initialize_credential_cache(settings, & opts)
+		&& initialize_credential_cache(settings, opts)
 		/* set data responder callback if no PINPAD present: */
-		&& (0 == strncmp(settings->Pin, "NULL", 4) || new_responder_data(settings, &response))
-		&& k5_begin(&opts, &k5, settings)){
-		authed_k5 = k5_kinit(&opts, &k5, response, settings);
-	}
-	if (authed_k5 && opts.outdata->data)
+		&& (0 != strncmp(settings->Pin, "NULL", 4) || new_responder_data(settings, &response))
+		&& k5_begin(opts, &k5, settings))
 	{
-		settings->CanonicalizedUserHint = strdup(opts.outdata->data);
+		opts_log_pa_opts(opts, __FUNCTION__);
+		authed_k5 = k5_kinit(opts, &k5, response, settings);
+	}
+	if (authed_k5 && opts->outdata->data)
+	{
+		settings->CanonicalizedUserHint = strdup(opts->outdata->data);
 		if (settings->CanonicalizedUserHint == NULL)
 		{
 			WLog_ERR(TAG, "Error cannot strdup outdata into canonicalized user hint.");
 			authed_k5 = FALSE;
 		}
 
-		krb5_free_data(k5.ctx, opts.outdata);
+		krb5_free_data(k5.ctx, opts->outdata);
 	}
 	else
 	{
-		WLog_ERR(TAG, "authed_k5 but no opts.outdata->data! No canonicalized user hint!");
+		WLog_ERR(TAG, "authed_k5 but no opts->outdata->data! No canonicalized user hint!");
 	}
 
 	k5_end(&k5);
 	free_responder_data(&response);
-	free(opts.principal_name);
-	opts.principal_name = 0;
+	opts_free(opts);
+	opts = 0;
 
 	if (authed_k5)
 	{
