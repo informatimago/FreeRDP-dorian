@@ -206,7 +206,7 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
                                     success = -1;
                                     break;
                             default:
-				    FAILURE("for %s, x509_cert_info got %d results.\n",
+				    FAILURE("for %s, x509_cert_info got %lu results.\n",
                                             certificate_tests[i].field_description,
                                             info->count);
                                     success = -1;
@@ -227,7 +227,7 @@ int TestCertificateFile(const char *certificate_path, const certificate_test_t *
                 {
                         if (info->count != 0)
                         {
-                                FAILURE("for %s, x509_cert_info got %d results starting with '%s',  but crypto got none.\n",
+                                FAILURE("for %s, x509_cert_info got %lu results starting with '%s',  but crypto got none.\n",
                                         certificate_tests[i].field_description,
                                         info->count, info->entries[0]);
                         }

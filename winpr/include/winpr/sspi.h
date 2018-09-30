@@ -1227,6 +1227,8 @@ WINPR_API SecurityFunctionTableA* SEC_ENTRY InitSecurityInterfaceExA(DWORD flags
 #define INIT_SECURITY_INTERFACE_EX INIT_SECURITY_INTERFACE_EX_A
 #endif
 
+errno_t memset_s(void* v, rsize_t smax, int c, rsize_t n);
+
 #ifdef __cplusplus
 }
 #endif

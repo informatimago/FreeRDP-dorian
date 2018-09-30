@@ -23,116 +23,117 @@
 
 #include <string.h>
 #include <errno.h>
+#include <pwd.h>
+#include <unistd.h>
+
+#include <winpr/sspi.h>
 
 #include <freerdp/client.h>
 #include <freerdp/error.h>
 #include <freerdp/log.h>
 
 #include "smartcardlogon.h"
+#include "smartcardlogon_private.h"
 
 #define TAG FREERDP_TAG("core.smartcardlogon")
 
-static CK_FUNCTION_LIST_PTR p11 = NULL;
-
-errno_t memset_s(void* v, rsize_t smax, int c, rsize_t n)
+/*
+C_UnloadModule
+Unload the library and free the pkcs11_module
+*/
+static CK_RV C_UnloadModule(pkcs11_module* module)
 {
-	if (v == NULL) return EINVAL;
-
-	if (smax > RSIZE_MAX) return EINVAL;
-
-	if (n > smax) return EINVAL;
-
-	volatile unsigned char* p = v;
-
-	while (smax-- && n--)
+	if (!module || module->magic != PKCS11_MODULE_MAGIC)
 	{
-		*p++ = c;
+		return CKR_ARGUMENTS_BAD;
 	}
 
-	return 0;
-}
-
-CK_RV C_UnloadModule(void* module)
-{
-	pkcs11_module_t* mod = (pkcs11_module_t*) module;
-
-	if (!mod || mod->_magic != MAGIC)
-		return CKR_ARGUMENTS_BAD;
-
-	if (mod->handle != NULL && dlclose(mod->handle) < 0)
+	if (module->library != NULL && dlclose(module->library) < 0)
+	{
 		return CKR_FUNCTION_FAILED;
+	}
 
-	memset(mod, 0, sizeof(*mod));
-	free(mod);
+	memset(module, 0, sizeof(*module));
+	free(module);
 	return CKR_OK;
 }
 
-void* C_LoadModule(const char* mspec, CK_FUNCTION_LIST_PTR_PTR funcs)
+/*
+C_LoadModule
+Allocate the pkcs11_module and load the library.
+*/
+static pkcs11_module* C_LoadModule(const char* mspec)
 {
-	pkcs11_module_t* mod;
+	pkcs11_module* module;
 	CK_RV rv, (*c_get_function_list)(CK_FUNCTION_LIST_PTR_PTR);
-	mod = calloc(1, sizeof(*mod));
-	mod->_magic = MAGIC;
 
 	if (mspec == NULL)
 	{
-		free(mod);
-		return NULL;
+		goto failed;
 	}
 
-	mod->handle = dlopen(mspec, RTLD_LAZY);
+	module = calloc(1, sizeof(*module));
+	module->magic = PKCS11_MODULE_MAGIC;
+	module->library = dlopen(mspec, RTLD_LAZY);
 
-	if (mod->handle == NULL)
+	if (module->library == NULL)
 	{
 		WLog_ERR(TAG, "dlopen failed: %s\n", dlerror());
+		free(module);
 		goto failed;
 	}
 
 	/* Get the list of function pointers */
-	c_get_function_list = (CK_RV(*)(CK_FUNCTION_LIST_PTR_PTR))
-	                      dlsym(mod->handle, "C_GetFunctionList");
+	c_get_function_list = (CK_RV(*)(CK_FUNCTION_LIST_PTR_PTR))dlsym(module->library, "C_GetFunctionList");
 
 	if (!c_get_function_list)
-		goto failed;
+	{
+		goto unload_and_failed;
+	}
 
-	rv = c_get_function_list(funcs);
+	rv = c_get_function_list(& module->p11);
 
 	if (rv == CKR_OK)
-		return (void*) mod;
-	else
-		WLog_ERR(TAG, "C_GetFunctionList failed %lx", rv);
+	{
+		WLog_DBG(TAG, "Load %s module with success !", mspec?mspec:"NULL");
+		return (void*) module;
+	}
 
+	WLog_ERR(TAG, "C_GetFunctionList failed %lx", rv);
+
+unload_and_failed:
+	C_UnloadModule(module);
 failed:
-	C_UnloadModule((void*) mod);
+	WLog_ERR(TAG, "Failed to load PKCS#11 module %s", mspec?mspec:"NULL");
 	return NULL;
 }
 
-#define ATTR_METHOD(ATTR, TYPE) \
+#define DEFINE_ATTR_METHOD(ATTR, TYPE) \
 	static TYPE \
-	get##ATTR(CK_SESSION_HANDLE sess, CK_OBJECT_HANDLE obj) \
+	get##ATTR(pkcs11_module* module, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE obj) \
 	{ \
 		TYPE		type = 0; \
 		CK_ATTRIBUTE	attr = { CKA_##ATTR, &type, sizeof(type) }; \
 		CK_RV		rv; \
 		\
-		rv = p11->C_GetAttributeValue(sess, obj, &attr, 1); \
+		rv = module->p11->C_GetAttributeValue(session, obj, &attr, 1); \
 		if (rv != CKR_OK) \
 			WLog_DBG(TAG, "C_GetAttributeValue(" #ATTR ")", rv); \
 		return type; \
 	}
 
-#define VARATTR_METHOD(ATTR, TYPE) \
+#define DEFINE_VARATTR_METHOD(ATTR, TYPE) \
 	static TYPE * \
-	get##ATTR(CK_SESSION_HANDLE sess, CK_OBJECT_HANDLE obj, CK_ULONG_PTR pulCount) \
+	get##ATTR(pkcs11_module* module, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE obj, CK_ULONG_PTR pulCount) \
 	{ \
 		CK_ATTRIBUTE	attr = { CKA_##ATTR, NULL, 0 }; \
 		CK_RV		rv; \
 		\
-		rv = p11->C_GetAttributeValue(sess, obj, &attr, 1); \
+		rv = module->p11->C_GetAttributeValue(session, obj, &attr, 1); \
 		if (rv == CKR_OK) { \
 			if (!(attr.pValue = calloc(1, attr.ulValueLen + 1))) \
 				WLog_ERR(TAG, "out of memory in get" #ATTR ": %m"); \
-			rv = p11->C_GetAttributeValue(sess, obj, &attr, 1); \
+			rv = module->p11->C_GetAttributeValue(session, obj, &attr, 1); \
 			if (pulCount) \
 				*pulCount = attr.ulValueLen / sizeof(TYPE); \
 		} else {\
@@ -141,10 +142,10 @@ failed:
 		return (TYPE *) attr.pValue; \
 	}
 
-VARATTR_METHOD(LABEL, char);
-VARATTR_METHOD(ID, unsigned char);
+DEFINE_VARATTR_METHOD(LABEL, char);
+DEFINE_VARATTR_METHOD(ID, unsigned char);
 
-const char* p11_utf8_to_local(CK_UTF8CHAR* string, size_t len)
+static const char* p11_utf8_to_local(CK_UTF8CHAR* string, size_t len)
 {
 	static char	buffer[512];
 	size_t		n, m;
@@ -165,9 +166,11 @@ const char* p11_utf8_to_local(CK_UTF8CHAR* string, size_t len)
 	return buffer;
 }
 
-int find_object(CK_SESSION_HANDLE sess, CK_OBJECT_CLASS cls,
-                CK_OBJECT_HANDLE_PTR ret,
-                const unsigned char* id, size_t id_len, int obj_index)
+static int find_object(pkcs11_module* module,
+	CK_SESSION_HANDLE session,
+	CK_OBJECT_CLASS cls,
+	CK_OBJECT_HANDLE_PTR ret,
+	const unsigned char* id, size_t id_len, int obj_index)
 {
 	CK_ATTRIBUTE attrs[2];
 	unsigned int nattrs = 0;
@@ -187,14 +190,14 @@ int find_object(CK_SESSION_HANDLE sess, CK_OBJECT_CLASS cls,
 		nattrs++;
 	}
 
-	rv = p11->C_FindObjectsInit(sess, attrs, nattrs);
+	rv = module->p11->C_FindObjectsInit(session, attrs, nattrs);
 
 	if (rv != CKR_OK)
 		WLog_ERR(TAG, "Error C_FindObjectsInit %lu\n", rv);
 
 	for (i = 0; i < obj_index; i++)
 	{
-		rv = p11->C_FindObjects(sess, ret, 1, &count);
+		rv = module->p11->C_FindObjects(session, ret, 1, &count);
 
 		if (rv != CKR_OK)
 			WLog_ERR(TAG, "Error C_FindObjects %lu\n", rv);
@@ -203,7 +206,7 @@ int find_object(CK_SESSION_HANDLE sess, CK_OBJECT_CLASS cls,
 			goto done;
 	}
 
-	rv = p11->C_FindObjects(sess, ret, 1, &count);
+	rv = module->p11->C_FindObjects(session, ret, 1, &count);
 
 	if (rv != CKR_OK)
 		WLog_ERR(TAG, "Error C_FindObjects %lu\n", rv);
@@ -213,510 +216,281 @@ done:
 	if (count == 0)
 		*ret = CK_INVALID_HANDLE;
 
-	p11->C_FindObjectsFinal(sess);
+	module->p11->C_FindObjectsFinal(session);
 	return count;
 }
 
-CK_RV find_object_with_attributes(CK_SESSION_HANDLE session,
-                                  CK_OBJECT_HANDLE* out,
-                                  CK_ATTRIBUTE* attrs, CK_ULONG attrsLen,
-                                  CK_ULONG obj_index)
+static pkcs11_module* cryptoki_load_and_initialize(const char * module_name)
 {
-	CK_ULONG count, ii;
-	CK_OBJECT_HANDLE ret;
-	CK_RV rv;
-
-	if (!out || !attrs || !attrsLen)
-		return CKR_ARGUMENTS_BAD;
-	else
-		*out = CK_INVALID_HANDLE;
-
-	rv = p11->C_FindObjectsInit(session, attrs, attrsLen);
-
-	if (rv != CKR_OK)
-		return rv;
-
-	for (ii = 0; ii < obj_index; ii++)
-	{
-		rv = p11->C_FindObjects(session, &ret, 1, &count);
-
-		if (rv != CKR_OK)
-			return rv;
-		else if (!count)
-			goto done;
-	}
-
-	rv = p11->C_FindObjects(session, &ret, 1, &count);
-
-	if (rv != CKR_OK)
-		return rv;
-	else if (count)
-		*out = ret;
-
-done:
-	p11->C_FindObjectsFinal(session);
-	return CKR_OK;
-}
-
-CK_ULONG get_mechanisms(CK_SLOT_ID slot, CK_MECHANISM_TYPE_PTR* pList, CK_FLAGS flags)
-{
-	CK_ULONG	m, n, ulCount = 0;
-	CK_RV		rv;
-	rv = p11->C_GetMechanismList(slot, *pList, &ulCount);
-	*pList = calloc(ulCount, sizeof(**pList));
-
-	if (*pList == NULL)
-		WLog_ERR(TAG, "calloc failed: %m");
-
-	rv = p11->C_GetMechanismList(slot, *pList, &ulCount);
-
-	if (rv != CKR_OK)
-		WLog_ERR(TAG, "Error C_GetMechanismList %lu\n", rv);
-
-	if (flags != (CK_FLAGS) - 1)
-	{
-		CK_MECHANISM_TYPE* mechs = *pList;
-		CK_MECHANISM_INFO info;
-
-		for (m = n = 0; n < ulCount; n++)
-		{
-			rv = p11->C_GetMechanismInfo(slot, mechs[n], &info);
-
-			if (rv != CKR_OK)
-				continue;
-
-			if ((info.flags & flags) == flags)
-				mechs[m++] = mechs[n];
-		}
-
-		ulCount = m;
-	}
-
-	return ulCount;
-}
-
-int find_mechanism(CK_SLOT_ID slot, CK_FLAGS flags,
-                   CK_MECHANISM_TYPE_PTR list, size_t list_len,
-                   CK_MECHANISM_TYPE_PTR result)
-{
-	CK_MECHANISM_TYPE* mechs = NULL;
-	CK_ULONG	count = 0;
-	count = get_mechanisms(slot, &mechs, flags);
-
-	if (count)
-	{
-		if (list && list_len)
-		{
-			unsigned ii, jj;
-
-			for (jj = 0; jj < count; jj++)
-			{
-				for (ii = 0; ii < list_len; ii++)
-					if (*(mechs + jj) == *(list + ii))
-						break;
-
-				if (ii < list_len)
-					break;
-			}
-
-			if (jj < count && ii < list_len)
-				*result = mechs[jj];
-			else
-				count = 0;
-		}
-		else
-		{
-			*result = mechs[0];
-		}
-	}
-
-	free(mechs);
-	return count;
-}
-
-int get_slot_login_required(CK_SLOT_ID slot_id)
-{
-	int rv;
-	CK_TOKEN_INFO tinfo;
-	rv = p11->C_GetTokenInfo(slot_id, &tinfo);
-
-	if (rv != CKR_OK)
-	{
-		WLog_ERR(TAG, "C_GetTokenInfo() failed: 0x%08lX", rv);
-		return -1;
-	}
-
-	return ((tinfo.flags & CKF_LOGIN_REQUIRED) == CKF_LOGIN_REQUIRED) ? CKR_OK : CKR_NO_EVENT;
-}
-
-CK_RV get_slot_protected_authentication_path(rdpSettings* settings, CK_SLOT_ID slot_id)
-{
-	CK_RV rv;
-	CK_TOKEN_INFO tinfo;
-	memset(&tinfo, 0, sizeof(CK_TOKEN_INFO));
-	rv = p11->C_GetTokenInfo(slot_id, &tinfo);
-
-	if (rv != CKR_OK)
-	{
-		WLog_ERR(TAG, "C_GetTokenInfo() failed: 0x%08lX", rv);
-		return rv;
-	}
-
-	/* get token label */
-	settings->TokenLabel = calloc(1, SIZE_TOKEN_LABEL_MAX);
-
-	if (settings->TokenLabel == NULL)
-	{
-		WLog_ERR(TAG, "Error allocation LabelToken");
-		return CKR_GENERAL_ERROR;
-	}
-
-	unsigned int i = 1;
-	char c = *tinfo.label;
-
-	while (c != '\0' && i < SIZE_TOKEN_LABEL_MAX)
-	{
-		sprintf(settings->TokenLabel, "%s%c", settings->TokenLabel, c);
-		c = *(tinfo.label + i);
-
-		if (c == ' ')
-		{
-			char temp = *(tinfo.label + i + 1);
-
-			/* two consecutive spaces mean the end of token label */
-			if (temp == ' ' || temp == '\0')
-				break;
-		}
-
-		i++;
-	}
-
-	settings->TokenLabel[i] = '\0';
-	WLog_DBG(TAG, "Token Label: %s", settings->TokenLabel);
-
-	if ((tinfo.flags & CKR_TOKEN_NOT_RECOGNIZED) == CKR_TOKEN_NOT_RECOGNIZED)
-		return CKR_SLOT_ID_INVALID;
-
-	if ((tinfo.flags & CKF_PROTECTED_AUTHENTICATION_PATH) == CKF_PROTECTED_AUTHENTICATION_PATH)
-		return CKR_OK;
-	else
-		return CKR_NO_EVENT;
-}
-
-int crypto_init(cert_policy* policy)
-{
-	/* arg is ignored for OPENSSL */
-	(void)policy;
-	OpenSSL_add_all_algorithms();
-	ERR_load_crypto_strings();
-	return 0;
-}
-
-/** init_authentication_pin is used to login to the token
- * 	and to get PKCS#11 session informations, then use
- * 	to retrieve valid certificate and UPN.
- *  This function is actually called in get_valid_smartcard_cert()
- *  @param nla - pointer to the rdpNla structure that contains nla connection settings
- *  @return CKR_OK if all PKCS#11 functions succeed.
- */
-CK_RV init_authentication_pin(rdpNla* nla)
-{
-	freerdp* instance = nla->instance;
-	const char* opt_module = instance->settings->Pkcs11Module;
-	void* module = NULL;
-	CK_SESSION_HANDLE session = CK_INVALID_HANDLE;
-	CK_ULONG p11_num_slots = 0;
-	CK_SLOT_ID_PTR p11_slots = NULL;
 	CK_RV rv = CKR_GENERAL_ERROR;
-	CK_ULONG n = 0;
-	CK_SLOT_INFO info;
-	CK_SESSION_INFO sessionInfo;
-	CK_SLOT_ID	opt_slot = 0;
-	int flags = CKF_SERIAL_SESSION;
-	CK_OBJECT_HANDLE privKeyObject;
-	CK_ULONG j;
-	char* label = NULL;
-	unsigned char* id = NULL;
-	CK_ULONG idLen;
-	int ret = 0;
-	module = C_LoadModule(opt_module, &p11);
+	pkcs11_module* module = C_LoadModule(module_name);
 
 	if (module == NULL)
 	{
-		WLog_ERR(TAG, "Failed to load PKCS#11 module %s", opt_module);
-		free(nla->p11handle);
-		return CKR_FUNCTION_FAILED;
+		return NULL;
 	}
-	else
-		WLog_DBG(TAG, "Load %s module with success !", opt_module);
 
-	nla->p11handle->p11_module_handle = module;
-	rv = p11->C_Initialize(NULL);
+	rv = module->p11->C_Initialize(NULL);
 
 	if (rv == CKR_CRYPTOKI_ALREADY_INITIALIZED)
-		WLog_ERR(TAG, "Cryptoki library has already been initialized");
+	{
+		WLog_ERR(TAG, "Cryptoki library (%s) has already been initialized", module_name);
+		/* We still return the initialized module,  and go on. */
+	}
 	else if (rv != CKR_OK)
 	{
-		WLog_ERR(TAG, "Error C_Initialize, %lu", rv);
-		goto closing_session;
+		WLog_ERR(TAG, "Cryptoki library (%s) could not be initialized; C_Initialize returned %lu", module_name, rv);
+		C_UnloadModule(module);
+		return NULL;
 	}
 
-	/* list slots */
-	rv = p11->C_GetSlotList(TRUE, NULL, &p11_num_slots);
+	return module;
+}
+
+static void cryptoki_finalize_and_unload(pkcs11_module* module)
+{
+	module->p11->C_Finalize(NULL);
+	C_UnloadModule(module);
+}
+
+static CK_SLOT_ID_PTR cryptoki_get_slot_list(pkcs11_module* module, CK_ULONG * slots_count)
+{
+	CK_SLOT_ID_PTR slot_ids = NULL;
+	CK_RV rv = module->p11->C_GetSlotList(TRUE, NULL, slots_count); /* get the slot count */
 
 	if (rv != CKR_OK)
 	{
 		WLog_ERR(TAG, "Error C_GetSlotList(NULL), %lu", rv);
-		goto closing_session;
+		goto fail;
 	}
 
-	p11_slots = calloc(p11_num_slots, sizeof(CK_SLOT_ID));
+	slot_ids = calloc(*slots_count, sizeof(* slot_ids));
 
-	if (p11_slots == NULL)
+	if (slot_ids == NULL)
 	{
-		WLog_ERR(TAG, "calloc failed");
-		goto closing_session;
+		WLog_ERR(TAG, "%s:%d: calloc failed", __FUNCTION__, __LINE__);
+		goto fail;
 	}
 
-	rv = p11->C_GetSlotList(TRUE, p11_slots, &p11_num_slots);
+	rv = module->p11->C_GetSlotList(TRUE, slot_ids, slots_count);
 
 	if (rv != CKR_OK)
 	{
 		WLog_ERR(TAG, "Error C_GetSlotList() %lu", rv);
-		goto closing_session;
+		goto fail;
 	}
 
-	if (p11_num_slots == 0)
+	if (* slots_count == 0)
 	{
 		WLog_ERR(TAG, "No slots.");
-		goto exit_failure;
+		goto fail;
 	}
 
-	while (n < p11_num_slots)
+	return slot_ids;
+
+fail:
+	(*slots_count) = 0;
+	free(slot_ids);
+	return NULL;
+}
+
+/* This is strnstr, but it exists only on BSD, not on MS-Windows */
+static const char * search(const char * string, size_t max_string, const char * substring)
+{
+	size_t length = strlen(substring);
+	size_t max_start = strnlen(string, max_string) - length;
+	size_t i;
+	const char * current = string;
+	for (i = 0;i <= max_start;i ++, current ++)
 	{
-		WLog_DBG(TAG, "Slot #%lu (0x%lx)", n, p11_slots[n]);
-		rv = p11->C_GetSlotInfo(p11_slots[n], &info);
-
-		if (rv != CKR_OK)
+		if (strncmp(current, substring, length) == 0)
 		{
-			WLog_ERR(TAG, "(GetSlotInfo failed, %lu)", rv);
-			n++;
-			continue;
+			return current;
 		}
+	}
+	return NULL;
+}
 
-		WLog_DBG(TAG, "Slot #%lu description: %s", n, p11_utf8_to_local(info.slotDescription,
-		         sizeof(info.slotDescription)));
+static char* token_info_label(const CK_TOKEN_INFO *  tinfo)
+{
+	const size_t label_max_size = sizeof (tinfo->label) + 1;
+	size_t label_length = 0;
+	char * label = calloc(1, label_max_size);
+	const char * end;
 
-		if (!((info.flags & CKF_TOKEN_PRESENT) == CKF_TOKEN_PRESENT))
-		{
-			WLog_ERR(TAG, "No valid token on slot %d", p11_slots[n]);
-		}
-
-		instance->settings->PinLoginRequired = FALSE;
-
-		if ((ret = get_slot_protected_authentication_path(instance->settings, p11_slots[n])) == CKR_OK)
-		{
-			if (get_slot_login_required(p11_slots[n]) == CKR_OK)
-			{
-				/* if TRUE user must login */
-				instance->settings->PinLoginRequired = TRUE;
-			}
-
-			/* TRUE if token has a "protected authentication path",
-			 * whereby a user can log into the token without passing a PIN through the Cryptoki library,
-			 * means PINPAD is present */
-			instance->settings->PinPadIsPresent = TRUE;
-			break;
-		}
-		else if (ret == CKR_NO_EVENT)
-		{
-			if (get_slot_login_required(p11_slots[n]) == CKR_OK)
-			{
-				instance->settings->PinLoginRequired = TRUE;
-			}
-
-			instance->settings->PinPadIsPresent = FALSE;
-			break;
-		}
-		else
-		{
-			WLog_ERR(TAG, "Token found on slot %d can't be used for smartcardlogon. Try next one...",
-			         p11_slots[n]);
-		}
-
-		n++;
+	if (label == NULL)
+	{
+		WLog_ERR(TAG, "Error allocation Token Label");
+		return NULL;
 	}
 
-	opt_slot = p11_slots[n];
-	rv = p11->C_OpenSession(opt_slot, flags, NULL, NULL, &session);
+	/* two consecutive spaces mean the end of token label */
+	end = search ((const char *)tinfo->label, sizeof (tinfo->label), "  ");
+	label_length = end
+			? (end - (const char *)tinfo->label)
+			: strnlen((const char *)tinfo->label, sizeof (tinfo->label));
+	strncpy(label, (const char *)tinfo->label, label_length);
+	label[label_length] = '\0';
+	WLog_DBG(TAG, "Token Label: %s", label);
+	return label;
+}
+
+static CK_SLOT_ID find_usable_slot(rdpSettings * settings, pkcs11_module* module,  char** token_label)
+{
+	CK_ULONG slots_count = 0;
+	CK_SLOT_ID_PTR slots = slots = cryptoki_get_slot_list(module, &slots_count);
+	unsigned int n;
+
+	for(n = 0;n < slots_count;n++)
+	{
+		CK_RV rv = CKR_GENERAL_ERROR;
+		{
+			CK_SLOT_INFO sinfo;
+			WLog_DBG(TAG, "slot[%lu] = ID 0x%lx", n, slots[n]);
+			rv = module->p11->C_GetSlotInfo(slots[n], &sinfo);
+
+			if (rv != CKR_OK)
+			{
+				WLog_ERR(TAG, "slot[%lu] = ID 0x%lx; C_GetSlotInfo failed rv = %d", n, slots[n], rv);
+				continue;
+			}
+
+			if (!(sinfo.flags & CKF_TOKEN_PRESENT))
+			{
+				WLog_ERR(TAG, "slot[%lu] = ID 0x%lx; token is not present", n, slots[n]);
+				continue;
+			}
+
+			WLog_DBG(TAG, "slot[%lu] = ID 0x%lx; description: %s", n, slots[n],
+				p11_utf8_to_local(sinfo.slotDescription, sizeof(sinfo.slotDescription)));
+		}
+
+		{
+			CK_TOKEN_INFO tinfo;
+			memset(&tinfo, 0, sizeof(CK_TOKEN_INFO));
+			rv = module->p11->C_GetTokenInfo(slots[n], &tinfo);
+
+			if (rv != CKR_OK)
+			{
+				WLog_ERR(TAG, "slot[%lu] = ID 0x%lx; C_GetTokenInfo failed rv = %d", n, slots[n], rv);
+				continue;
+			}
+
+			if (tinfo.flags & CKR_TOKEN_NOT_RECOGNIZED)
+			{
+				WLog_ERR(TAG, "slot[%lu] = ID 0x%lx; token is not recognized", n, slots[n]);
+				continue;
+			}
+
+			(*token_label) = token_info_label(&tinfo);
+
+			if(!(*token_label))
+			{
+				return -1;
+			}
+
+			settings->PinPadIsPresent = ((tinfo.flags & CKF_PROTECTED_AUTHENTICATION_PATH)!= 0);
+			settings->PinLoginRequired = ((tinfo.flags & CKF_LOGIN_REQUIRED)!= 0);
+			break;
+		}
+	}
+
+	return (n < slots_count)
+			? slots[n]
+			: CK_UNAVAILABLE_INFORMATION;
+}
+
+static CK_SESSION_HANDLE cryptoki_open_session(pkcs11_module* module, CK_SLOT_ID slot_id, CK_FLAGS flags, void *application, CK_NOTIFY notify)
+{
+	CK_SESSION_HANDLE session = CK_INVALID_HANDLE;
+	CK_RV rv = module->p11->C_OpenSession(slot_id, flags, application, notify,  &session);
 
 	if (rv != CKR_OK)
 	{
 		WLog_ERR(TAG, "C_OpenSession() failed: 0x%08lX", rv);
-		goto closing_session;
+		return CK_INVALID_HANDLE;
 	}
 
-	/* set PIN settings to string "NULL" for further credentials delegation */
-	if (instance->settings->Pin == NULL)
-	{
-		instance->settings->Pin = (char*) calloc(PIN_LENGTH + 1, sizeof(char));
+	return session;
+}
 
-		if (instance->settings->Pin != NULL)
-		{
-			strncpy(instance->settings->Pin, "NULL", PIN_LENGTH + 1);
-		}
-		else
-		{
-			WLog_ERR(TAG, "Error allocating memory for PIN");
-			goto closing_session;
-		}
-	}
-
-	/* Login token */
-	/* call PKCS#11 login to ensure that the user is the real owner of the card,
-	 * but also because some tokens cannot read protected data until the PIN Global is unlocked */
-	if ((instance->settings->PinPadIsPresent && !instance->settings->PinLoginRequired))
-	{
-		rv = p11->C_Login(session, CKU_USER, NULL_PTR,  0);
-	}
-	else if (!instance->settings->PinPadIsPresent)
-	{
-		rv = pkcs11_do_login(session, opt_slot, instance->settings);
-	}
-	else
-	{
-#ifndef HANDLE_PINPAD_WITH_LOGIN_REQUIRED
-		/* Using a pinpad with the slot's setting 'login required' is not handled by default,
-		 * because it would require users to type two times their PIN code in a few seconds.
-		 * First, to unlock the token to be able to read protected data. And then, later in PKINIT,
-		 * to get Kerberos ticket (TGT) to authenticate against KDC.
-		 * Nevertheless, if you want to handle this case uncomment #define HANDLE_PINPAD_WITH_LOGIN_REQUIRED
-		 * in pkinit/pkinit.h */
-		WLog_ERR(TAG, "Error configuration slot token");
-		goto closing_session;
-#else
-		rv = p11->C_Login(session, CKU_USER, NULL_PTR,  0);
-#endif
-	}
-
-	if ((rv != CKR_OK) && (rv != CKR_USER_ALREADY_LOGGED_IN))
-	{
-		WLog_ERR(TAG, "C_Login() failed: 0x%08lX", rv);
-		goto closing_session;
-	}
-	else
-	{
-		WLog_DBG(TAG, "-------------- Login token OK --------------");
-	}
-
-	rv = p11->C_GetSessionInfo(session, &sessionInfo);
-
-	if (rv != CKR_OK)
-	{
-		WLog_ERR(TAG, "Error C_OpenSession %lu\n", rv);
-		goto closing_session;
-	}
-
-	for (j = 0; find_object(session, CKO_PRIVATE_KEY, &privKeyObject, NULL, 0, j); j++)
-	{
-		if ((label = getLABEL(session, privKeyObject, NULL)) != NULL)
-		{
-			WLog_DBG(TAG, "label = (%s)", label);
-		}
-
-		id = getID(session, privKeyObject, &idLen);
-
-		if (id == NULL)
-		{
-			WLog_ERR(TAG, "private key has no ID : can't find corresponding certificate without it");
-			goto closing_session;
-		}
-		else
-		{
-			int i;
-			instance->settings->IdCertificateLength = idLen;
-			/* (idLen * 2) because idCertificate is stored in hexadecimal : 1 unity for id cert length equals to 2 characters for id cert string */
-			instance->settings->IdCertificate = (CK_BYTE*) calloc(idLen * 2 + 1, sizeof(CK_BYTE));
-
-			if (instance->settings->IdCertificate == NULL)
-			{
-				WLog_ERR(TAG, "Error allocating memory for IdCertificate");
-				goto closing_session;
-			}
-
-			for (i = 1; i <= idLen; i++)
-			{
-				sprintf((char*) instance->settings->IdCertificate, "%s%02x", instance->settings->IdCertificate,
-				        id[i - 1]);
-			}
-
-			instance->settings->IdCertificate[idLen * 2] = '\0';
-			instance->settings->SlotID = calloc(SIZE_NB_SLOT_ID_MAX + 1, sizeof(char));
-
-			if (instance->settings->SlotID == NULL)
-				goto closing_session;
-
-			sprintf(instance->settings->SlotID, "%lu", sessionInfo.slotID);
-
-			if (sessionInfo.slotID > 9)
-				instance->settings->SlotID[2] = '\0';
-			else
-				instance->settings->SlotID[1] = '\0';
-		}
-
-		break;
-	}
-
-	if (privKeyObject == CK_INVALID_HANDLE)
-	{
-		WLog_ERR(TAG, "Signatures: no private key found in this slot");
-		goto closing_session;
-	}
-
-	free(label);
-	free(id);
-	free(p11_slots);
-	nla->p11handle->session = session;
-	nla->p11handle->slot_id = opt_slot;
-	nla->p11handle->private_key = privKeyObject;
-	return CKR_OK;
-closing_session:
-	free(id);
-	free(label);
-	free(p11_slots);
-
+static CK_SESSION_HANDLE cryptoki_close_session(pkcs11_module* module, CK_SESSION_HANDLE session,CK_SLOT_ID slot_id)
+{
 	if (session != CK_INVALID_HANDLE)
 	{
-		WLog_ERR(TAG, "closing the PKCS#11 session due to previous event");
-		rv = p11->C_CloseSession(session);
+		CK_RV rv = module->p11->C_CloseSession(session);
 
 		if ((rv != CKR_OK) && (rv != CKR_FUNCTION_NOT_SUPPORTED))
 		{
 			WLog_ERR(TAG, "C_CloseSession() failed: 0x%08lX", rv);
 
-			if (opt_slot)
-				rv = p11->C_CloseAllSessions(opt_slot);
+			if (slot_id != CK_UNAVAILABLE_INFORMATION)
+            {
+				rv = module->p11->C_CloseAllSessions(slot_id);
 
-			if ((rv != CKR_OK) && (rv != CKR_FUNCTION_NOT_SUPPORTED))
-				WLog_ERR(TAG, "C_CloseAllSessions() failed: 0x%08lX", rv);
+                if ((rv != CKR_OK) && (rv != CKR_FUNCTION_NOT_SUPPORTED))
+                {
+                    WLog_ERR(TAG, "C_CloseAllSessions() failed: 0x%08lX", rv);
+                }
+            }
 		}
+    }
+
+	return CK_INVALID_HANDLE;
+}
+
+static int unsigned_long_length_10(unsigned long value)
+{
+    if (value == 0)
+    {
+        return 1;
+     }
+
+    int length = 0;
+    while (value > 0)
+    {
+        value /= 10;
+        length ++;
+    }
+    return length;
+}
+
+static char * unsigned_long_to_string(unsigned long value)
+{
+	char *  buffer = malloc(1 + unsigned_long_length_10(value));
+
+	if (buffer)
+	{
+		sprintf(buffer, "%lu", value);
 	}
 
-	p11->C_Finalize(NULL);
-	C_UnloadModule(module);
-	free(nla->p11handle);
+	return buffer;
+}
 
-	if (rv == CKR_OK) /* means error other than PKCS#11 functions */
-		return CKR_GENERAL_ERROR;
-	else /* means a PKCS#11 function failed */
+/* perform PKCS#11 C_Login */
+static CK_RV cryptoki_login(pkcs11_module* module, CK_SESSION_HANDLE session, char* pin)
+{
+	CK_RV rv;
+	WLog_DBG(TAG, "login as user CKU_USER");
+
+	if (pin)
+	{
+		WLog_DBG(TAG, "C_Login with PIN");
+		rv = module->p11->C_Login(session, CKU_USER, (unsigned char*)pin, strlen(pin));
+	}
+	else
+	{
+		WLog_DBG(TAG, "C_Login without PIN");
+		rv = module->p11->C_Login(session, CKU_USER, NULL, 0);
+	}
+
+	if ((rv != CKR_OK) && (rv != CKR_USER_ALREADY_LOGGED_IN))
+	{
+		WLog_ERR(TAG, "C_Login() failed: 0x%08lX", rv);
 		return rv;
+	}
 
-exit_failure:
-	free(p11_slots);
-	p11->C_Finalize(NULL);
-	C_UnloadModule(module);
-	free(nla->p11handle);
-	return CKR_TOKEN_NOT_PRESENT;
+	return CKR_OK;
 }
 
 /** pkcs11_do_login is used to do login by asking PIN code.
@@ -727,7 +501,7 @@ exit_failure:
  *  @param settings - pointer to rdpSettings structure that contains settings
  *  @return CKR_OK if PKCS#11 login succeed.
  */
-CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings* settings)
+static CK_RV pkcs11_do_login(rdpSettings* settings, pkcs11_module* module, CK_SESSION_HANDLE session, CK_SLOT_ID slot_id)
 {
 	CK_RV ret = 0, ret_token = 0;
 	unsigned int try_left = NB_TRY_MAX_LOGIN_TOKEN;
@@ -803,7 +577,7 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 		}
 
 		CK_TOKEN_INFO tinfo;
-		ret_token = p11->C_GetTokenInfo(slot_id, &tinfo);
+		ret_token = module->p11->C_GetTokenInfo(slot_id, &tinfo);
 
 		if (ret_token != CKR_OK)
 		{
@@ -833,9 +607,8 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 			return -1;
 		}
 
-		/* perform PKCS#11 login */
-		ret = pkcs11_login(session, settings, pin);
-		ret_token = p11->C_GetTokenInfo(slot_id, &tinfo);
+		ret = cryptoki_login(module, session, pin); /* perform PKCS#11 login */
+		ret_token = module->p11->C_GetTokenInfo(slot_id, &tinfo);
 
 		if (ret_token != CKR_OK)
 		{
@@ -916,8 +689,7 @@ CK_RV pkcs11_do_login(CK_SESSION_HANDLE session, CK_SLOT_ID slot_id, rdpSettings
 			{
 				if (try_left == 2)
 				{
-					if (((settings->TokenFlags & FLAGS_TOKEN_USER_PIN_COUNT_LOW) == FLAGS_TOKEN_USER_PIN_COUNT_LOW) ==
-					    0)
+					if (!(settings->TokenFlags & FLAGS_TOKEN_USER_PIN_COUNT_LOW))
 					{
 						/* It means that middleware does not set CKF_USER_PIN_COUNT_LOW token flag.
 						 *  If so, that would have already been done previously with the corresponding token flag.
@@ -974,104 +746,465 @@ error_pin_entry:
 	return ret;
 }
 
-/* perform PKCS#11 C_Login */
-CK_RV pkcs11_login(CK_SESSION_HANDLE session, rdpSettings* h, char* pin)
+static BOOL login(rdpSettings* settings, pkcs11_module* module, CK_SESSION_HANDLE session, CK_SLOT_ID slot_id)
 {
 	CK_RV rv;
-	WLog_DBG(TAG, "login as user CKU_USER");
-
-	if (pin)
+	/* Login token */
+	/* call PKCS#11 login to ensure that the user is the real owner of the card,
+	* but also because some tokens cannot read protected data until the PIN Global is unlocked */
+	if ((settings->PinPadIsPresent && !settings->PinLoginRequired))
 	{
-		WLog_DBG(TAG, "C_Login with PIN");
-		rv = p11->C_Login(session, CKU_USER, (unsigned char*)pin, strlen(pin));
+		rv = module->p11->C_Login(session, CKU_USER, NULL_PTR,  0);
+	}
+	else if (!settings->PinPadIsPresent)
+	{
+		rv = pkcs11_do_login(settings, module,  session, slot_id);
 	}
 	else
 	{
-		WLog_DBG(TAG, "C_Login without PIN");
-		rv = p11->C_Login(session, CKU_USER, NULL, 0);
+#ifndef HANDLE_PINPAD_WITH_LOGIN_REQUIRED
+		/* Using a pinpad with the slot's setting 'login required' is not handled by default,
+		* because it would require users to type two times their PIN code in a few seconds.
+		* First, to unlock the token to be able to read protected data. And then, later in PKINIT,
+		* to get Kerberos ticket (TGT) to authenticate against KDC.
+		* Nevertheless, if you want to handle this case uncomment #define HANDLE_PINPAD_WITH_LOGIN_REQUIRED
+		* in pkinit/pkinit.h */
+		WLog_ERR(TAG, "Error configuration slot token");
+		return FALSE;
+#else
+		rv = module->p11->C_Login(session, CKU_USER, NULL_PTR,  0);
+#endif
 	}
 
 	if ((rv != CKR_OK) && (rv != CKR_USER_ALREADY_LOGGED_IN))
 	{
 		WLog_ERR(TAG, "C_Login() failed: 0x%08lX", rv);
-		return rv;
+		return FALSE;
 	}
-
-	return rv;
+	WLog_DBG(TAG, "-------------- Login token OK --------------");
+	return TRUE;
 }
 
-/* init_pkcs_data_handle allocates memory to manage PKCS#11 session. */
-int init_pkcs_data_handle(rdpNla* nla)
+static void certificates_free(cert_object** certificates, int certificates_count)
 {
-	nla->p11handle = (pkcs11_handle*) calloc(1, sizeof(pkcs11_handle));
+	int i;
 
-	if (!nla->p11handle)
+	for (i = 0; i < certificates_count; i++)
 	{
-		WLog_ERR(TAG, "Error allocation pkcs11_handle");
-		return -1;
+		if (!certificates[i])
+		{
+			continue;
+		}
+
+		if (certificates[i]->x509 != NULL)
+        {
+			X509_free(certificates[i]->x509);
+        }
+
+		if (certificates[i]->id_cert != NULL)
+        {
+			free(certificates[i]->id_cert);
+        }
+
+		free(certificates[i]);
 	}
 
-	memset(nla->p11handle, 0, sizeof(pkcs11_handle));
-	return 1;
+	free(certificates);
 }
 
-/** get_info_smartcard is used to retrieve a valid authentication certificate.
- *  This function is actually called in nla_client_init().
- *  @param nla : rdpNla structure that contains nla settings
- *  @return CKR_OK if successful, CKR_GENERAL_ERROR if error occurred
+/** get_list_certificate find all certificates present on smartcard.
+ *  This function is actually called in get_valid_smartcard_cert().
+ *  @param p11context - pointer to the pkcs11_context structure that contains the variables
+ *  to manage PKCS#11 session
+ *  @param ncerts - number of certificates of the smartcard
+ *  @return list of certificates found
  */
-CK_RV get_info_smartcard(rdpNla* nla)
+static cert_object** get_list_certificate(pkcs11_context* context, int* ncerts)
 {
-	int ret = 0;
-	CK_RV rv;
-	ret = init_pkcs_data_handle(nla);
+	CK_BYTE* id_value = NULL;
+	CK_BYTE* cert_value = NULL;
+	CK_OBJECT_HANDLE object;
+	CK_ULONG object_count;
+	X509* x509 = NULL;
+	int rv;
+	CK_OBJECT_CLASS cert_class = CKO_CERTIFICATE;
+	CK_CERTIFICATE_TYPE cert_type = CKC_X_509;
+	CK_ATTRIBUTE cert_template[] =
+            {
+                {CKA_CLASS, &cert_class, sizeof(CK_OBJECT_CLASS)},
+                {CKA_CERTIFICATE_TYPE, &cert_type, sizeof(CK_CERTIFICATE_TYPE)},
+                {CKA_ID, NULL, 0},
+                {CKA_VALUE, NULL, 0}
+            };
+    cert_object** certificates=NULL;
+    int certificates_count=0;
 
-	if (ret == -1)
-		return CKR_GENERAL_ERROR;
-
-	/* retrieve a valid authentication certificate */
-	ret = get_valid_smartcard_cert(nla);
-
-	if (ret != 0)
-		return CKR_GENERAL_ERROR;
-
-	/* retrieve UPN from smartcard */
-	ret = get_valid_smartcard_UPN(nla->settings, nla->p11handle->valid_cert->x509);
-
-	if (ret < 0)
+	if (context->certificates)
 	{
-		WLog_ERR(TAG, "Fail to get valid UPN %s", nla->settings->UserPrincipalName);
-		goto auth_failed;
-	}
-	else
-	{
-		WLog_DBG(TAG, "Valid UPN retrieved (%s)", nla->settings->UserPrincipalName);
+		(*ncerts) = context->certificates_count;
+		return context->certificates;
 	}
 
-	/* close PKCS#11 session */
-	rv = close_pkcs11_session(nla->p11handle);
+	rv = context->module->p11->C_FindObjectsInit(context->session, cert_template, 2);
 
-	if (rv != 0)
+	if (rv != CKR_OK)
 	{
-		release_pkcs11_module(nla->p11handle);
-		WLog_ERR(TAG, "close_pkcs11_session() failed: %d", rv);
+		WLog_ERR(TAG, "C_FindObjectsInit() failed: 0x%08lX", rv);
+		goto failure;
+	}
+
+	while (1)
+	{
+        int i;
+
+		/* look for certificates */
+		rv = context->module->p11->C_FindObjects(context->session, &object, 1, &object_count);
+
+		if (rv != CKR_OK)
+		{
+			WLog_ERR(TAG, "C_FindObjects() failed: 0x%08lX", rv);
+			goto failure;
+		}
+
+		if (object_count == 0)
+        {
+            break; /* no more certs */
+        }
+
+		/* Pass 1: get cert id */
+		/* retrieve cert object id length */
+		cert_template[2].pValue = NULL;
+		cert_template[2].ulValueLen = 0;
+		rv = context->module->p11->C_GetAttributeValue(context->session, object, cert_template, 3);
+
+		if (rv != CKR_OK)
+		{
+			WLog_ERR(TAG, "CertID length: C_GetAttributeValue() failed: 0x%08lX", rv);
+			goto failure;
+		}
+
+		/* allocate enought space */
+		id_value = malloc(cert_template[2].ulValueLen);
+
+		if (id_value == NULL)
+		{
+			WLog_ERR(TAG, "Cert id malloc(%"PRIu32"): not enough free memory available",
+			         cert_template[2].ulValueLen);
+			goto failure;
+		}
+
+		/* read cert id into allocated space */
+		cert_template[2].pValue = id_value;
+		rv = context->module->p11->C_GetAttributeValue(context->session, object, cert_template, 3);
+
+		if (rv != CKR_OK)
+		{
+			WLog_ERR(TAG, "CertID value: C_GetAttributeValue() failed: 0x%08lX", rv);
+			goto failure;
+		}
+
+		/* Pass 2: get certificate */
+		/* retrieve cert length */
+		cert_template[3].pValue = NULL;
+		rv = context->module->p11->C_GetAttributeValue(context->session, object, cert_template, 4);
+
+		if (rv != CKR_OK)
+		{
+			WLog_ERR(TAG, "Cert Length: C_GetAttributeValue() failed: 0x%08lX", rv);
+			goto failure;
+		}
+
+		/* allocate enough space */
+		cert_value = malloc(cert_template[3].ulValueLen);
+
+		if (cert_value == NULL)
+		{
+			WLog_ERR(TAG, "Cert value malloc(%"PRIu32"): not enough free memory available",
+			         cert_template[3].ulValueLen);
+			goto failure;
+		}
+
+		/* read certificate into allocated space */
+		cert_template[3].pValue = cert_value;
+		rv = context->module->p11->C_GetAttributeValue(context->session, object, cert_template, 4);
+
+		if (rv != CKR_OK)
+		{
+			WLog_ERR(TAG, "Cert Value: C_GetAttributeValue() failed: 0x%08lX", rv);
+			goto failure;
+		}
+
+		/* Pass 3: store certificate */
+		/* convert to X509 data structure */
+		x509 = d2i_X509(NULL, (const unsigned char**)&cert_template[3].pValue, cert_template[3].ulValueLen);
+
+		if (x509 == NULL)
+		{
+			WLog_ERR(TAG, "d2i_x509() failed: %s", ERR_error_string(ERR_get_error(), NULL));
+			goto failure;
+		}
+
+		/* finally add certificate to chain */
+		certificates = realloc(certificates, (certificates_count + 1) * sizeof(cert_object*));
+
+		if (!certificates)
+		{
+			WLog_ERR(TAG, "realloc() not space to re-size cert table");
+			goto failure;
+		}
+
+		WLog_DBG(TAG, "Saving Certificate #%d", certificates_count + 1);
+		certificates[certificates_count] = NULL;
+		certificates[certificates_count] = (cert_object*) calloc(1, sizeof(cert_object));
+
+		if (certificates[certificates_count] == NULL)
+		{
+			WLog_ERR(TAG, "calloc() not space to allocate cert object");
+			goto failure;
+		}
+
+		certificates[certificates_count]->type = cert_type;
+		certificates[certificates_count]->id_cert_length = cert_template[2].ulValueLen;
+		certificates[certificates_count]->x509 = x509;
+		certificates[certificates_count]->private_key = CK_INVALID_HANDLE;
+		certificates[certificates_count]->key_type = 0;
+		certificates[certificates_count]->id_cert = (CK_BYTE*) calloc(cert_template[2].ulValueLen * 2
+                                                                      + 1 , sizeof(CK_BYTE));
+
+		if (certificates[certificates_count]->id_cert == NULL)
+		{
+			WLog_ERR(TAG, "Error allocating memory for id_cert");
+			goto failure;
+		}
+
+		for (i = 1; i <= cert_template[2].ulValueLen; i++)
+		{
+			sprintf((char*) certificates[certificates_count]->id_cert, "%s%02x",
+			        certificates[certificates_count]->id_cert, id_value[i - 1]);
+		}
+
+		certificates[certificates_count]->id_cert[cert_template[2].ulValueLen * 2] = '\0';
+		/* Certificate found and save, increment the count */
+		++certificates_count;
+		free(id_value);
+		free(cert_value);
+	}
+
+	/* release FindObject Session */
+	rv = context->module->p11->C_FindObjectsFinal(context->session);
+
+	if (rv != CKR_OK)
+	{
+		WLog_ERR(TAG, "C_FindObjectsFinal() failed: 0x%08lX", rv);
+		goto fail_free;
+	}
+
+	/* arriving here means that's all right */
+	WLog_DBG(TAG, "Found %d certificate(s) in token", certificates_count);
+	(*ncerts) = certificates_count;
+	return certificates;
+
+failure:
+	rv = context->module->p11->C_FindObjectsFinal(context->session);
+
+	if (rv != CKR_OK)
+	{
+		WLog_ERR(TAG, "C_FindObjectsFinal() failed: 0x%08lX", rv);
+	}
+fail_free:
+	free(id_value);
+	id_value = NULL;
+	free(cert_value);
+	cert_value = NULL;
+	certificates_free(certificates, certificates_count);
+	(*ncerts) = 0;
+	return NULL;
+}
+
+static pkcs11_context* pkcs11_context_new(pkcs11_module* module,CK_SESSION_HANDLE session,CK_SLOT_ID slot_id,CK_OBJECT_HANDLE private_key)
+{
+    pkcs11_context* context=calloc(1,sizeof(*context));
+
+    if(!context){
+		WLog_ERR(TAG, "%s:%d: cannot allocate a pkcs11_context", __FUNCTION__, __LINE__);
+        return NULL;
+    }
+
+    context->module=module;
+    context->session=session;
+    context->slot_id=slot_id;
+    context->private_key=private_key;
+    return context;
+}
+
+static void pkcs11_context_free(pkcs11_context* context)
+{
+    context->session = cryptoki_close_session(context->module, context->session, context->slot_id);
+
+    if(context->module){
+        C_UnloadModule(context->module);
+        context->module=NULL;
+    }
+
+	certificates_free(context->certificates, context->certificates_count);
+	memset(context, 0, sizeof(*context));
+    free(context);
+}
+
+static char* bytes_to_hexadecimal(CK_BYTE* bytes,size_t count)
+{
+    char* string=malloc(count*2+1);
+    char* current=string;
+
+    if(!string)
+    {
+        return string;
+    }
+
+    while(0<count)
+    {
+        sprintf(current,"%02x",*bytes);
+        current+=2;
+        bytes++;
+        count--;
+    }
+
+    (*current)='\0';
+    return string;
+}
+
+static CK_OBJECT_HANDLE find_signature_private_key(pkcs11_module* module, CK_SESSION_HANDLE session,char** certificate_id)
+{
+	CK_OBJECT_HANDLE private_key = CK_INVALID_HANDLE;
+	CK_ULONG j;
+	CK_BYTE* certificate_id_bytes = NULL;
+	CK_ULONG certificate_id_length;
+	char* label = NULL;
+    char* certificate_id_string;
+
+	for (j = 0; find_object(module, session, CKO_PRIVATE_KEY, &private_key, NULL, 0, j); j++)
+	{
+		if ((label = getLABEL(module, session, private_key, NULL)) != NULL)
+		{
+			WLog_DBG(TAG, "label = (%s)", label);
+		}
+
+		certificate_id_bytes = getID(module, session, private_key, &certificate_id_length);
+
+		if (certificate_id_bytes == NULL)
+		{
+			WLog_ERR(TAG, "private key has no ID : can't find corresponding certificate without it");
+			continue;
+		}
+
+        certificate_id_string = bytes_to_hexadecimal(certificate_id_bytes,certificate_id_length);
+        free(certificate_id_bytes);
+        free(label);
+
+        if (!certificate_id_string)
+        {
+            WLog_ERR(TAG, "Error allocating memory for IdCertificate");
+            return CK_INVALID_HANDLE;
+        }
+
+		break;
+	}
+
+	if (private_key == CK_INVALID_HANDLE)
+	{
+		WLog_ERR(TAG, "Signature: no private key found in this slot");
+	}
+
+    (*certificate_id)=certificate_id_string;
+    return private_key;
+}
+
+/** init_authentication_pin is used to login to the token
+ * 	and to get PKCS#11 session informations, then use
+ * 	to retrieve valid certificate and UPN.
+ *  This function is actually called in get_valid_smartcard_cert()
+ *  @return CKR_OK if all PKCS#11 functions succeed.
+ */
+static CK_RV init_authentication_pin(freerdp* instance,pkcs11_context** context)
+{
+	CK_RV             rv             = CKR_GENERAL_ERROR;
+	CK_SLOT_ID        slot_id        = 0;
+	CK_SESSION_HANDLE session        = CK_INVALID_HANDLE;
+    CK_OBJECT_HANDLE  private_key    = CK_INVALID_HANDLE;
+	CK_FLAGS          flags          = CKF_SERIAL_SESSION;
+	pkcs11_module*    module         = cryptoki_load_and_initialize(instance->settings->Pkcs11Module);
+    char*             certificate_id = NULL;
+
+    (*context)=NULL;
+
+    if(!module){
+		return CKR_GENERAL_ERROR;
+    }
+
+	slot_id = find_usable_slot(instance->settings, module, &instance->settings->TokenLabel);
+
+	if (slot_id == CK_UNAVAILABLE_INFORMATION)
+	{
 		return CKR_GENERAL_ERROR;
 	}
 
-	/* release PKCS#11 module */
-	WLog_DBG(TAG, "releasing PKCS#11 module...");
-	release_pkcs11_module(nla->p11handle);
-	WLog_DBG(TAG, "UPN retrieving process completed");
-	return CKR_OK;
-auth_failed:
-	close_pkcs11_session(nla->p11handle);
-	release_pkcs11_module(nla->p11handle);
+	instance->settings->SlotID = unsigned_long_to_string(slot_id);
+
+	if (instance->settings->SlotID == NULL)
+	{
+		goto finalize_and_unload;
+	}
+
+	if (instance->settings->Pin == NULL)
+	{
+		/* set PIN settings to string "NULL" for further credentials delegation */
+		instance->settings->Pin = strdup("NULL");
+		if (instance->settings->Pin == NULL)
+		{
+			WLog_ERR(TAG, "Error allocating memory for PIN");
+			goto finalize_and_unload;
+		}
+	}
+
+	session = cryptoki_open_session(module, slot_id, flags, NULL, NULL);
+
+	if (session == CK_INVALID_HANDLE)
+	{
+		goto finalize_and_unload;
+	}
+
+	if (!login(instance->settings, module, session, slot_id))
+	{
+		goto close_session_finalize_and_unload;
+	}
+
+	private_key = find_signature_private_key(module, session, &certificate_id);
+
+	if (private_key == CK_INVALID_HANDLE)
+	{
+		WLog_ERR(TAG, "Signatures: no private key for signature found in this slot.");
+		goto close_session_finalize_and_unload;
+	}
+
+    (*context) = pkcs11_context_new(module,session,slot_id,private_key);
+
+    if(*context){
+        instance->settings->IdCertificate=(BYTE*)certificate_id;          /* ! */
+        instance->settings->IdCertificateLength=strlen(certificate_id)/2; /* ! */
+        return CKR_OK;
+    }
+
+close_session_finalize_and_unload:
+    free(certificate_id);
+	session = cryptoki_close_session(module, session, slot_id);
+
+finalize_and_unload:
+	cryptoki_finalize_and_unload(module);
 	return CKR_GENERAL_ERROR;
 }
 
-
 /* retrieve the private key associated with a given certificate */
-int get_private_key(pkcs11_handle* h, cert_object* cert)
+static int get_private_key(pkcs11_context* p11context, cert_object* cert)
 {
 	CK_OBJECT_CLASS key_class = CKO_PRIVATE_KEY;
 	CK_BBOOL key_sign = CK_TRUE;
@@ -1087,7 +1220,7 @@ int get_private_key(pkcs11_handle* h, cert_object* cert)
 	CK_ULONG object_count;
 	int rv;
 
-	if (h->private_key != CK_INVALID_HANDLE)
+	if (p11context->private_key != CK_INVALID_HANDLE)
 	{
 		/* we've already found the private key for this certificate */
 		return 0;
@@ -1098,11 +1231,11 @@ int get_private_key(pkcs11_handle* h, cert_object* cert)
 	{
 		key_template[2].pValue = cert->id_cert;
 		key_template[2].ulValueLen = cert->id_cert_length;
-		rv = p11->C_FindObjectsInit(h->session, key_template, 3);
+		rv = p11context->module->p11->C_FindObjectsInit(p11context->session, key_template, 3);
 	}
 	else
 	{
-		rv = p11->C_FindObjectsInit(h->session, key_template, 2);
+		rv = p11context->module->p11->C_FindObjectsInit(p11context->session, key_template, 2);
 	}
 
 	if (rv != CKR_OK)
@@ -1111,7 +1244,7 @@ int get_private_key(pkcs11_handle* h, cert_object* cert)
 		return -1;
 	}
 
-	rv = p11->C_FindObjects(h->session, &object, 1, &object_count);
+	rv = p11context->module->p11->C_FindObjects(p11context->session, &object, 1, &object_count);
 
 	if (rv != CKR_OK)
 	{
@@ -1127,7 +1260,7 @@ int get_private_key(pkcs11_handle* h, cert_object* cert)
 	}
 
 	/* and finally release Find session */
-	rv = p11->C_FindObjectsFinal(h->session);
+	rv = p11context->module->p11->C_FindObjectsFinal(p11context->session);
 
 	if (rv != CKR_OK)
 	{
@@ -1139,7 +1272,7 @@ int get_private_key(pkcs11_handle* h, cert_object* cert)
 	cert->key_type = CKK_RSA;
 	return 0;
 get_privkey_failed:
-	rv = p11->C_FindObjectsFinal(h->session);
+	rv = p11context->module->p11->C_FindObjectsFinal(p11context->session);
 
 	if (rv != CKR_OK)
 	{
@@ -1150,301 +1283,11 @@ get_privkey_failed:
 }
 
 
-void free_certs(cert_object** certs, int cert_count)
-{
-	int i;
 
-	for (i = 0; i < cert_count; i++)
-	{
-		if (!certs[i])
-		{
-			continue;
-		}
-
-		if (certs[i]->x509 != NULL)
-			X509_free(certs[i]->x509);
-
-		if (certs[i]->id_cert != NULL)
-			free(certs[i]->id_cert);
-
-		free(certs[i]);
-	}
-
-	free(certs);
-}
-
-
-void release_pkcs11_module(pkcs11_handle* handle)
-{
-	/* finalize PKCS#11 module */
-	p11->C_Finalize(NULL);
-
-	/* Unload module */
-	if (handle->p11_module_handle->handle)
-		C_UnloadModule(handle->p11_module_handle);
-
-	free_certs(handle->certs, handle->cert_count);
-	memset(handle, 0, sizeof(pkcs11_handle));
-	free(handle);
-}
-
-
-int close_pkcs11_session(pkcs11_handle* h)
-{
-	int rv;
-
-	if (h->session == CK_INVALID_HANDLE)
-		return 0;
-
-	/* close user-session */
-	WLog_DBG(TAG, "logout user");
-	rv = p11->C_Logout(h->session);
-
-	if (rv != CKR_OK && rv != CKR_USER_NOT_LOGGED_IN
-	    && rv != CKR_FUNCTION_NOT_SUPPORTED)
-	{
-		WLog_ERR(TAG, "C_Logout() failed: 0x%08lX", rv);
-		return -1;
-	}
-
-	WLog_DBG(TAG, "closing the PKCS#11 session");
-	rv = p11->C_CloseSession(h->session);
-
-	if (rv != CKR_OK && rv != CKR_FUNCTION_NOT_SUPPORTED)
-	{
-		WLog_ERR(TAG, "C_CloseSession() failed: 0x%08lX", rv);
-		return -1;
-	}
-
-	WLog_DBG(TAG, "releasing keys and certificates");
-
-	if (h->certs != NULL)
-	{
-		free_certs(h->certs, h->cert_count);
-		h->certs = NULL;
-		h->cert_count = 0;
-	}
-
-	return 0;
-}
-
-
-/** get_list_certificate find all certificates present on smartcard.
- *  This function is actually called in get_valid_smartcard_cert().
- *  @param p11handle - pointer to the pkcs11_handle structure that contains the variables
- *  to manage PKCS#11 session
- *  @param ncerts - number of certificates of the smartcard
- *  @return list of certificates found
- */
-cert_object** get_list_certificate(pkcs11_handle* p11handle, int* ncerts)
-{
-	CK_BYTE* id_value = NULL;
-	CK_BYTE* cert_value = NULL;
-	CK_OBJECT_HANDLE object;
-	CK_ULONG object_count;
-	X509* x509 = NULL;
-	int rv;
-	CK_OBJECT_CLASS cert_class = CKO_CERTIFICATE;
-	CK_CERTIFICATE_TYPE cert_type = CKC_X_509;
-	CK_ATTRIBUTE cert_template[] =
-	{
-		{CKA_CLASS, &cert_class, sizeof(CK_OBJECT_CLASS)}
-		,
-		{CKA_CERTIFICATE_TYPE, &cert_type, sizeof(CK_CERTIFICATE_TYPE)}
-		,
-		{CKA_ID, NULL, 0}
-		,
-		{CKA_VALUE, NULL, 0}
-	};
-
-	if (p11handle->certs)
-	{
-		*ncerts = p11handle->cert_count;
-		return p11handle->certs;
-	}
-
-	rv = p11->C_FindObjectsInit(p11handle->session, cert_template, 2);
-
-	if (rv != CKR_OK)
-	{
-		WLog_ERR(TAG, "C_FindObjectsInit() failed: 0x%08lX", rv);
-		return NULL;
-	}
-
-	while (1)
-	{
-		/* look for certificates */
-		rv = p11->C_FindObjects(p11handle->session, &object, 1, &object_count);
-
-		if (rv != CKR_OK)
-		{
-			WLog_ERR(TAG, "C_FindObjects() failed: 0x%08lX", rv);
-			goto getlist_error;
-		}
-
-		if (object_count == 0) break; /* no more certs */
-
-		/* Pass 1: get cert id */
-		/* retrieve cert object id length */
-		cert_template[2].pValue = NULL;
-		cert_template[2].ulValueLen = 0;
-		rv = p11->C_GetAttributeValue(p11handle->session, object, cert_template, 3);
-
-		if (rv != CKR_OK)
-		{
-			WLog_ERR(TAG, "CertID length: C_GetAttributeValue() failed: 0x%08lX", rv);
-			goto getlist_error;
-		}
-
-		/* allocate enought space */
-		id_value = malloc(cert_template[2].ulValueLen);
-
-		if (id_value == NULL)
-		{
-			WLog_ERR(TAG, "Cert id malloc(%"PRIu32"): not enough free memory available",
-			         cert_template[2].ulValueLen);
-			goto getlist_error;
-		}
-
-		/* read cert id into allocated space */
-		cert_template[2].pValue = id_value;
-		rv = p11->C_GetAttributeValue(p11handle->session, object, cert_template, 3);
-
-		if (rv != CKR_OK)
-		{
-			WLog_ERR(TAG, "CertID value: C_GetAttributeValue() failed: 0x%08lX", rv);
-			goto getlist_error;
-		}
-
-		/* Pass 2: get certificate */
-		/* retrieve cert length */
-		cert_template[3].pValue = NULL;
-		rv = p11->C_GetAttributeValue(p11handle->session, object, cert_template, 4);
-
-		if (rv != CKR_OK)
-		{
-			WLog_ERR(TAG, "Cert Length: C_GetAttributeValue() failed: 0x%08lX", rv);
-			goto getlist_error;
-		}
-
-		/* allocate enough space */
-		cert_value = malloc(cert_template[3].ulValueLen);
-
-		if (cert_value == NULL)
-		{
-			WLog_ERR(TAG, "Cert value malloc(%"PRIu32"): not enough free memory available",
-			         cert_template[3].ulValueLen);
-			goto getlist_error;
-		}
-
-		/* read certificate into allocated space */
-		cert_template[3].pValue = cert_value;
-		rv = p11->C_GetAttributeValue(p11handle->session, object, cert_template, 4);
-
-		if (rv != CKR_OK)
-		{
-			WLog_ERR(TAG, "Cert Value: C_GetAttributeValue() failed: 0x%08lX", rv);
-			goto getlist_error;
-		}
-
-		/* Pass 3: store certificate */
-		/* convert to X509 data structure */
-		x509 = d2i_X509(NULL, (const unsigned char**)&cert_template[3].pValue, cert_template[3].ulValueLen);
-
-		if (x509 == NULL)
-		{
-			WLog_ERR(TAG, "d2i_x509() failed: %s", ERR_error_string(ERR_get_error(), NULL));
-			goto getlist_error;
-		}
-
-		/* finally add certificate to chain */
-		p11handle->certs = realloc(p11handle->certs, (p11handle->cert_count + 1) * sizeof(cert_object*));
-
-		if (!p11handle->certs)
-		{
-			WLog_ERR(TAG, "realloc() not space to re-size cert table");
-			goto getlist_error;
-		}
-
-		WLog_DBG(TAG, "Saving Certificate #%d", p11handle->cert_count + 1);
-		p11handle->certs[p11handle->cert_count] = NULL;
-		p11handle->certs[p11handle->cert_count] = (cert_object*) calloc(1, sizeof(cert_object));
-
-		if (p11handle->certs[p11handle->cert_count] == NULL)
-		{
-			WLog_ERR(TAG, "calloc() not space to allocate cert object");
-			goto getlist_error;
-		}
-
-		p11handle->certs[p11handle->cert_count]->type = cert_type;
-		p11handle->certs[p11handle->cert_count]->id_cert_length = cert_template[2].ulValueLen;
-		p11handle->certs[p11handle->cert_count]->x509 = x509;
-		p11handle->certs[p11handle->cert_count]->private_key = CK_INVALID_HANDLE;
-		p11handle->certs[p11handle->cert_count]->key_type = 0;
-		int i;
-		p11handle->certs[p11handle->cert_count]->id_cert = (CK_BYTE*) calloc(cert_template[2].ulValueLen * 2
-		        + 1 , sizeof(CK_BYTE));
-
-		if (p11handle->certs[p11handle->cert_count]->id_cert == NULL)
-		{
-			WLog_ERR(TAG, "Error allocating memory for id_cert");
-			free(p11handle->certs[p11handle->cert_count]);
-			goto getlist_error;
-		}
-
-		for (i = 1; i <= cert_template[2].ulValueLen; i++)
-		{
-			sprintf((char*) p11handle->certs[p11handle->cert_count]->id_cert, "%s%02x",
-			        p11handle->certs[p11handle->cert_count]->id_cert, id_value[i - 1]);
-		}
-
-		p11handle->certs[p11handle->cert_count]->id_cert[cert_template[2].ulValueLen * 2] = '\0';
-		/* Certificate found and save, increment the count */
-		++p11handle->cert_count;
-		free(id_value);
-		free(cert_value);
-	} /* while(1) */
-
-	/* release FindObject Session */
-	rv = p11->C_FindObjectsFinal(p11handle->session);
-
-	if (rv != CKR_OK)
-	{
-		WLog_ERR(TAG, "C_FindObjectsFinal() failed: 0x%08lX", rv);
-		free_certs(p11handle->certs, p11handle->cert_count);
-		p11handle->certs = NULL;
-		p11handle->cert_count = 0;
-		goto getlist_error;
-	}
-
-	*ncerts = p11handle->cert_count;
-	/* arriving here means that's all right */
-	WLog_DBG(TAG, "Found %d certificate(s) in token", p11handle->cert_count);
-	return p11handle->certs;
-getlist_error:
-	free(id_value);
-	id_value = NULL;
-	free(cert_value);
-	cert_value = NULL;
-	rv = p11->C_FindObjectsFinal(p11handle->session);
-
-	if (rv != CKR_OK)
-	{
-		WLog_ERR(TAG, "C_FindObjectsFinal() failed: 0x%08lX", rv);
-	}
-
-	free_certs(p11handle->certs, p11handle->cert_count);
-	p11handle->certs = NULL;
-	p11handle->cert_count = 0;
-	return NULL;
-}
-
-
-const X509* get_X509_certificate(cert_object* cert)
+static const X509* get_X509_certificate(cert_object* cert)
 {
 	return cert->x509;
 }
-
 
 /** match_id compare id's certificate.
  *  This function is actually called in find_valid_matching_cert().
@@ -1452,62 +1295,63 @@ const X509* get_X509_certificate(cert_object* cert)
  *  @param cert - pointer to the cert_handle structure that contains a certificate
  *  @return 1 if match occurred; 0 or -1 otherwise
  */
-int match_id(rdpSettings* settings, cert_object* cert)
+static int match_id(rdpSettings* settings, cert_object* cert)
 {
 	/* if no cert provided, call  */
 	if (!cert->id_cert) return 0;
 
-	if ((settings->IdCertificateLength != cert->id_cert_length) ||
-	    (strncmp((const char*) settings->IdCertificate, (const char*) cert->id_cert,
-	             cert->id_cert_length * 2) != 0)
-	   )
+	if ((settings->IdCertificateLength != cert->id_cert_length)
+        || (strncmp((const char*) settings->IdCertificate,
+                    (const char*) cert->id_cert,
+                    cert->id_cert_length * 2) != 0)
+        )
+    {
 		return -1;
-
+    }
 	return 1;
 }
-
 
 /** find_valid_matching_cert find a valid certificate that matches requirements.
  *  This function is actually called in get_valid_smartcard_cert().
  *  @param settings - pointer to the rdpSettings structure that contains the settings
- *  @param p11handle - pointer to the pkcs11_handle structure that contains smartcard data
+ *  @param p11context - pointer to the pkcs11_context structure that contains smartcard data
  *  @return 0 if a valid certificate matches requirements (<0 otherwise)
  */
-int find_valid_matching_cert(rdpSettings* settings, pkcs11_handle* p11handle)
+static int find_valid_matching_cert(rdpSettings* settings, pkcs11_context* context)
 {
 	int i, rv = 0;
-	p11handle->valid_cert = NULL;
+	context->valid_cert = NULL;
 	X509* x509 = NULL;
 	WLog_DBG(TAG, "settings : ID Authentication Certificate (%s)", settings->IdCertificate);
 
 	/* find a valid and matching certificate */
-	for (i = 0; i < p11handle->cert_count; i++)
+	for (i = 0; i < context->certificates_count; i++)
 	{
-		x509 = (X509*)get_X509_certificate(p11handle->certs[i]);
+		x509 = (X509*)get_X509_certificate(context->certificates[i]);
 
 		if (!x509) continue;  /* sanity check */
 
 		/* ensure we extract the right certificate from the list by checking
 		 * whether ID matches the one previously stored in settings */
-		rv = match_id(settings, p11handle->certs[i]);
+		rv = match_id(settings, context->certificates[i]);
 
 		if (rv <= 0)     /* match error */
 		{
 			WLog_DBG(TAG, "ID not matching (%s/%s). Try next cert...",
-			         settings->IdCertificate, p11handle->certs[i]->id_cert);
+			         settings->IdCertificate, context->certificates[i]->id_cert);
 			continue;
 		}
 		else if (rv == 1)   /* match success */
 		{
-			p11handle->valid_cert = p11handle->certs[i];
+			context->valid_cert = context->certificates[i];
 			break;
 		}
 	}
 
 	/* now valid_cert points to our found certificate or null if none found */
-	if (!p11handle->valid_cert)
+	if (!context->valid_cert)
 	{
-		free(p11handle->valid_cert);
+		free(context->valid_cert);
 		WLog_ERR(TAG, "Error: No matching certificate found");
 		return -1;
 	}
@@ -1515,27 +1359,35 @@ int find_valid_matching_cert(rdpSettings* settings, pkcs11_handle* p11handle)
 	return 0;
 }
 
+static int crypto_init()
+{
+	OpenSSL_add_all_algorithms();
+	ERR_load_crypto_strings();
+	return 0;
+}
 
 /** get_valid_smartcard_cert find and verify the authentication certificate.
  *  This function is actually called in get_info_smartcard().
  *  @param nla - pointer to rdpNla structure that contains nla settings
  *  @return 0 if the certificate was successfully retrieved; -1 otherwise
  */
-int get_valid_smartcard_cert(rdpNla* nla)
+static int get_valid_smartcard_cert(freerdp* instance)
 {
 	int i, ret, ncerts;
 	CK_RV ck_rv;
 	cert_object** certs = NULL;
+    pkcs11_context* context=NULL;
+
 	/* init openssl */
-	ret = crypto_init(&nla->p11handle->policy);
+    ret  = crypto_init();
 
 	if (ret != 0)
 	{
-		WLog_ERR(TAG, "Could not initialize crypto module ");
+		WLog_ERR(TAG, "Could not initialize openssl.");
 		return -1;
 	}
 
-	ck_rv = init_authentication_pin(nla);
+	ck_rv = init_authentication_pin(instance, &context);
 
 	if (ck_rv != CKR_OK)
 	{
@@ -1544,7 +1396,7 @@ int get_valid_smartcard_cert(rdpNla* nla)
 	}
 
 	/* get list certificate */
-	certs = get_list_certificate(nla->p11handle, &ncerts);
+	certs = get_list_certificate(context, &ncerts);
 
 	if (certs == NULL)
 		goto get_error;
@@ -1564,7 +1416,7 @@ int get_valid_smartcard_cert(rdpNla* nla)
 		name = x509_cert_info_string(cert, CERT_ISSUER);
 		WLog_DBG(TAG, "Issuer:    %s", name);
 		free(name);
-		ret = get_private_key(nla->p11handle, certs[i]);
+		ret = get_private_key(context, certs[i]);
 
 		if (ret < 0)
 		{
@@ -1574,7 +1426,7 @@ int get_valid_smartcard_cert(rdpNla* nla)
 		}
 
 		/* find valid matching authentication certificate */
-		int ret_find = find_valid_matching_cert(nla->settings, nla->p11handle);
+		int ret_find = find_valid_matching_cert(instance->settings, context);
 
 		if (ret_find == -1)
 		{
@@ -1590,8 +1442,8 @@ int get_valid_smartcard_cert(rdpNla* nla)
 
 	return 0;
 get_error:
-	close_pkcs11_session(nla->p11handle);
-	release_pkcs11_module(nla->p11handle);
+	cryptoki_close_session(context->module, context->session, CK_UNAVAILABLE_INFORMATION);
+	pkcs11_context_free(context);
 	return -1;
 }
 
@@ -1602,7 +1454,7 @@ get_error:
  *  @param x509 - pointer to X509 certificate
  *  @return 0 if UPN was successfully retrieved
  */
-int get_valid_smartcard_UPN(rdpSettings* settings, X509* x509)
+static int get_valid_smartcard_UPN(rdpSettings* settings, X509* x509)
 {
 	char* entries_upn = NULL;
 
@@ -1639,4 +1491,60 @@ int get_valid_smartcard_UPN(rdpSettings* settings, X509* x509)
 
 	strncpy(settings->UserPrincipalName, entries_upn, strlen(entries_upn) + 1);
 	return 0;
+}
+
+/** get_info_smartcard is used to retrieve a valid authentication certificate.
+ *  This function is actually called in nla_client_init().
+ *  @param nla : rdpNla structure that contains nla settings
+ *  @return CKR_OK if successful, CKR_GENERAL_ERROR if error occurred
+ */
+int get_info_smartcard(freerdp* instance)
+{
+	int ret = 0;
+	CK_RV rv;
+    pkcs11_context* context=pkcs11_context_new(NULL,0,0,0);
+
+    if(!context){
+        return -1;
+    }
+
+	/* retrieve a valid authentication certificate */
+	ret = get_valid_smartcard_cert(instance);
+
+	if (ret != 0)
+		return -1;
+
+	/* retrieve UPN from smartcard */
+	ret = get_valid_smartcard_UPN(instance->settings, context->valid_cert->x509);
+
+	if (ret < 0)
+	{
+		WLog_ERR(TAG, "Fail to get valid UPN %s", instance->settings->UserPrincipalName);
+		goto auth_failed;
+	}
+	else
+	{
+		WLog_DBG(TAG, "Valid UPN retrieved (%s)", instance->settings->UserPrincipalName);
+	}
+
+	/* close PKCS#11 session */
+	rv = cryptoki_close_session(context->module, context->session, CK_UNAVAILABLE_INFORMATION);
+
+	if (rv != 0)
+	{
+		pkcs11_context_free(context);
+		WLog_ERR(TAG, "close_pkcs11_session() failed: %d", rv);
+		return -1;
+	}
+
+	/* release PKCS#11 module */
+	WLog_DBG(TAG, "releasing PKCS#11 module...");
+    pkcs11_context_free(context);
+	WLog_DBG(TAG, "UPN retrieving process completed");
+	return 0;
+
+auth_failed:
+    cryptoki_close_session(context->module, context->session, CK_UNAVAILABLE_INFORMATION);
+    pkcs11_context_free(context);
+	return -1;
 }

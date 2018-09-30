@@ -1055,7 +1055,7 @@ int k5_kinit(struct k_opts* opts, struct k5_data* k5, responder_data response,
 				my_creds,
 				/* client principal: */ k5->me,
 				/* password: */ 0,
-				/* prompter: */ prompter_dump,
+				/* prompter: */ 0, /* prompter_dump, */
 				/* promter_data: */ 0,
 				opts->starttime,
 				opts->service_name,

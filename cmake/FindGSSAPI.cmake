@@ -120,7 +120,7 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
     if((GSS_FLAVOUR STREQUAL "Heimdal" AND NOT _GSS_VENDOR STREQUAL "Heimdal")
        OR (GSS_FLAVOUR STREQUAL "MIT" AND NOT _GSS_VENDOR STREQUAL "Massachusetts Institute of Technology"))
       message(STATUS "Try to set, if not done, the path to GSS root folder in the system variable GSS_ROOT_DIR")
-      message(FATAL_ERROR "GSS vendor and GSS flavour are not matching : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}") 
+      message(FATAL_ERROR "GSS vendor and GSS flavour are not matching : _GSS_VENDOR=${_GSS_VENDOR} ; GSS_FLAVOUR=${GSS_FLAVOUR}")
     endif()
   else()
     message(SEND_ERROR "GSS configure script failed to get vendor")
@@ -212,12 +212,12 @@ if(NOT GSS_FOUND) # not found by pkg-config. Let's take more traditional approac
       )
       string(STRIP "${_GSS_LIB_FLAGS_CONFIG_SCRIPT}" _GSS_LIB_FLAGS_CONFIG_SCRIPT)
       message(STATUS "_GSS_LIB_FLAGS_CONFIG_SCRIPT=${_GSS_LIB_FLAGS_CONFIG_SCRIPT}")
-      #string(SUBSTRING 
+      #string(SUBSTRING
       #set(_GSS_LIB_FLAGS "-Wl,--enable-new-dtags -Wl,rpath -Wl,$ENV{GSS_ROOT_DIR}/lib/x86_64-linux-gnu")
       #set(_GSS_LIB_FLAGS "-Wl,--enable-new-dtags -Wl,rpath -Wl,$ENV{GSS_ROOT_DIR}/lib/x86_64-linux-gnu -R$ENV{GSS_ROOT_DIR}/lib/x86_64-linux-gnu")
       #set(_GSS_LIB_FLAGS "-R$ENV{GSS_ROOT_DIR}/lib/x86_64-linux-gnu")
       message(STATUS "_GSS_LIB_FLAGS 1 =${_GSS_LIB_FLAGS}")
-      list(APPEND _GSS_LIB_FLAGS "${_GSS_LIB_FLAGS_CONFIG_SCRIPT}") 
+      list(APPEND _GSS_LIB_FLAGS "${_GSS_LIB_FLAGS_CONFIG_SCRIPT}")
       message(STATUS "_GSS_LIB_FLAGS 2 =${_GSS_LIB_FLAGS}")
       string(REGEX REPLACE ";" " " _GSS_LIB_FLAGS "${_GSS_LIB_FLAGS}")
       message(STATUS "_GSS_LIB_FLAGS 3 =${_GSS_LIB_FLAGS}")
@@ -490,7 +490,7 @@ find_package_handle_standard_args(GSS
     VERSION_VAR
         GSS_VERSION
     FAIL_MESSAGE
-        "Failed to find GSS libraries, try to set the path to GSS root folder in the system variable GSS_ROOT_DIR"
+         "Failed to find GSS libraries, try to set the path to GSS root folder in the system variable GSS_ROOT_DIR"
 )
 
 if(NOT GSS_FOUND)
@@ -505,11 +505,11 @@ if(GSS_FLAVOUR STREQUAL "MIT")
   message(STATUS "MIT: GSS_VERSION_MAJOR=${GSS_VERSION_MAJOR}")
   string(REGEX REPLACE "\\." "" GSS_VERSION_MAJOR "${GSS_VERSION_MAJOR}")
   message(STATUS "MIT: GSS_VERSION_MAJOR=${GSS_VERSION_MAJOR}")
-  string(REGEX MATCH "\\.([0-9]+)\\." GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
+  string(REGEX MATCH "\\.([0-9]+)[-.]" GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})
   message(STATUS "MIT: GSS_VERSION_MINOR=${GSS_VERSION_MINOR}")
   if(GSS_VERSION_MINOR)
     string(REGEX REPLACE "\\." "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
-    string(REGEX REPLACE "\\." "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
+    string(REGEX REPLACE "[-.]" "" GSS_VERSION_MINOR "${GSS_VERSION_MINOR}")
     string(REGEX MATCH "([0-9]+)$" GSS_VERSION_PATCH ${GSS_RELEASE_NUMBER})
   else()
     string(REGEX MATCH "\\.([0-9]+)$" GSS_VERSION_MINOR ${GSS_RELEASE_NUMBER})

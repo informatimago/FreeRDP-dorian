@@ -7,9 +7,9 @@ function(add_cflow_target module)
   get_target_property(target_cflow_sources       ${module} SOURCES)
   get_target_property(target_include_directories ${module} INCLUDE_DIRECTORIES)
   string(REGEX REPLACE ";" " -I" target_cflow_includes "-I${target_include_directories}")
-  message(AUTHOR_WARNING "PJB TARGET ${module}.cflow")
-  message(AUTHOR_WARNING "PJB target_cflow_includes = ${target_cflow_includes}")
-  message(AUTHOR_WARNING "PJB target_cflow_sources  = ${target_cflow_sources}")
+  # message(AUTHOR_WARNING "PJB TARGET ${module}.cflow")
+  # message(AUTHOR_WARNING "PJB target_cflow_includes = ${target_cflow_includes}")
+  # message(AUTHOR_WARNING "PJB target_cflow_sources  = ${target_cflow_sources}")
 
 
   add_custom_command(OUTPUT ${module}.cflow

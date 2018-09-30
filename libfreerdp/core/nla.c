@@ -239,7 +239,7 @@ static int nla_client_init_smartcard_logon(rdpNla* nla)
         nla->credType = settings->CredentialsType;
 #if defined(WITH_PKCS11H) && defined(WITH_GSSAPI)
 
-        if (get_info_smartcard(nla) != CKR_OK)
+        if (get_info_smartcard(nla) != 0)
         {
                 WLog_ERR(TAG, "Failed to retrieve UPN !");
                 return -1;

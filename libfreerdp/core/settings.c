@@ -33,6 +33,7 @@
 #include <winpr/crt.h>
 #include <winpr/file.h>
 #include <winpr/path.h>
+#include <winpr/sspi.h>
 #include <winpr/sysinfo.h>
 #include <winpr/registry.h>
 

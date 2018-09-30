@@ -93,7 +93,6 @@ struct rdp_nla
 	PSecurityFunctionTable table;
 	SecPkgContext_Sizes ContextSizes;
 	SEC_DELEGATION_CREDENTIALS_TYPE credType;
-	pkcs11_handle* p11handle;
 };
 
 FREERDP_LOCAL int nla_authenticate(rdpNla* nla);

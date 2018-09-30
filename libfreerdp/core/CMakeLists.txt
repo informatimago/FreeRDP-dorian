@@ -150,6 +150,7 @@ set(${MODULE_PREFIX}_SRCS
 	peer.c
 	peer.h
 	smartcardlogon.h
+	smartcardlogon_private.h
 	smartcardlogon.c
 	)
 

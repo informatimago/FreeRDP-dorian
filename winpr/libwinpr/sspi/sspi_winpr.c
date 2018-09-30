@@ -36,7 +36,7 @@
 #include "../log.h"
 #define TAG WINPR_TAG("sspi")
 
-static errno_t memset_s(void* v, rsize_t smax, int c, rsize_t n)
+errno_t memset_s(void* v, rsize_t smax, int c, rsize_t n)
 {
 	if (v == NULL) return -1;
 
