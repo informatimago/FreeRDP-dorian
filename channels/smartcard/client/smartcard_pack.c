@@ -847,7 +847,7 @@ void smartcard_trace_list_readers_return(SMARTCARD_DEVICE* smartcard, ListReader
 			return;
 		}
 
-		strncpy(mszA, ret->msz, length);
+		strncpy(mszA, (const char *)ret->msz, length);
 		mszA[length] = '\0';
 	}
 

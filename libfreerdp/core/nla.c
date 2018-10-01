@@ -1198,7 +1198,7 @@ static void ap_integer_decrement_le(BYTE* number, int size)
 
 SECURITY_STATUS nla_encrypt_public_key_echo(rdpNla* nla)
 {
-	SecBuffer Buffers[2] = { 0 };
+	SecBuffer Buffers[2] = {{ 0 }};
 	SecBufferDesc Message;
 	SECURITY_STATUS status;
 	int public_key_length;
@@ -1256,7 +1256,7 @@ SECURITY_STATUS nla_decrypt_public_key_echo(rdpNla* nla)
 	BYTE* public_key2 = NULL;
 	int public_key_length = 0;
 	int signature_length;
-	SecBuffer Buffers[2] = { 0 };
+	SecBuffer Buffers[2] = {{ 0 }};
 	SecBufferDesc Message;
 	SECURITY_STATUS status;
 	signature_length = nla->pubKeyAuth.cbBuffer - nla->PublicKey.cbBuffer;
@@ -1983,7 +1983,7 @@ static BOOL nla_encode_ts_credentials(rdpNla* nla)
 
 static SECURITY_STATUS nla_encrypt_ts_credentials(rdpNla* nla)
 {
-	SecBuffer Buffers[2] = { 0 };
+	SecBuffer Buffers[2] = {{ 0 }};
 	SecBufferDesc Message;
 	SECURITY_STATUS status;
 
@@ -2037,7 +2037,7 @@ static SECURITY_STATUS nla_decrypt_ts_credentials(rdpNla* nla)
 	int length;
 	BYTE* buffer;
 	ULONG pfQOP;
-	SecBuffer Buffers[2] = { 0 };
+	SecBuffer Buffers[2] = {{ 0 }};
 	SecBufferDesc Message;
 	SECURITY_STATUS status;
 

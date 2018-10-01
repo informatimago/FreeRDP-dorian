@@ -184,8 +184,11 @@ BOOL set_pkinit_identity(rdpSettings* settings)
 
 BOOL parse_pkinit_anchors(struct k_opts* opts, char* list_pkinit_anchors)
 {
+	int i = 0;
+	int j = 0;
+	int nb_anchors = 0;
+
 	WLog_DBG(TAG, "pkinit anchors : %s", list_pkinit_anchors);
-	int i = 0, j = 0, k = 0, nb_anchors = 0;
 	opts->pkinit_anchors = (pkinit_anchors**) calloc(1, sizeof(pkinit_anchors*));
 
 	if (opts->pkinit_anchors == NULL)
