@@ -70,8 +70,7 @@ typedef struct cert_object
 {
 	CK_KEY_TYPE key_type;
 	CK_CERTIFICATE_TYPE type;
-	CK_BYTE* id_cert;
-	CK_ULONG id_cert_length;
+	char* id_cert;
 	CK_OBJECT_HANDLE private_key;
 	X509* x509;
 }  cert_object;

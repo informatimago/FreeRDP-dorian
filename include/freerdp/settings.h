@@ -1101,7 +1101,7 @@ struct rdp_settings
 	ALIGN64 UINT32 CredentialsType; /* 1295 */
 	ALIGN64 char* UserPrincipalName; /* 1296 */
 	ALIGN64 char* CanonicalizedUserHint; /* 1297 */
-	ALIGN64 BYTE* IdCertificate; /* 1298 */
+	ALIGN64 char* IdCertificate; /* 1298 */
 	ALIGN64 UINT64 IdCertificateLength; /* 1299 */
 	ALIGN64 char* PkinitIdentity; /* 1300 */
 	ALIGN64 char* PkinitAnchors; /* 1301*/

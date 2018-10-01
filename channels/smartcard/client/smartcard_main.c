@@ -392,11 +392,12 @@ UINT smartcard_process_irp(SMARTCARD_DEVICE* smartcard, IRP* irp)
 		switch (operation->ioControlCode)
 		{
 #ifndef FROM_MASTER
-		/**
-		 * The following matches mstsc's behavior of processing
-		 * only certain requests asynchronously while processing
-		 * those expected to return fast synchronously.
-		 */
+
+			/**
+			 * The following matches mstsc's behavior of processing
+			 * only certain requests asynchronously while processing
+			 * those expected to return fast synchronously.
+			 */
 			case SCARD_IOCTL_ESTABLISHCONTEXT:
 			case SCARD_IOCTL_RELEASECONTEXT:
 			case SCARD_IOCTL_ISVALIDCONTEXT:
@@ -457,6 +458,7 @@ UINT smartcard_process_irp(SMARTCARD_DEVICE* smartcard, IRP* irp)
 				asyncIrp = FALSE;
 				break;
 #else
+
 			case SCARD_IOCTL_ESTABLISHCONTEXT:
 			case SCARD_IOCTL_RELEASECONTEXT:
 			case SCARD_IOCTL_ISVALIDCONTEXT:
@@ -752,7 +754,6 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	char* path;
 	int ck;
 	LONG status;
-	size_t length;
 	RDPDR_SMARTCARD* device;
 	SMARTCARD_DEVICE* smartcard;
 	UINT error = CHANNEL_RC_NO_MEMORY;
@@ -773,7 +774,6 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	smartcard->device.Init = smartcard_init;
 	smartcard->device.Free = smartcard_free;
 	smartcard->rdpcontext = pEntryPoints->rdpcontext;
-
 #ifdef FROM_MASTER
 	length = strlen(smartcard->device.name);
 	smartcard->device.data = Stream_New(NULL, length + 1);
@@ -785,7 +785,6 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	}
 
 	Stream_Write(smartcard->device.data, "SCARD", 6);
-
 	smartcard->name = NULL;
 	smartcard->path = NULL;
 
@@ -802,10 +801,9 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 			smartcard->name = name;
 	}
 
-    WLog_ERR(TAG, "device name = %s", device->Name);
+	WLog_ERR(TAG, "device name = %s", device->Name);
 	status = SCardAddReaderName(&smartcard->thread, (LPSTR) device->Name);
 #else
-
 	smartcard->device.data = NULL;
 	smartcard->name = NULL;
 	smartcard->path = NULL;

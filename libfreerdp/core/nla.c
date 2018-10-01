@@ -118,13 +118,13 @@ static void nla_identity_free(SEC_WINNT_AUTH_IDENTITY* identity);
 #define ber_write_sequence_octet_string(stream, context, value, length) ber_write_contextual_tag(stream, context, ber_sizeof_octet_string(length), TRUE) + ber_write_octet_string(stream, value, length)
 
 
-void clean_and_free(void * memory, size_t size)
+void clean_and_free(void* memory, size_t size)
 {
-        if (memory)
-        {
-                memset_s(memory, size, 0, size);
-                free(memory);
-        }
+	if (memory)
+	{
+		memset_s(memory, size, 0, size);
+		free(memory);
+	}
 }
 
 #define CLEAN_AND_FREE_FIELD(structure, field) clean_and_free(structure->field, structure->field##Length *2)
@@ -133,23 +133,24 @@ void nla_identity_free(SEC_WINNT_AUTH_IDENTITY* identity)
 {
 	if (identity)
 	{
-                CLEAN_AND_FREE_FIELD(identity, User);
-                CLEAN_AND_FREE_FIELD(identity, Password);
-                CLEAN_AND_FREE_FIELD(identity, Domain);
-                CLEAN_AND_FREE_FIELD(identity, UserHint);
-                CLEAN_AND_FREE_FIELD(identity, DomainHint);
+		CLEAN_AND_FREE_FIELD(identity, User);
+		CLEAN_AND_FREE_FIELD(identity, Password);
+		CLEAN_AND_FREE_FIELD(identity, Domain);
+		CLEAN_AND_FREE_FIELD(identity, UserHint);
+		CLEAN_AND_FREE_FIELD(identity, DomainHint);
 
 		if (identity->CspData)
 		{
-                        CLEAN_AND_FREE_FIELD(identity, Pin);
-                        CLEAN_AND_FREE_FIELD(identity->CspData, CardName);
-                        CLEAN_AND_FREE_FIELD(identity->CspData, ReaderName);
-                        CLEAN_AND_FREE_FIELD(identity->CspData, ContainerName);
-                        CLEAN_AND_FREE_FIELD(identity->CspData, CspName);
-                        memset(identity->CspData, 0, sizeof(SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL));
-                        free(identity->CspData);
+			CLEAN_AND_FREE_FIELD(identity, Pin);
+			CLEAN_AND_FREE_FIELD(identity->CspData, CardName);
+			CLEAN_AND_FREE_FIELD(identity->CspData, ReaderName);
+			CLEAN_AND_FREE_FIELD(identity->CspData, ContainerName);
+			CLEAN_AND_FREE_FIELD(identity->CspData, CspName);
+			memset(identity->CspData, 0, sizeof(SEC_WINNT_AUTH_IDENTITY_CSPDATADETAIL));
+			free(identity->CspData);
 		}
 	}
+
 	free(identity);
 }
 
@@ -158,200 +159,209 @@ void nla_identity_free(SEC_WINNT_AUTH_IDENTITY* identity)
  * @param username: C string.
  */
 
-BOOL user_is_in_sam_database(const char * username)
+BOOL user_is_in_sam_database(const char* username)
 {
-        char mutable_username[128]; /*  greater than the max of 104 on MS-Windows 2000,  and 20 on MS-Windows 2003 */
-        WINPR_SAM* sam = SamOpen(NULL, TRUE);
-        BOOL is_in = FALSE;
+	char mutable_username[128]; /*  greater than the max of 104 on MS-Windows 2000,  and 20 on MS-Windows 2003 */
+	WINPR_SAM* sam = SamOpen(NULL, TRUE);
+	BOOL is_in = FALSE;
 
-        if (sizeof (mutable_username) - 1 < strlen(username))
-        {
-                return FALSE;
-        }
+	if (sizeof(mutable_username) - 1 < strlen(username))
+	{
+		return FALSE;
+	}
 
-        strcpy(mutable_username, username);
+	strcpy(mutable_username, username);
 
-        if (sam)
-        {
-                WINPR_SAM_ENTRY* entry = SamLookupUserA(sam, mutable_username, strlen(mutable_username), NULL, 0);
+	if (sam)
+	{
+		WINPR_SAM_ENTRY* entry = SamLookupUserA(sam, mutable_username, strlen(mutable_username), NULL, 0);
 
-                if (entry)
-                {
-                        is_in = TRUE;
-                        SamFreeEntry(sam, entry);
-                }
+		if (entry)
+		{
+			is_in = TRUE;
+			SamFreeEntry(sam, entry);
+		}
 
-                SamClose(sam);
-        }
-        return is_in;
+		SamClose(sam);
+	}
+
+	return is_in;
 }
 
 
 #define CHECK_MEMORY(pointer, result, description, ...)                 \
-        do                                                              \
-        {                                                               \
-                if (!pointer)                                           \
-                {                                                       \
-                        WLog_ERR(TAG, "%s:%d: " description,            \
-                                __FUNCTION__, __LINE__,                 \
-                                ##__VA_ARGS__);                         \
-                        return result;                                  \
-                }                                                       \
-        }while (0)
+	do                                                              \
+	{                                                               \
+		if (!pointer)                                           \
+		{                                                       \
+			WLog_ERR(TAG, "%s:%d: " description,            \
+			         __FUNCTION__, __LINE__,                 \
+			         ##__VA_ARGS__);                         \
+			return result;                                  \
+		}                                                       \
+	}while (0)
 
 char* string_concatenate(const char* string, ...)
 {
-        char *  result;
-        char *  current;
-        /* sum the lengths of the strings */
-        const char *  arg = string;
-        int total_length = 0;
-        va_list strings;
-        va_start(strings, string);
-        while (arg)
-        {
-                total_length += strlen(arg);
-                arg = va_arg(strings, const char*);
-        }
-        va_end(strings);
-        total_length += 1; /*  null byte */
-        CHECK_MEMORY((result = malloc(total_length)),
-                0, "Could not allocate %d bytes.", total_length);
-        /* start copying */
-        current = result;
-        strcpy(current, string);
-        current += strlen(string);
-        va_start(strings, string);
-        while (arg)
-        {
-                strcpy(current, arg);
-                current += strlen(arg);
-                arg = va_arg(strings, const char*);
-        }
-        va_end(strings);
-        /* strcpy copied the terminating null byte */
-        return result;
+	char*   result;
+	char*   current;
+	/* sum the lengths of the strings */
+	const char*   arg = string;
+	int total_length = 0;
+	va_list strings;
+	va_start(strings, string);
+
+	while (arg)
+	{
+		total_length += strlen(arg);
+		arg = va_arg(strings, const char*);
+	}
+
+	va_end(strings);
+	total_length += 1; /*  null byte */
+	CHECK_MEMORY((result = malloc(total_length)),
+	             0, "Could not allocate %d bytes.", total_length);
+	/* start copying */
+	current = result;
+	strcpy(current, string);
+	current += strlen(string);
+	va_start(strings, string);
+
+	while (arg)
+	{
+		strcpy(current, arg);
+		current += strlen(arg);
+		arg = va_arg(strings, const char*);
+	}
+
+	va_end(strings);
+	/* strcpy copied the terminating null byte */
+	return result;
 }
 
 static int nla_client_init_smartcard_logon(rdpNla* nla)
 {
-        rdpSettings* settings = nla->settings;
-        nla->credType = settings->CredentialsType;
+	rdpSettings* settings = nla->settings;
+	nla->credType = settings->CredentialsType;
 #if defined(WITH_PKCS11H) && defined(WITH_GSSAPI)
 
-        if (get_info_smartcard(nla) != 0)
-        {
-                WLog_ERR(TAG, "Failed to retrieve UPN !");
-                return -1;
-        }
+	if (get_info_smartcard(nla->instance) != 0)
+	{
+		WLog_ERR(TAG, "Failed to retrieve UPN !");
+		return -1;
+	}
 
-/* #if defined(WITH_KERBEROS) */
+	/* #if defined(WITH_KERBEROS) */
 	WLog_INFO(TAG, "WITH_KERBEROS");
-        if (get_TGT_kerberos(settings) == FALSE)
-        {
-                WLog_ERR(TAG, "Failed to get TGT from KDC !");
-                return -1;
-        }
-/* #else */
-/* 	WLog_INFO(TAG, "NOT WITH_KERBEROS"); */
-/* #endif */
 
+	if (get_TGT_kerberos(settings) == FALSE)
+	{
+		WLog_ERR(TAG, "Failed to get TGT from KDC !");
+		return -1;
+	}
+
+	/* #else */
+	/* 	WLog_INFO(TAG, "NOT WITH_KERBEROS"); */
+	/* #endif */
 #else
-        WLog_ERR(TAG, "Enable PKCS11H and GSSAPI features to authenticate via smartcard");
-        return -1;
+	WLog_ERR(TAG, "Enable PKCS11H and GSSAPI features to authenticate via smartcard");
+	return -1;
 #endif
 
-        if (settings->PinPadIsPresent)
-        {
-                /* The middleware talking to the card performs PIN caching and will provide
-                * to its CSP (Cryptographic Service Provider) the PIN code
-                * when asked. If PIN caching fails, or is not handled by the middleware,
-                * the PIN code will be asked one more time before opening the session.
-                * Thus, entering PIN code on pinpad does not give the PIN code explicitly to the CSP.
-                * That's why we set it here to "0000".
-                * The PIN code is not communicated to any software module, nor central processing unit.
-                * Contrary to /pin option in command line or with getpass() which are less secure,
-                * because the PIN code is communicated (at the present) in clear and transit via the code.
-                */
-                settings->Password = string_concatenate(PREFIX_PIN_GLOBAL, "0000", NULL);
-        }
-        else if (settings->Pin)
-        {
-                settings->Password = string_concatenate(PREFIX_PIN_GLOBAL, settings->Pin, NULL);
-        }
-        else
-        {
-                settings->Password = strdup("");
-        }
-        CHECK_MEMORY(settings->Password, -1, "Could not allocate memory for password.");
-        settings->Username = NULL;
+	if (settings->PinPadIsPresent)
+	{
+		/* The middleware talking to the card performs PIN caching and will provide
+		* to its CSP (Cryptographic Service Provider) the PIN code
+		* when asked. If PIN caching fails, or is not handled by the middleware,
+		* the PIN code will be asked one more time before opening the session.
+		* Thus, entering PIN code on pinpad does not give the PIN code explicitly to the CSP.
+		* That's why we set it here to "0000".
+		* The PIN code is not communicated to any software module, nor central processing unit.
+		* Contrary to /pin option in command line or with getpass() which are less secure,
+		* because the PIN code is communicated (at the present) in clear and transit via the code.
+		*/
+		settings->Password = string_concatenate(PREFIX_PIN_GLOBAL, "0000", NULL);
+	}
+	else if (settings->Pin)
+	{
+		settings->Password = string_concatenate(PREFIX_PIN_GLOBAL, settings->Pin, NULL);
+	}
+	else
+	{
+		settings->Password = strdup("");
+	}
 
-        if (settings->UserPrincipalName != NULL)
-        {
-                settings->Username = strdup(settings->UserPrincipalName);
-                CHECK_MEMORY(settings->Username,
-                        -1, "Could not strdup the UserPrincipalName (length = %d)",
-                        strlen(settings->UserPrincipalName));
-        }
+	CHECK_MEMORY(settings->Password, -1, "Could not allocate memory for password.");
+	settings->Username = NULL;
 
-        if (!settings->Domain)
-        {
+	if (settings->UserPrincipalName != NULL)
+	{
+		settings->Username = strdup(settings->UserPrincipalName);
+		CHECK_MEMORY(settings->Username,
+		             -1, "Could not strdup the UserPrincipalName (length = %d)",
+		             strlen(settings->UserPrincipalName));
+	}
+
+	if (!settings->Domain)
+	{
 		WLog_ERR(TAG, "Missing domain.");
-                return -1;
-        }
-        settings->DomainHint = strdup(settings->Domain); /* They're freed separately! */
+		return -1;
+	}
 
-        if (settings->DomainHint != NULL)
-        {
-                if (settings->CanonicalizedUserHint != NULL)
-                {
-                        CHECK_MEMORY((settings->UserHint = strdup(settings->CanonicalizedUserHint)),
-                                -1, "Could not strdup the UserPrincipalName (length = %d)",
-                                strlen(settings->UserPrincipalName));
-                }
-                else
-                {
-                        WLog_ERR(TAG, "Missing Canonicalized User Hint (Domain Hint = %s,  UPN = %s).",
-				settings->DomainHint, settings->UserPrincipalName);
-                        return -1;
-                }
-        }
+	settings->DomainHint = strdup(settings->Domain); /* They're freed separately! */
+
+	if (settings->DomainHint != NULL)
+	{
+		if (settings->CanonicalizedUserHint != NULL)
+		{
+			CHECK_MEMORY((settings->UserHint = strdup(settings->CanonicalizedUserHint)),
+			             -1, "Could not strdup the UserPrincipalName (length = %d)",
+			             strlen(settings->UserPrincipalName));
+		}
+		else
+		{
+			WLog_ERR(TAG, "Missing Canonicalized User Hint (Domain Hint = %s,  UPN = %s).",
+			         settings->DomainHint, settings->UserPrincipalName);
+			return -1;
+		}
+	}
 
 	WLog_INFO(TAG, "Canonicalized User Hint = %s,  Domain Hint = %s,  UPN = %s",
-		settings->CanonicalizedUserHint, settings->DomainHint, settings->UserPrincipalName);
-        CHECK_MEMORY((settings->ContainerName = string_concatenate(PREFIX_CONTAINER_NAME, settings->IdCertificate, NULL)),
-                -1, "Could not allocate memory for container name.");
+	          settings->CanonicalizedUserHint, settings->DomainHint, settings->UserPrincipalName);
+	CHECK_MEMORY((settings->ContainerName = string_concatenate(PREFIX_CONTAINER_NAME,
+	                                        settings->IdCertificate, NULL)),
+	             -1, "Could not allocate memory for container name.");
 
-        if ((settings->CspName == NULL) || (settings->CspName != NULL && strlen(settings->CspName) == 0))
-        {
-                WLog_ERR(TAG, "/csp argument is mandatory for smartcard-logon ");
-                return -1;
-        }
+	if ((settings->CspName == NULL) || (settings->CspName != NULL && strlen(settings->CspName) == 0))
+	{
+		WLog_ERR(TAG, "/csp argument is mandatory for smartcard-logon ");
+		return -1;
+	}
 
-        if (!settings->RedirectSmartCards && !settings->DeviceRedirection)
-        {
-                WLog_ERR(TAG, "/smartcard argument is mandatory for smartcard-logon ");
-                return -1;
-        }
+	if (!settings->RedirectSmartCards && !settings->DeviceRedirection)
+	{
+		WLog_ERR(TAG, "/smartcard argument is mandatory for smartcard-logon ");
+		return -1;
+	}
 
-        WLog_DBG(TAG, "SmartcardReaderName=%s", settings->SmartcardReaderName);
+	WLog_DBG(TAG, "SmartcardReaderName=%s", settings->SmartcardReaderName);
+	int ret = sspi_SetAuthIdentity_Smartcard(nla->identity,
+	          settings->Password,
+	          AT_KEYEXCHANGE /*AT_AUTHENTICATE*/,
+	          settings->CardName,
+	          settings->SmartcardReaderName,
+	          settings->ContainerName,
+	          settings->CspName,
+	          settings->UserHint,
+	          settings->DomainHint);
 
-        int ret = sspi_SetAuthIdentity_Smartcard(nla->identity,
-                settings->Password,
-                AT_KEYEXCHANGE /*AT_AUTHENTICATE*/,
-                settings->CardName,
-                settings->SmartcardReaderName,
-                settings->ContainerName,
-                settings->CspName,
-                settings->UserHint,
-                settings->DomainHint);
+	if (ret < 0)
+	{
+		WLog_ERR(TAG, "%s:%d: Failed to set smartcard authentication parameters !",
+		         __FUNCTION__, __LINE__);
+		return -1;
+	}
 
-        if (ret < 0)
-        {
-                WLog_ERR(TAG, "%s:%d: Failed to set smartcard authentication parameters !",
-                        __FUNCTION__, __LINE__);
-                return -1;
-        }
 	return 0;
 }
 
@@ -386,11 +396,12 @@ static int nla_client_init(rdpNla* nla)
 
 	if (PromptPassword && settings->Username && strlen(settings->Username))
 	{
-                /* Use entry in SAM database later instead of prompt when user is in the SAM database */
-                PromptPassword = !user_is_in_sam_database(settings->Username);
+		/* Use entry in SAM database later instead of prompt when user is in the SAM database */
+		PromptPassword = !user_is_in_sam_database(settings->Username);
 	}
 
 #ifndef _WIN32
+
 	if (PromptPassword)
 	{
 		if (settings->RestrictedAdminModeRequired)
@@ -399,6 +410,7 @@ static int nla_client_init(rdpNla* nla)
 				PromptPassword = FALSE;
 		}
 	}
+
 #endif
 
 	if (PromptPassword || PromptPin)
@@ -417,13 +429,13 @@ static int nla_client_init(rdpNla* nla)
 	}
 
 	if (settings->SmartcardLogon)
-        {
-                if( nla_client_init_smartcard_logon(nla) < 0)
-                {
+	{
+		if (nla_client_init_smartcard_logon(nla) < 0)
+		{
 			WLog_ERR(TAG, "Could not initialize Smartcard Logon.");
-                        return -1;
-                }
-        }
+			return -1;
+		}
+	}
 	else
 	{
 		if (settings->Username)
@@ -431,7 +443,8 @@ static int nla_client_init(rdpNla* nla)
 			if (sspi_SetAuthIdentity(nla->identity, settings->Username, settings->Domain,
 			                         settings->Password) < 0)
 				WLog_ERR(TAG, "Could not set authentication identity.");
-				return -1;
+
+			return -1;
 		}
 		else
 		{
@@ -563,13 +576,11 @@ int nla_client_begin(rdpNla* nla)
 		return -1;
 	}
 
-
 	if (nla->state != NLA_STATE_INITIAL)
 	{
 		WLog_ERR(TAG, "Invalid initial NLA state.");
 		return -1;
 	}
-
 
 	nla->outputBufferDesc.ulVersion = SECBUFFER_VERSION;
 	nla->outputBufferDesc.cBuffers = 1;
@@ -583,7 +594,6 @@ int nla_client_begin(rdpNla* nla)
 		WLog_ERR(TAG, "Could not allocate buffers.");
 		return -1;
 	}
-
 
 	nla->status = nla->table->InitializeSecurityContext(&nla->credentials,
 	              NULL, nla->ServicePrincipalName, nla->fContextReq, 0,
@@ -646,13 +656,11 @@ int nla_client_begin(rdpNla* nla)
 		return -1;
 	}
 
-
 	if (nla->outputBuffer.cbBuffer < 1)
 	{
 		WLog_ERR(TAG, "NLA output buffer is empty.");
 		return -1;
 	}
-
 
 	nla->negoToken.pvBuffer = nla->outputBuffer.pvBuffer;
 	nla->negoToken.cbBuffer = nla->outputBuffer.cbBuffer;

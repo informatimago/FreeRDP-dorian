@@ -320,12 +320,13 @@ LONG smartcard_unpack_redir_scard_context_ref(SMARTCARD_DEVICE* smartcard, wStre
 #ifdef FROM_MASTER
 	Stream_Read(s, &(context->pbContext), context->cbContext);
 #else
+
 	if (context->cbContext)
 		Stream_Read(s, &(context->pbContext), context->cbContext);
 	else
 		ZeroMemory(&(context->pbContext), sizeof(context->pbContext));
-#endif
 
+#endif
 	return SCARD_S_SUCCESS;
 }
 
@@ -339,12 +340,15 @@ LONG smartcard_pack_redir_scard_context_ref(SMARTCARD_DEVICE* smartcard, wStream
 	{
 		Stream_Write(s, &(context->pbContext), context->cbContext);
 	}
+
 #else
+
 	if (context->cbContext)
 	{
 		Stream_Write_UINT32(s, context->cbContext); /* Length (4 bytes) */
 		Stream_Write(s, &(context->pbContext), context->cbContext);
 	}
+
 #endif
 	return SCARD_S_SUCCESS;
 }
@@ -433,12 +437,15 @@ LONG smartcard_pack_redir_scard_handle_ref(SMARTCARD_DEVICE* smartcard, wStream*
 
 	if (handle->cbHandle)
 		Stream_Write(s, &(handle->pbHandle), handle->cbHandle);
+
 #else
+
 	if (handle->cbHandle)
 	{
 		Stream_Write_UINT32(s, handle->cbHandle); /* Length (4 bytes) */
 		Stream_Write(s, &(handle->pbHandle), handle->cbHandle);
 	}
+
 #endif
 	return SCARD_S_SUCCESS;
 }
@@ -1883,7 +1890,7 @@ void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* r
 	size_t index;
 	size_t length = 0;
 	char* pbAtr = NULL;
-	LPSTR* mszReaderNamesA = NULL;
+	LPSTR mszReaderNamesA = NULL;
 
 	if (!WLog_IsLevelActive(WLog_Get(TAG), WLOG_DEBUG))
 		return;
@@ -1904,7 +1911,7 @@ void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* r
 		else
 		{
 			length = ret->cBytes;
-			mszReaderNamesA = (LPSTR*) malloc(length + 1);
+			mszReaderNamesA = (LPSTR) malloc(length + 1);
 
 			if (!mszReaderNamesA)
 			{
@@ -1915,7 +1922,7 @@ void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* r
 			strncpy(mszReaderNamesA, (const char*) ret->mszReaderNames, length + 1);
 		}
 	}
-	
+
 	for (index = 0; index < length; index++)
 	{
 		if (mszReaderNamesA[index] == '\0')
@@ -1944,7 +1951,7 @@ void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* r
 	size_t index;
 	size_t length;
 	char* pbAtr = NULL;
-	LPSTR* mszReaderNamesA = NULL;
+	LPSTR mszReaderNamesA = NULL;
 
 	if (!WLog_IsLevelActive(WLog_Get(TAG), WLOG_DEBUG))
 		return;
@@ -1954,7 +1961,7 @@ void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* r
 		length = ret->cBytes / 2;
 
 		if (ConvertFromUnicode(CP_UTF8, 0, (WCHAR*) ret->mszReaderNames, (int)length,
-		                       mszReaderNamesA, 0, NULL, NULL) < 1)
+		                       & mszReaderNamesA, 0, NULL, NULL) < 1)
 		{
 			WLog_ERR(TAG, "ConvertFromUnicode failed");
 			return;
@@ -1963,15 +1970,15 @@ void smartcard_trace_status_return(SMARTCARD_DEVICE* smartcard, Status_Return* r
 	else
 	{
 		length = (int) ret->cBytes;
-		mszReaderNamesA = (LPSTR*) calloc(length + 1, sizeof(LPSTR));
+		mszReaderNamesA = (LPSTR) malloc(length + 1);
 
 		if (!mszReaderNamesA)
 		{
-			WLog_ERR(TAG, "calloc failed!");
+			WLog_ERR(TAG, "malloc failed!");
 			return;
 		}
 
-		strncpy(mszReaderNamesA, ret->mszReaderNames, ret->cBytes + 1);
+		strncpy((char*)mszReaderNamesA, (char*)ret->mszReaderNames, ret->cBytes + 1);
 	}
 
 	if (!mszReaderNamesA)
