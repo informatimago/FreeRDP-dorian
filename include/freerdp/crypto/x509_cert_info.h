@@ -70,6 +70,11 @@ typedef struct
 
 CERTINFO_EXTERN x509_cert_info_t* x509_cert_info(X509* x509, CERT_INFO_TYPE type);
 CERTINFO_EXTERN void x509_cert_info_free(x509_cert_info_t* entries);
+
+/*
+x509_cert_info_string
+return a fresh strings (shall be freed by the caller).
+*/
 CERTINFO_EXTERN char* x509_cert_info_string(X509* x509, CERT_INFO_TYPE type);
 
 #endif
