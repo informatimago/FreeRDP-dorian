@@ -37,6 +37,8 @@
 
 #define TAG FREERDP_TAG("core.smartcardlogon")
 
+#define ERROR(format, ...) WLog_ERR(TAG, "%s:%d: " format,  __FUNCTION__, __LINE__, ## __VA_ARGS__)
+
 /*
 C_UnloadModule
 Unload the library and free the pkcs11_module
@@ -1127,26 +1129,27 @@ static CK_OBJECT_HANDLE find_signature_private_key(pkcs11_module* module, CK_SES
 *  This function is actually called in get_valid_smartcard_cert()
 *  @return CKR_OK if all PKCS#11 functions succeed.
 */
-static CK_RV init_authentication_pin(freerdp* instance, pkcs11_context** context)
+
+static pkcs11_context* init_authentication_pin(freerdp* instance)
 {
+	pkcs11_context*   context        = NULL;
 	CK_SLOT_ID        slot_id        = 0;
 	CK_SESSION_HANDLE session        = CK_INVALID_HANDLE;
 	CK_OBJECT_HANDLE  private_key    = CK_INVALID_HANDLE;
 	CK_FLAGS          flags          = CKF_SERIAL_SESSION;
 	pkcs11_module*    module         = cryptoki_load_and_initialize(instance->settings->Pkcs11Module);
 	char*             certificate_id = NULL;
-	(*context) = NULL;
 
 	if (!module)
 	{
-		return CKR_GENERAL_ERROR;
+		return NULL;
 	}
 
 	slot_id = find_usable_slot(instance->settings, module, &instance->settings->TokenLabel);
 
 	if (slot_id == CK_UNAVAILABLE_INFORMATION)
 	{
-		return CKR_GENERAL_ERROR;
+		return NULL;
 	}
 
 	instance->settings->SlotID = unsigned_long_to_string(slot_id);
@@ -1188,13 +1191,13 @@ static CK_RV init_authentication_pin(freerdp* instance, pkcs11_context** context
 		goto close_session_finalize_and_unload;
 	}
 
-	(*context) = pkcs11_context_new(module, session, slot_id, private_key);
+	context = pkcs11_context_new(module, session, slot_id, private_key);
 
-	if (*context)
+	if (context)
 	{
 		instance->settings->IdCertificate = certificate_id;        /* ! */
 		instance->settings->IdCertificateLength = strlen(certificate_id) / 2; /* ! */
-		return CKR_OK;
+		return context;
 	}
 
 close_session_finalize_and_unload:
@@ -1202,7 +1205,7 @@ close_session_finalize_and_unload:
 	session = cryptoki_close_session(module, session, slot_id);
 finalize_and_unload:
 	cryptoki_finalize_and_unload(module);
-	return CKR_GENERAL_ERROR;
+	return NULL;
 }
 
 
@@ -1292,24 +1295,13 @@ static const X509* get_X509_certificate(cert_object* cert)
 
 /** match_id compare id's certificate.
 *  This function is actually called in find_valid_matching_cert().
-*  @param settings - pointer to the rdpSettings structure that contains the settings
+*  @param certificate_id the wanted certificate ID.
 *  @param cert - pointer to the cert_handle structure that contains a certificate
-*  @return 1 if match occurred; 0 or -1 otherwise
+*  @return TRUE if match occurred; FALSE otherwise.
 */
-static int match_id(rdpSettings* settings, cert_object* cert)
+static BOOL match_id(char * certificate_id, cert_object* cert)
 {
-	/* if no cert provided, call  */
-	if (!cert->id_cert)
-	{
-		return 0;
-	}
-
-	if (strcmp(settings->IdCertificate, cert->id_cert) != 0)
-	{
-		return -1;
-	}
-
-	return 1;
+	return (cert->id_cert != NULL) && (strcmp(certificate_id, cert->id_cert) ==  0);
 }
 
 /** find_valid_matching_cert find a valid certificate that matches requirements.
@@ -1320,7 +1312,7 @@ static int match_id(rdpSettings* settings, cert_object* cert)
 */
 static int find_valid_matching_cert(rdpSettings* settings, pkcs11_context* context)
 {
-	int i, rv = 0;
+	int i;
 	X509* x509 = NULL;
 	WLog_DBG(TAG, "settings : ID Authentication Certificate (%s)", settings->IdCertificate);
 	context->valid_cert = NULL;
@@ -1336,10 +1328,8 @@ static int find_valid_matching_cert(rdpSettings* settings, pkcs11_context* conte
 		}
 
 		/* ensure we extract the right certificate from the list by checking
-		* whether ID matches the one previously stored in settings */
-		rv = match_id(settings, context->certificates[i]);
-
-		if (rv == 1)   /* match success */
+		whether ID matches the one previously stored in settings */
+		if (match_id(settings->IdCertificate, context->certificates[i]))
 		{
 			context->valid_cert = context->certificates[i];
 			break;
@@ -1387,108 +1377,64 @@ static void debug_log_certificate(int i, X509* cert)
 *  @param instance -  freerdp instance.
 *  @return 0 if the certificate was successfully retrieved; -1 otherwise
 */
-static int get_valid_smartcard_cert(freerdp* instance, pkcs11_context** context)
+static pkcs11_context* get_valid_smartcard_cert(freerdp* instance)
 {
+	pkcs11_context *  context = NULL;
 	int i;
-	int ret;
-	CK_RV ck_rv;
-	/* init openssl */
-	ret  = crypto_init();
 
-	if (ret != 0)
+	if (crypto_init() != 0) /* init openssl */
 	{
 		WLog_ERR(TAG, "Could not initialize openssl.");
-		return -1;
+		return NULL;
 	}
 
-	ck_rv = init_authentication_pin(instance, context);
-
-	if (ck_rv != CKR_OK)
+	if (!(context = init_authentication_pin(instance)))
 	{
-		WLog_ERR(TAG, "Error initialization PKCS#11 session : 0x%08lX", ck_rv);
-		return -1;
+		return NULL;
 	}
 
-	(*context)->certificates = certificates_list((*context), &((*context)->certificates_count));
+	context->certificates = certificates_list(context, &(context->certificates_count));
 
-	if ((*context)->certificates == NULL)
+	if (context->certificates == NULL)
 	{
-		goto get_error;
+		ERROR("Found no certificate.");
+		goto failure;
 	}
 
-	for (i = 0; i < (*context)->certificates_count; i++)
+	for (i = 0; i < context->certificates_count; i++)
 	{
-		X509* cert = (X509*) get_X509_certificate((*context)->certificates[i]);
+		X509* cert = (X509*) get_X509_certificate(context->certificates[i]);
 		debug_log_certificate(i, cert);
 
-		if (certificate_update_private_key_handle((*context), (*context)->certificates[i]) < 0)
+		if (certificate_update_private_key_handle(context, context->certificates[i]) < 0)
 		{
-			WLog_ERR(TAG, "%s %d : Certificate[%d] does not have associated private key",
-			         __FUNCTION__, __LINE__, i);
+			ERROR("Certificate[%d] does not have associated private key.", i);
 			continue;
 		}
 
-		if (find_valid_matching_cert(instance->settings, (*context)) == 0)
+		if (find_valid_matching_cert(instance->settings, context) == 0)
 		{
-			WLog_INFO(TAG, "Found 1 valid authentication certificate");
-			return 0;
+			WLog_INFO(TAG, "Found a valid authentication certificate.");
+			return context;
 		}
-
-		WLog_ERR(TAG, "None valid and matching requirements certificate found");
 	}
 
-get_error:
-	cryptoki_close_session((*context)->module, (*context)->session, CK_UNAVAILABLE_INFORMATION);
-	pkcs11_context_free((*context));
-	(*context) = NULL;
-	return -1;
+	ERROR("No valid certificate matching requirements found.");
+
+failure:
+	cryptoki_close_session(context->module, context->session, CK_UNAVAILABLE_INFORMATION);
+	pkcs11_context_free(context);
+	context = NULL;
+	return context;
 }
 
 
-/** get_valid_smartcard_UPN is used to get valid UPN and KPN from the smartcard.
-*  This function is actually called in init_authentication_pin().
-*  @param settings - pointer to stucture rdpSettings
-*  @param x509 - pointer to X509 certificate
-*  @return 0 if UPN was successfully retrieved
-*/
-static int get_valid_smartcard_UPN(rdpSettings* settings, X509* x509)
+static void set_string(char** old_string, char* new_string)
 {
-	char* entries_upn = NULL;
-
-	if (x509 == NULL)
-	{
-		WLog_ERR(TAG, "Null certificate provided");
-		return -1;
-	}
-
-	if (settings->UserPrincipalName)
-	{
-		WLog_DBG(TAG, "Reset UserPrincipalName");
-		free(settings->UserPrincipalName);
-		settings->UserPrincipalName = NULL;
-	}
-
-	/* retrieve UPN */
-	entries_upn = x509_cert_info_string(x509, CERT_UPN);
-
-	if (!entries_upn || (entries_upn && !strlen(entries_upn)))
-	{
-		WLog_ERR(TAG, "cert_info() failed");
-		return -1;
-	}
-
-	/* set UPN in rdp settings */
-	settings->UserPrincipalName = calloc(strlen(entries_upn) + 1, sizeof(char));
-
-	if (settings->UserPrincipalName == NULL)
-	{
-		WLog_ERR(TAG, "Error allocation UserPrincipalName");
-		return -1;
-	}
-
-	strncpy(settings->UserPrincipalName, entries_upn, strlen(entries_upn) + 1);
-	return 0;
+	free(*old_string);
+	(*old_string) = new_string;
 }
+
 
 /** get_info_smartcard is used to retrieve a valid authentication certificate.
 *  This function is actually called in nla_client_init().
@@ -1497,48 +1443,32 @@ static int get_valid_smartcard_UPN(rdpSettings* settings, X509* x509)
 */
 int get_info_smartcard(freerdp* instance)
 {
-	int ret = 0;
 	CK_RV rv;
 	pkcs11_context* context;
 
-	/* retrieve a valid authentication certificate */
-	ret = get_valid_smartcard_cert(instance, & context);
-
-	if ((ret != 0) || (!context))
+	if (!(context = get_valid_smartcard_cert(instance)))
 	{
 		return -1;
 	}
 
-	/* retrieve UPN from smartcard */
-	ret = get_valid_smartcard_UPN(instance->settings, context->valid_cert->x509);
+	set_string(&instance->settings->UserPrincipalName, x509_cert_info_string(context->valid_cert->x509, CERT_UPN));
 
-	if (ret < 0)
+	if ((rv = cryptoki_close_session(context->module, context->session, CK_UNAVAILABLE_INFORMATION)) != 0)
 	{
-		WLog_ERR(TAG, "Fail to get valid UPN %s", instance->settings->UserPrincipalName);
-		goto auth_failed;
+		WLog_ERR(TAG, "close_pkcs11_session() failed: %d", rv);
+	}
+
+	WLog_DBG(TAG, "releasing PKCS#11 module...");
+	pkcs11_context_free(context);
+
+	if (instance->settings->UserPrincipalName)
+	{
+		WLog_DBG(TAG, "Valid UPN retrieved (%s)", instance->settings->UserPrincipalName);
+		return 0;
 	}
 	else
 	{
-		WLog_DBG(TAG, "Valid UPN retrieved (%s)", instance->settings->UserPrincipalName);
+		WLog_ERR(TAG, "Fail to get valid UPN");
+		return - 1;
 	}
-
-	/* close PKCS#11 session */
-	rv = cryptoki_close_session(context->module, context->session, CK_UNAVAILABLE_INFORMATION);
-
-	if (rv != 0)
-	{
-		pkcs11_context_free(context);
-		WLog_ERR(TAG, "close_pkcs11_session() failed: %d", rv);
-		return -1;
-	}
-
-	/* release PKCS#11 module */
-	WLog_DBG(TAG, "releasing PKCS#11 module...");
-	pkcs11_context_free(context);
-	WLog_DBG(TAG, "UPN retrieving process completed");
-	return 0;
-auth_failed:
-	cryptoki_close_session(context->module, context->session, CK_UNAVAILABLE_INFORMATION);
-	pkcs11_context_free(context);
-	return -1;
 }
