@@ -149,6 +149,8 @@ set(${MODULE_PREFIX}_SRCS
 	listener.h
 	peer.c
 	peer.h
+    pkcs11errors.h
+    pkcs11errors.c
 	smartcardlogon.h
 	smartcardlogon_private.h
 	smartcardlogon.c
