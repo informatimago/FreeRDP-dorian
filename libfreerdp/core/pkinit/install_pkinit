@@ -31,7 +31,7 @@ eval set -- "$TEMP"
 
 MIT=true
 HEIMDAL=false
-if [ $BUILD_WITH_PKINIT = "false" ] || [[ $BUILD_WITH_PKINIT = "" ]]; then
+if [ "$BUILD_WITH_PKINIT" = "false" ] || [[ "$BUILD_WITH_PKINIT" = "" ]]; then
   KRB_PREFIX=
   KRB_SOURCES_DIR=
   echo "build without pkinit: BUILD_WITH_PKINIT=$BUILD_WITH_PKINIT; KRB_PREFIX=$KRB_PREFIX; KRB_SOURCES_DIR=$KRB_SOURCES_DIR"
@@ -259,7 +259,7 @@ if [ "$CONFIG_FAILED" = "true" ]; then
 fi
 
 # Add krb5support lib flag to krb5-config file
-KRB5PREFIX=$(($KRB5CONFIG --prefix) 2>&1)
+KRB5PREFIX=$( $KRB5CONFIG --prefix 2>&1)
 
 if [ "$FLAVOUR" = "MIT" ]; then
   touch /tmp/krb5-config
