@@ -33,7 +33,7 @@ char* crypto_print_name(X509_NAME* name);
 
 
 #define TAG FREERDP_TAG("core.x509")
-#define countof(a)  (sizeof (a) / sizeof (a[0]))
+
 
 static void*  check_out_of_memory_error(void* pointer)
 {
