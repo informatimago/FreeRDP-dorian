@@ -55,6 +55,12 @@ static const char* PREFIX_PIN_GLOBAL = "CredProv&PIN Global&";
 #define SERVER_KEY "Software\\"FREERDP_VENDOR_STRING"\\" \
 	FREERDP_PRODUCT_STRING"\\Server"
 
+#ifdef UNICODE
+#define INIT_SECURITY_INTERFACE_NAME "InitSecurityInterfaceW"
+#else
+#define INIT_SECURITY_INTERFACE_NAME "InitSecurityInterfaceA"
+#endif
+
 /**
  * TSRequest ::= SEQUENCE {
  * 	version    [0] INTEGER,
@@ -239,6 +245,24 @@ char* string_concatenate(const char* string, ...)
 	return result;
 }
 
+
+/*
+Duplicate the cstring,  or convert it to WCHAR,  depending on UNICODE.
+*/
+LPTSTR stringX_from_cstring(const char * cstring)
+{
+	LPTSTR result = NULL;
+#ifdef UNICODE
+	ConvertToUnicode(CP_UTF8, 0, cstring, -1, &result, 0);
+	CHECK_MEMORY(result, 0, "Could not allocate %d bytes.", 2 * (1 + strlen(cstring)));
+#else
+	result = strdup(cstring);
+	CHECK_MEMORY(result, 0, "Could not allocate %d bytes.", 1 + strlen(cstring));
+#endif
+	return result;
+}
+
+
 static int nla_client_init_smartcard_logon(rdpNla* nla)
 {
 	rdpSettings* settings = nla->settings;
@@ -386,9 +410,11 @@ static int nla_client_init(rdpNla* nla)
 	if (settings->RestrictedAdminModeRequired)
 		settings->DisableCredentialsDelegation = TRUE;
 
-	if (((!settings->Password) || (!settings->Username)
-	     || (!strlen(settings->Password)) || (!strlen(settings->Username)))
-	    && !settings->SmartcardLogon)
+	if (((!settings->Password)
+			|| (!settings->Username)
+			|| (!strlen(settings->Password))
+			|| (!strlen(settings->Username)))
+		&& !settings->SmartcardLogon)
 		PromptPassword = TRUE;
 
 	if (settings->SmartcardLogon)
@@ -507,13 +533,8 @@ static int nla_client_init(rdpNla* nla)
 	}
 
 	sprintf(spn, "%s%s", TERMSRV_SPN_PREFIX, settings->ServerHostname);
-#ifdef UNICODE
-	nla->ServicePrincipalName = NULL;
-	ConvertToUnicode(CP_UTF8, 0, spn, -1, &nla->ServicePrincipalName, 0);
+	nla->ServicePrincipalName = stringX_from_cstring(spn);
 	free(spn);
-#else
-	nla->ServicePrincipalName = spn;
-#endif
 	nla->table = InitSecurityInterfaceEx(0);
 #ifdef WITH_GSSAPI /* KERBEROS SSP */
 	nla->status = nla->table->QuerySecurityPackageInfo(KERBEROS_SSP_NAME, &nla->pPackageInfo);
@@ -901,11 +922,7 @@ static int nla_server_init(rdpNla* nla)
 			return -1;
 		}
 
-#ifdef UNICODE
-		pInitSecurityInterface = (INIT_SECURITY_INTERFACE) GetProcAddress(hSSPI, "InitSecurityInterfaceW");
-#else
-		pInitSecurityInterface = (INIT_SECURITY_INTERFACE) GetProcAddress(hSSPI, "InitSecurityInterfaceA");
-#endif
+		pInitSecurityInterface = (INIT_SECURITY_INTERFACE) GetProcAddress(hSSPI, InitSecurityInterfaceName);
 		nla->table = pInitSecurityInterface();
 	}
 	else
@@ -2489,13 +2506,8 @@ LPTSTR nla_make_spn(const char* ServiceClass, const char* hostname)
 	LPTSTR hostnameX = NULL;
 	LPTSTR ServiceClassX = NULL;
 	LPTSTR ServicePrincipalName = NULL;
-#ifdef UNICODE
-	ConvertToUnicode(CP_UTF8, 0, hostname, -1, &hostnameX, 0);
-	ConvertToUnicode(CP_UTF8, 0, ServiceClass, -1, &ServiceClassX, 0);
-#else
-	hostnameX = _strdup(hostname);
-	ServiceClassX = _strdup(ServiceClass);
-#endif
+	hostnameX = stringX_from_cstring(hostname);
+	ServiceClassX = stringX_from_cstring(ServiceClass);
 
 	if (!hostnameX || !ServiceClassX)
 	{
