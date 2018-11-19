@@ -1,7 +1,5 @@
 #include <freerdp/crypto/crypto.h>
 
-#define countof(a)   (sizeof(a)/sizeof(a[0]))
-
 #define FAILURE(format, ...)						\
 	do								\
 	{								\
@@ -244,6 +242,6 @@ fail:
 
 int Test_x509_cert_info(int argc, char* argv[])
 {
-        return TestCertificateFile(certificate_path, certificate_tests, countof(certificate_tests));
+        return TestCertificateFile(certificate_path, certificate_tests, ARRAYSIZE(certificate_tests));
 }
 

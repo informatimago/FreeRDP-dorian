@@ -922,7 +922,7 @@ static int nla_server_init(rdpNla* nla)
 			return -1;
 		}
 
-		pInitSecurityInterface = (INIT_SECURITY_INTERFACE) GetProcAddress(hSSPI, InitSecurityInterfaceName);
+		pInitSecurityInterface = (INIT_SECURITY_INTERFACE) GetProcAddress(hSSPI, INIT_SECURITY_INTERFACE_NAME);
 		nla->table = pInitSecurityInterface();
 	}
 	else

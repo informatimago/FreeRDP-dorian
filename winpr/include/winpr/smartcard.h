@@ -30,8 +30,6 @@
 #define _WINSCARD_H_	/* do not include winscard.h */
 #endif
 
-#define FROM_MASTER
-#undef FROM_MASTER
 
 #ifndef SCARD_S_SUCCESS
 

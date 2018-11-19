@@ -34,8 +34,6 @@
 
 #include "smartcard_main.h"
 
-#define FROM_MASTER
-#undef FROM_MASTER
 
 void* smartcard_context_thread(SMARTCARD_CONTEXT* pContext)
 {
@@ -391,8 +389,6 @@ UINT smartcard_process_irp(SMARTCARD_DEVICE* smartcard, IRP* irp)
 
 		switch (operation->ioControlCode)
 		{
-#ifndef FROM_MASTER
-
 			/**
 			 * The following matches mstsc's behavior of processing
 			 * only certain requests asynchronously while processing
@@ -457,62 +453,7 @@ UINT smartcard_process_irp(SMARTCARD_DEVICE* smartcard, IRP* irp)
 			case SCARD_IOCTL_RELEASESTARTEDEVENT:
 				asyncIrp = FALSE;
 				break;
-#else
 
-			case SCARD_IOCTL_ESTABLISHCONTEXT:
-			case SCARD_IOCTL_RELEASECONTEXT:
-			case SCARD_IOCTL_ISVALIDCONTEXT:
-			case SCARD_IOCTL_CANCEL:
-			case SCARD_IOCTL_ACCESSSTARTEDEVENT:
-			case SCARD_IOCTL_RELEASESTARTEDEVENT:
-				asyncIrp = FALSE;
-				break;
-
-			case SCARD_IOCTL_LISTREADERGROUPSA:
-			case SCARD_IOCTL_LISTREADERGROUPSW:
-			case SCARD_IOCTL_LISTREADERSA:
-			case SCARD_IOCTL_LISTREADERSW:
-			case SCARD_IOCTL_INTRODUCEREADERGROUPA:
-			case SCARD_IOCTL_INTRODUCEREADERGROUPW:
-			case SCARD_IOCTL_FORGETREADERGROUPA:
-			case SCARD_IOCTL_FORGETREADERGROUPW:
-			case SCARD_IOCTL_INTRODUCEREADERA:
-			case SCARD_IOCTL_INTRODUCEREADERW:
-			case SCARD_IOCTL_FORGETREADERA:
-			case SCARD_IOCTL_FORGETREADERW:
-			case SCARD_IOCTL_ADDREADERTOGROUPA:
-			case SCARD_IOCTL_ADDREADERTOGROUPW:
-			case SCARD_IOCTL_REMOVEREADERFROMGROUPA:
-			case SCARD_IOCTL_REMOVEREADERFROMGROUPW:
-			case SCARD_IOCTL_LOCATECARDSA:
-			case SCARD_IOCTL_LOCATECARDSW:
-			case SCARD_IOCTL_LOCATECARDSBYATRA:
-			case SCARD_IOCTL_LOCATECARDSBYATRW:
-			case SCARD_IOCTL_READCACHEA:
-			case SCARD_IOCTL_READCACHEW:
-			case SCARD_IOCTL_WRITECACHEA:
-			case SCARD_IOCTL_WRITECACHEW:
-			case SCARD_IOCTL_GETREADERICON:
-			case SCARD_IOCTL_GETDEVICETYPEID:
-			case SCARD_IOCTL_GETSTATUSCHANGEA:
-			case SCARD_IOCTL_GETSTATUSCHANGEW:
-			case SCARD_IOCTL_CONNECTA:
-			case SCARD_IOCTL_CONNECTW:
-			case SCARD_IOCTL_RECONNECT:
-			case SCARD_IOCTL_DISCONNECT:
-			case SCARD_IOCTL_BEGINTRANSACTION:
-			case SCARD_IOCTL_ENDTRANSACTION:
-			case SCARD_IOCTL_STATE:
-			case SCARD_IOCTL_STATUSA:
-			case SCARD_IOCTL_STATUSW:
-			case SCARD_IOCTL_TRANSMIT:
-			case SCARD_IOCTL_CONTROL:
-			case SCARD_IOCTL_GETATTRIB:
-			case SCARD_IOCTL_SETATTRIB:
-			case SCARD_IOCTL_GETTRANSMITCOUNT:
-				asyncIrp = TRUE;
-				break;
-#endif
 		}
 
 		pContext = ListDictionary_GetItemValue(smartcard->rgSCardContextList,
@@ -774,36 +715,6 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	smartcard->device.Init = smartcard_init;
 	smartcard->device.Free = smartcard_free;
 	smartcard->rdpcontext = pEntryPoints->rdpcontext;
-#ifdef FROM_MASTER
-	length = strlen(smartcard->device.name);
-	smartcard->device.data = Stream_New(NULL, length + 1);
-
-	if (!smartcard->device.data)
-	{
-		WLog_ERR(TAG, "Stream_New failed!");
-		goto error_device_data;
-	}
-
-	Stream_Write(smartcard->device.data, "SCARD", 6);
-	smartcard->name = NULL;
-	smartcard->path = NULL;
-
-	if (path)
-	{
-		smartcard->path = path;
-		smartcard->name = name;
-	}
-	else if (name)
-	{
-		if (1 == sscanf(name, "%d", &ck))
-			smartcard->path = name;
-		else
-			smartcard->name = name;
-	}
-
-	WLog_ERR(TAG, "device name = %s", device->Name);
-	status = SCardAddReaderName(&smartcard->thread, (LPSTR) device->Name);
-#else
 	smartcard->device.data = NULL;
 	smartcard->name = NULL;
 	smartcard->path = NULL;
@@ -822,7 +733,6 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	}
 
 	status = SCardAddReaderName(&smartcard->thread, (LPSTR) name);
-#endif
 
 	if (status != SCARD_S_SUCCESS)
 	{

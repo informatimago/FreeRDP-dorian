@@ -47,8 +47,6 @@
 #include "../log.h"
 #define TAG WINPR_TAG("smartcard")
 
-#define FROM_MASTER
-#undef FROM_MASTER
 
 /**
  * PC/SC transactions:
@@ -1245,63 +1243,6 @@ WINSCARDAPI LONG WINAPI PCSC_SCardListReadersA(SCARDCONTEXT hContext,
 WINSCARDAPI LONG WINAPI PCSC_SCardListReadersW(SCARDCONTEXT hContext,
         LPCWSTR mszGroups, LPWSTR mszReaders, LPDWORD pcchReaders)
 {
-#ifdef FROM_MASTER
-#ifdef PAS_UNICODE
-	LPSTR mszGroupsA = NULL;
-	LPSTR mszReadersA = NULL;
-	LPSTR* pMszReadersA = &mszReadersA;
-#else
-	LPSTR mszGroupsW = NULL;
-	LPSTR mszReadersW = NULL;
-	LPSTR* pMszReadersW = (LPSTR*) &mszReaders;
-#endif
-	LONG status = SCARD_S_SUCCESS;
-	BOOL nullCardContext = FALSE;
-
-	if (!g_PCSC.pfnSCardListReaders)
-		return SCARD_E_NO_SERVICE;
-
-	if (!hContext)
-	{
-		status = PCSC_SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &hContext);
-
-		if (status != SCARD_S_SUCCESS)
-			return status;
-
-		nullCardContext = TRUE;
-	}
-
-	if (!PCSC_LockCardContext(hContext))
-		return SCARD_E_INVALID_HANDLE;
-
-	mszGroups = NULL; /* mszGroups is not supported by pcsc-lite */
-
-	if (mszGroups)
-		ConvertFromUnicode(CP_UTF8, 0, mszGroups, -1, (char**) &mszGroupsW, 0, NULL, NULL);
-
-	status = PCSC_SCardListReaders_Internal(hContext, mszGroupsW, (LPSTR) *pMszReadersW, pcchReaders);
-
-	if (status == SCARD_S_SUCCESS)
-	{
-		//*pcchReaders = ConvertToUnicode(CP_UTF8, 0, (LPCSTR) &pMszReadersW, *pcchReaders, (WCHAR**) &mszReaders, 0);
-		*pcchReaders = ConvertToUnicode(CP_UTF8, 0, (LPCSTR) *pMszReadersW, /*-1*/ *pcchReaders, (WCHAR**) &mszReaders, 0);
-                WLog_ERR(TAG,  "*pcchReaders=%d", *pcchReaders);
-		PCSC_AddMemoryBlock(hContext, mszReaders);
-		PCSC_SCardFreeMemory_Internal(hContext, *pMszReadersW);
-	}
-
-	free(mszGroupsW);
-
-	if (!PCSC_UnlockCardContext(hContext))
-		return SCARD_E_INVALID_HANDLE;
-
-	if (nullCardContext)
-	{
-		status = PCSC_SCardReleaseContext(hContext);
-	}
-
-	return status;
-#else
 	LPSTR mszGroupsA = NULL;
 	LPSTR mszReadersA = NULL;
 	LPSTR* pMszReadersA = &mszReadersA;
@@ -1349,7 +1290,6 @@ WINSCARDAPI LONG WINAPI PCSC_SCardListReadersW(SCARDCONTEXT hContext,
 	}
 
 	return status;
-#endif
 }
 
 WINSCARDAPI LONG WINAPI PCSC_SCardListCardsA(SCARDCONTEXT hContext,
@@ -1709,9 +1649,6 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChange_Internal(SCARDCONTEXT hContext
 		rgReaderStates[i].dwCurrentState = states[j].dwCurrentState;
 		rgReaderStates[i].cbAtr = states[j].cbAtr;
 		CopyMemory(&(rgReaderStates[i].rgbAtr), &(states[j].rgbAtr), PCSC_MAX_ATR_SIZE);
-#ifdef FROM_MASTER
-		rgReaderStates[i].dwEventState = states[j].dwEventState;
-#else
 		dwEventState = states[j].dwEventState & ~SCARD_STATE_CHANGED;
 
 		if (dwEventState != rgReaderStates[i].dwCurrentState)
@@ -1733,18 +1670,15 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChange_Internal(SCARDCONTEXT hContext
 
 		if (rgReaderStates[i].dwCurrentState & SCARD_STATE_IGNORE)
 			rgReaderStates[i].dwEventState = SCARD_STATE_IGNORE;
-#endif
 	}
 
 	free(map);
 	free(states);
 
-#ifndef FROM_MASTER
 	if ((status == SCARD_S_SUCCESS) && !stateChanged)
 		status = SCARD_E_TIMEOUT;
 	else if ((status == SCARD_E_TIMEOUT) && stateChanged)
 		return SCARD_S_SUCCESS;
-#endif
 
 	return status;
 }
@@ -2067,179 +2001,6 @@ WINSCARDAPI LONG WINAPI PCSC_SCardState(SCARDHANDLE hCard,
 	return status;
 }
 
-#ifdef FROM_MASTER
-/*
- * PCSC returns a string but Windows SCardStatus requires the return to be a multi string.
- * Therefore extra length checks and additional buffer allocation is required
- */
-WINSCARDAPI LONG WINAPI PCSC_SCardStatus_Internal(SCARDHANDLE hCard,
-        LPSTR mszReaderNames, LPDWORD pcchReaderLen, LPDWORD pdwState,
-        LPDWORD pdwProtocol, LPBYTE pbAtr, LPDWORD pcbAtrLen, BOOL unicode)
-{
-	PCSC_SCARDHANDLE* pCard = NULL;
-	SCARDCONTEXT hContext;
-	LONG status;
-	PCSC_DWORD pcsc_cchReaderLen = 0;
-	PCSC_DWORD pcsc_cbAtrLen = 0;
-	PCSC_DWORD pcsc_dwState = 0;
-	PCSC_DWORD pcsc_dwProtocol = 0;
-	BOOL allocateReader = FALSE;
-	BOOL allocateAtr = FALSE;
-	LPSTR readerNames = mszReaderNames;
-	LPBYTE atr = pbAtr;
-	LPSTR tReader = NULL;
-	LPBYTE tATR = NULL;
-
-	if (!g_PCSC.pfnSCardStatus)
-		return SCARD_E_NO_SERVICE;
-
-	pCard = PCSC_GetCardHandleData(hCard);
-
-	if (!pCard)
-		return SCARD_E_INVALID_VALUE;
-
-	PCSC_WaitForCardAccess(0, hCard, pCard->shared);
-	hContext = PCSC_GetCardContextFromHandle(hCard);
-
-	if (!hContext)
-		return SCARD_E_INVALID_VALUE;
-
-	status = (LONG) g_PCSC.pfnSCardStatus(hCard, NULL, &pcsc_cchReaderLen, NULL, NULL, NULL,
-	                                      &pcsc_cbAtrLen);
-
-	if (status != STATUS_SUCCESS)
-		return PCSC_MapErrorCodeToWinSCard(status);
-
-	pcsc_cchReaderLen++;
-
-	if (unicode)
-		pcsc_cchReaderLen *= 2;
-
-	if (pcchReaderLen)
-	{
-		if (*pcchReaderLen == SCARD_AUTOALLOCATE)
-			allocateReader = TRUE;
-		else if (mszReaderNames && (*pcchReaderLen < pcsc_cchReaderLen))
-			return SCARD_E_INSUFFICIENT_BUFFER;
-		else
-			pcsc_cchReaderLen = *pcchReaderLen;
-	}
-
-	if (pcbAtrLen)
-	{
-		if (*pcbAtrLen == SCARD_AUTOALLOCATE)
-			allocateAtr = TRUE;
-		else if (pbAtr && (*pcbAtrLen < pcsc_cbAtrLen))
-			return SCARD_E_INSUFFICIENT_BUFFER;
-		else
-			pcsc_cbAtrLen = *pcbAtrLen;
-	}
-
-	if (allocateReader && pcsc_cchReaderLen > 0 && mszReaderNames)
-	{
-#ifdef __MACOSX__
-
-		/**
-		     * Workaround for SCardStatus Bug in MAC OS X Yosemite
-		     */
-		if (OSXVersion == 0x10100000)
-			pcsc_cchReaderLen++;
-
-#endif
-		tReader = calloc(1, pcsc_cchReaderLen);
-
-		if (!tReader)
-		{
-			status = ERROR_NOT_ENOUGH_MEMORY;
-			goto out_fail;
-		}
-
-		readerNames = tReader;
-	}
-
-	if (allocateAtr && pcsc_cbAtrLen > 0 && pbAtr)
-	{
-		tATR = calloc(1, pcsc_cbAtrLen);
-
-		if (!tATR)
-		{
-			status = ERROR_NOT_ENOUGH_MEMORY;
-			goto out_fail;
-		}
-
-		atr = tATR;
-	}
-
-	status = (LONG) g_PCSC.pfnSCardStatus(hCard, readerNames, &pcsc_cchReaderLen, &pcsc_dwState,
-	                                      &pcsc_dwProtocol, atr,
-	                                      &pcsc_cbAtrLen);
-
-	if (status != STATUS_SUCCESS)
-		goto out_fail;
-
-	if (tATR)
-	{
-		PCSC_AddMemoryBlock(hContext, tATR);
-		*(LPBYTE*)pbAtr = tATR;
-	}
-
-	if (tReader)
-	{
-		if (unicode)
-		{
-			LPSTR mszReaderNamesW = NULL;
-			int pcsc_cchReaderLenW = 0;
-			pcsc_cchReaderLenW = ConvertToUnicode(CP_UTF8, 0, tReader, *pcchReaderLen,
-			                                      (WCHAR**) &mszReaderNamesW, 0);
-
-			if (pcsc_cchReaderLenW <= 0 || mszReaderNamesW == NULL)
-			{
-				status = ERROR_NOT_ENOUGH_MEMORY;
-				goto out_fail;
-			}
-
-			readerNames = mszReaderNamesW;
-			free(tReader);
-			PCSC_AddMemoryBlock(hContext, mszReaderNamesW);
-			*(LPSTR*) mszReaderNames = mszReaderNamesW;
-		}
-		else
-		{
-			PCSC_AddMemoryBlock(hContext, tReader);
-			*(LPSTR*) mszReaderNames = tReader;
-		}
-	}
-
-	pcsc_dwState &= 0xFFFF;
-
-	if (pdwState)
-		*pdwState = PCSC_ConvertCardStateToWinSCard((DWORD) pcsc_dwState, status);
-
-	if (pdwProtocol)
-		*pdwProtocol = PCSC_ConvertProtocolsToWinSCard((DWORD) pcsc_dwProtocol);
-
-	if (pcbAtrLen)
-		*pcbAtrLen = (DWORD) pcsc_cbAtrLen;
-
-	if (pcchReaderLen)
-	{
-		if (unicode)
-			*pcchReaderLen = (pcsc_cchReaderLen + 1) * 2;
-		else
-			*pcchReaderLen = pcsc_cchReaderLen + 1;
-	}
-
-	/* Make sure the last byte is set */
-	if (readerNames)
-		readerNames[pcsc_cchReaderLen] = '\0';
-
-	return status;
-out_fail:
-	free(tReader);
-	free(tATR);
-	return status;
-}
-#else
 WINSCARDAPI LONG WINAPI PCSC_SCardStatus_Internal(SCARDHANDLE hCard,
         LPSTR mszReaderNames, LPDWORD pcchReaderLen, LPDWORD pdwState,
         LPDWORD pdwProtocol, LPBYTE pbAtr, LPDWORD pcbAtrLen)
@@ -2377,31 +2138,21 @@ WINSCARDAPI LONG WINAPI PCSC_SCardStatus_Internal(SCARDHANDLE hCard,
 	*pcbAtrLen = (DWORD) pcsc_cbAtrLen;
 	return status;
 }
-#endif
 
 WINSCARDAPI LONG WINAPI PCSC_SCardStatusA(SCARDHANDLE hCard,
         LPSTR mszReaderNames, LPDWORD pcchReaderLen, LPDWORD pdwState,
         LPDWORD pdwProtocol, LPBYTE pbAtr, LPDWORD pcbAtrLen)
 {
-#ifdef FROM_MASTER
-	return PCSC_SCardStatus_Internal(hCard, mszReaderNames, pcchReaderLen, pdwState, pdwProtocol,
-	                                 pbAtr, pcbAtrLen, FALSE);
-#else
 	LONG status = SCARD_S_SUCCESS;
 	status = PCSC_SCardStatus_Internal(hCard, mszReaderNames, pcchReaderLen, pdwState, pdwProtocol,
 	                                 pbAtr, pcbAtrLen);
 	return status;
-#endif
 }
 
 WINSCARDAPI LONG WINAPI PCSC_SCardStatusW(SCARDHANDLE hCard,
         LPWSTR mszReaderNames, LPDWORD pcchReaderLen, LPDWORD pdwState,
         LPDWORD pdwProtocol, LPBYTE pbAtr, LPDWORD pcbAtrLen)
 {
-#ifdef FROM_MASTER
-	return PCSC_SCardStatus_Internal(hCard, (LPSTR) mszReaderNames, pcchReaderLen, pdwState,
-	                                 pdwProtocol, pbAtr, pcbAtrLen, TRUE);
-#else
 	SCARDCONTEXT hContext = 0;
 	LPSTR mszReaderNamesA = NULL;
 	LONG status = SCARD_S_SUCCESS;
@@ -2426,7 +2177,6 @@ WINSCARDAPI LONG WINAPI PCSC_SCardStatusW(SCARDHANDLE hCard,
 	}
 
 	return status;
-#endif
 }
 
 WINSCARDAPI LONG WINAPI PCSC_SCardTransmit(SCARDHANDLE hCard,

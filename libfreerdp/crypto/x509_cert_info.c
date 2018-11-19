@@ -184,7 +184,7 @@ fail:
 }
 
 
-typedef X509_NAME* (* get_field_pr)(X509* x509);
+typedef X509_NAME* (* get_field_pr)(const X509* x509);
 static x509_cert_info_t* cert_info_field(X509* x509, get_field_pr get_field, const char* operation)
 {
 	x509_cert_info_t* result;
@@ -254,7 +254,7 @@ static char * cert_info_get_othername(X509* x509, ASN1_OBJECT * type_id, extract
                 if (name)
                 {
                         const char *  type = "";
-                        if ((0 <= name->type) && (name->type < countof(general_name_types))){
+                        if ((0 <= name->type) && (name->type < ARRAYSIZE(general_name_types))){
                                 type = general_name_types[name->type];
                         }
                         WLog_DBG(TAG, "name[%d] =  %s (%d)",i, type, name->type);
@@ -316,7 +316,7 @@ static char * cert_info_get_email(X509* x509)
                 if (name)
                 {
                         const char *  type = "";
-                        if ((0 <= name->type) && (name->type < countof(general_name_types))){
+                        if ((0 <= name->type) && (name->type < ARRAYSIZE(general_name_types))){
                                 type = general_name_types[name->type];
                         }
                         WLog_DBG(TAG, "name[%d] =  %s (%d)",i, type, name->type);
